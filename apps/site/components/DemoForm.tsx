@@ -4,11 +4,13 @@ import { useState } from "react";
 import { CONTACT_EMAIL, DEMO_FORM_ENDPOINT } from "@/lib/config";
 
 type Status = "idle" | "sending" | "sent" | "error";
+type FieldErrors = Record<string, string>;
 
 const CHANNELS = ["Phone", "WhatsApp", "SMS", "Email", "Instagram"];
 
 export default function DemoForm() {
   const [status, setStatus] = useState<Status>("idle");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,7 +30,7 @@ export default function DemoForm() {
       source: "landing",
     };
 
-    // No endpoint configured yet: hand off to the visitor's email client so no lead is lost.
+    // No endpoint configured: hand off to the visitor's email client so no lead is lost.
     if (!DEMO_FORM_ENDPOINT) {
       const body = Object.entries(data)
         .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
@@ -40,18 +42,31 @@ export default function DemoForm() {
       return;
     }
 
-    // Production endpoint: Formspree (https://formspree.io/f/<form id>), set via NEXT_PUBLIC_DEMO_FORM_ENDPOINT.
-    // TODO(verify): against Formspree's docs, confirm JSON posts with Accept: application/json return JSON
-    // (not a redirect), whether its spam fields (_gotcha, _subject) are worth adding, and whether the
-    // hello@ address must be verified before submissions are delivered.
+    // Formspree: a JSON post with Accept: application/json gets a JSON reply instead of a redirect.
+    // `email` becomes the reply-to address and `_subject` the email subject.
+    // TODO(verify): the error body shape ({ errors: [{ field, message }] }) against Formspree's AJAX docs;
+    // anything unexpected falls back to the generic message below.
     setStatus("sending");
+    setFieldErrors({});
     try {
       const res = await fetch(DEMO_FORM_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          channels: data.channels.join(", "),
+          _subject: `Demo request: ${data.dealership || data.name}`,
+        }),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const errs: FieldErrors = {};
+        for (const err of body?.errors ?? []) {
+          if (err?.field && err?.message) errs[String(err.field)] = String(err.message);
+        }
+        setFieldErrors(errs);
+        throw new Error(String(res.status));
+      }
       setStatus("sent");
       form.reset();
     } catch {
@@ -62,7 +77,7 @@ export default function DemoForm() {
   if (status === "sent") {
     return (
       <div role="status" className="rounded-card border border-line bg-surface p-8">
-        <p className="font-display text-2xl font-bold">Thanks. We&apos;ll be in touch within one business day.</p>
+        <p className="font-display text-h3">Thanks. We&apos;ll be in touch within one business day.</p>
         <p className="mt-3 text-fg-2">
           We&apos;ll set up a call to look at how your calls and messages come in today, then show Ondra answering them.
         </p>
@@ -152,6 +167,14 @@ export default function DemoForm() {
       </div>
       {status === "error" && (
         <p role="alert" className="mt-4 text-sm text-vip">
+          {Object.keys(fieldErrors).length > 0 && (
+            <span className="mb-1 block">
+              {Object.entries(fieldErrors)
+                .map(([f, m]) => `${f}: ${m}`)
+                .join(". ")}
+              .
+            </span>
+          )}
           That didn&apos;t send. Email us at{" "}
           <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
