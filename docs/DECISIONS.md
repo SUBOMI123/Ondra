@@ -78,3 +78,21 @@
 **Decision:** The walk frames ship with the BMW, Urus and Audi as well as the Mustang. The site footer credits all four models and their licences.
 **Why:** The founder's call, made knowing the licence terms. The cars make the floor feel real, and swapping them means a full re-render.
 **Risk (accepted):** The Urus (CC BY-NC) and BMW (author forbids commercial use) are used commercially against their licences, and the Audi's share-alike terms may reach our modified model. The likely consequence is a takedown request to the host, and then the frames have to be swapped quickly. Mitigation: ask both authors for permission. If either refuses, re-render with the Mustang or a licensed model (keep `cars.py` able to do that).
+
+## 2026-11-25: Hosting is Cloudflare plus managed services, no VPS to start
+
+**Decision:**
+- Cloudflare runs DNS, the WAF, the marketing site (Pages), the dashboard (Workers via OpenNext, with Vercel as the fallback) and file storage (R2).
+- A managed Postgres (Neon or Supabase) holds the data.
+- A container host in a US region (Fly.io or Render) runs `apps/api` and `apps/worker`.
+- LiveKit Cloud runs SIP and the voice agent.
+- The demo form posts to Formspree, which emails hello@useondra.com.
+
+Full detail is in `docs/ARCHITECTURE.md`.
+
+**Why:** The founder prefers Cloudflare. It fits the static and edge parts well, but not long-running Python services, real-time audio, or Postgres with RLS and pgvector. Managed services keep backups, patching and uptime off a small team while we hold dealers' customer data and call recordings.
+
+**Alternatives:**
+- One VPS (Hetzner) with Docker Compose: cheapest, but we would run all the operations ourselves.
+- AWS or GCP throughout: right for later compliance needs, too heavy now.
+- Everything on Cloudflare: its Python Workers can't run our FastAPI stack, and D1 has no RLS or pgvector.

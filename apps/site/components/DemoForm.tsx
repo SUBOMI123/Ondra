@@ -40,6 +40,10 @@ export default function DemoForm() {
       return;
     }
 
+    // Production endpoint: Formspree (https://formspree.io/f/<form id>), set via NEXT_PUBLIC_DEMO_FORM_ENDPOINT.
+    // TODO(verify): against Formspree's docs, confirm JSON posts with Accept: application/json return JSON
+    // (not a redirect), whether its spam fields (_gotcha, _subject) are worth adding, and whether the
+    // hello@ address must be verified before submissions are delivered.
     setStatus("sending");
     try {
       const res = await fetch(DEMO_FORM_ENDPOINT, {
