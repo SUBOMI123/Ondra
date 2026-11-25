@@ -8,6 +8,6 @@
 
 ## 2026-11-25: The 3D walk-through is a section, not the entry gate
 
-**Decision:** The page opens with a normal hero (headline, sample WhatsApp conversation, Book a demo). The walk-through sits further down, 480vh long, lazy-loaded.
+**Decision:** The page opens with a normal hero (headline, sample WhatsApp conversation, Book a demo). The walk-through comes straight after it, because it continues the hero's "fully staffed" line. It is 480vh long and lazy-loaded.
 **Why:** The mockup put 900vh of scroll-driven 3D and 600KB of inline three.js in front of the value proposition and the call to action. Dealers mostly open links on their phones from WhatsApp, and they need to see what it is and how to book in the first screen. The walk-through is still the memorable part, so it stays.
 **Alternatives:** Keep the mockup's full-screen intro (worse load time, CTA nine screens down, weak on mobile). Drop the 3D entirely (loses the concept that makes the page distinctive).

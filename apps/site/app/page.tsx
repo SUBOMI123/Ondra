@@ -8,10 +8,14 @@ export default function Home() {
       <Nav />
       <main>
         <Hero />
+        {/* The walk-through continues the hero's "fully staffed" line, so it comes straight after it.
+            Wrapper keeps #tour as a valid anchor when the 3D is skipped (reduced motion, no WebGL). */}
+        <div id="tour">
+          <Walkthrough />
+        </div>
         <Channels />
-        <Problem />
-        <Walkthrough />
         <Agents />
+        <Problem />
         <WhatsApp />
         <Vip />
         <OwnerBriefing />
@@ -104,7 +108,7 @@ function Hero() {
             <a href="#demo" className="btn btn-primary">
               Book a demo
             </a>
-            <a href="#how" className="btn btn-line">
+            <a href="#tour" className="btn btn-line">
               See how it works
             </a>
           </div>
