@@ -38,12 +38,12 @@ import {
 const data = {
   navMain: [
     { title: "Today", url: "/", icon: IconLayoutDashboard },
-    { title: "Inbox", url: "#", icon: IconMessages, soon: "Step 3" },
+    { title: "Inbox", url: "/inbox", icon: IconMessages, badge: "6" },
     { title: "Calls", url: "#", icon: IconPhone, soon: "Step 5" },
     { title: "Calendar", url: "#", icon: IconCalendarEvent, soon: "Step 4" },
     { title: "Clients", url: "/clients", icon: IconUsers },
-    { title: "Deals", url: "#", icon: IconLayoutKanban, soon: "Step 3" },
-    { title: "Tasks", url: "#", icon: IconChecklist, soon: "Step 3" },
+    { title: "Deals", url: "/deals", icon: IconLayoutKanban },
+    { title: "Tasks", url: "/tasks", icon: IconChecklist, badge: "2" },
     { title: "Inventory", url: "/inventory", icon: IconCar },
   ],
   navSecondary: [
