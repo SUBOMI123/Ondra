@@ -207,6 +207,22 @@ def import_gltf(path):
     return [o for o in bpy.data.objects if o not in before]
 
 
+def import_single(path):
+    """Import a glTF but keep only the asset nearest the origin: some Poly Haven files ship several variants side by side."""
+    objs = import_gltf(path)
+    tops = [o for o in objs if o.parent is None]
+    if len(tops) > 1:
+        keep = min(tops, key=lambda o: Vector((o.location.x, o.location.y)).length)
+        for t in tops:
+            if t is not keep:
+                for c in [t, *t.children_recursive]:
+                    if c in objs:
+                        objs.remove(c)
+                    bpy.data.objects.remove(c, do_unlink=True)
+        keep.location = (0, 0, keep.location.z)
+    return objs
+
+
 def group(objs, name, loc, rot_z=0.0, scale=1.0):
     root = empty(name)
     for o in objs:
@@ -299,7 +315,7 @@ wl.new(env.outputs["Color"], wn["Background"].inputs["Color"])
 wn["Background"].inputs["Strength"].default_value = 0.14
 
 # ---------------------------------------------------------------- the hall
-HALL_X = 8.0
+HALL_X = 6.4
 Y0, Y1 = 3.0, -40.0
 H = 5.0
 L = Y0 - Y1
@@ -469,6 +485,20 @@ for name, x, y, side, has_headset, mons in STATIONS:
         headset(name, fig)
     pendant(x - side * 0.6, y, light=True)
 
+# Customer chairs across each desk, empty: waiting for buyers.
+def furniture(mid, name, loc, rot_z, scale=1.0):
+    return group(import_single(f"{A}/models/{mid}/{mid}.gltf"), name, loc, rot_z, scale)
+
+
+for name, x, y, side, _h, _m in STATIONS:
+    for k, dy in enumerate((-0.42, 0.42)):
+        furniture("modern_arm_chair_01", f"{name} visitor {k}", (x + side * 1.05, y + dy, 0), math.radians(90 if side < 0 else -90))
+
+# Lounges along the walls between the desk pairs
+for (x, y, rz) in [(-5.75, -17.6, 90), (5.75, -18.1, -90), (-5.75, -22.6, 90), (5.75, -23.1, -90)]:
+    furniture("sofa_02", f"Sofa {x} {y}", (x, y, 0), math.radians(rz))
+    furniture("modern_coffee_table_01", f"Table {x} {y}", (x + (0.95 if x < 0 else -0.95), y, 0), 0.0)
+
 # Showroom pendants over the cars
 for (x, y) in [(-4.3, -5.2), (4.4, -3.8), (4.1, -10.2)]:
     pendant(x, y, z=3.0)
@@ -516,9 +546,9 @@ car("Car bronze", (4.1, -10.2, 0), math.radians(-158), "bronze")
 
 # ---------------------------------------------------------------- plants
 for i, (mid, x, y, sc) in enumerate(
-    [("pachira_aquatica_01", -7.0, -18.6, 1.5), ("potted_plant_02", 7.1, -12.6, 1.6), ("calathea_orbifolia_01", -7.1, -22.6, 2.2), ("potted_plant_02", 7.1, -27.8, 1.6), ("pachira_aquatica_01", -6.8, 1.6, 1.5)]
+    [("pachira_aquatica_01", -5.9, -12.4, 1.0), ("potted_plant_02", 5.95, -12.8, 1.6), ("calathea_orbifolia_01", -5.95, -27.6, 1.6), ("potted_plant_02", 5.95, -27.9, 1.6), ("pachira_aquatica_01", -5.8, 1.2, 1.0)]
 ):
-    objs = import_gltf(f"{A}/models/{mid}/{mid}.gltf")
+    objs = import_single(f"{A}/models/{mid}/{mid}.gltf")
     group(objs, f"Plant {i}", (x, y, 0), rot_z=i * 1.3, scale=sc)
 
 # ---------------------------------------------------------------- the owner's office (no agent: VIPs reach you)
@@ -596,6 +626,48 @@ camera("CAM establishing", (0.2, 3.0, 1.62), (0.0, -24.0, 1.2), 27)
 camera("CAM desk", (-1.35, -13.55, 1.52), (-3.85, -15.05, 1.0), 36, focus=2.1, fstop=3.2)
 camera("CAM office", (-0.35, -29.2, 1.5), (0.05, -34.9, 0.95), 35, focus=5.4, fstop=4.0)
 scene.camera = bpy.data.objects["CAM establishing"]
+
+# ---------------------------------------------------------------- the walk (one continuous camera path)
+# Frame: (camera position, look-at point). Walks in from the entrance, turns to each pair of desks,
+# and ends at the owner's office door. Bezier keys give eased, motivated moves.
+WALK = [
+    (1, (0.0, 3.2, 1.62), (0.0, -24.0, 1.2)),
+    (32, (0.15, -5.5, 1.6), (0.0, -20.0, 1.2)),
+    (56, (0.55, -12.2, 1.58), (-3.5, -15.6, 1.05)),  # Reception, on the left
+    (74, (-0.35, -14.6, 1.58), (3.6, -16.4, 1.05)),  # WhatsApp, on the right
+    (92, (0.45, -17.4, 1.58), (-3.5, -20.6, 1.05)),  # Bookings
+    (108, (-0.35, -19.8, 1.58), (3.6, -21.4, 1.05)),  # Service
+    (124, (0.4, -22.6, 1.58), (-3.5, -25.6, 1.05)),  # Handoffs
+    (138, (-0.3, -24.6, 1.58), (3.6, -26.4, 1.05)),  # Follow-ups
+    (164, (0.05, -27.9, 1.56), (0.05, -34.9, 0.98)),  # the owner's office
+    (180, (0.05, -29.0, 1.55), (0.05, -34.9, 0.95)),
+]
+walk_target = empty("Walk target", WALK[0][2])
+wcd = bpy.data.cameras.new("CAM walk")
+wcd.lens = 28
+wcd.sensor_width = 36
+wcd.clip_end = 120
+walk_cam = bpy.data.objects.new("CAM walk", wcd)
+link(walk_cam)
+tt = walk_cam.constraints.new("TRACK_TO")
+tt.target = walk_target
+tt.track_axis = "TRACK_NEGATIVE_Z"
+tt.up_axis = "UP_Y"
+for f, loc, tgt in WALK:
+    walk_cam.location = loc
+    walk_cam.keyframe_insert("location", frame=f)
+    walk_target.location = tgt
+    walk_target.keyframe_insert("location", frame=f)
+# New keys default to Bezier with auto-clamped handles: eased moves, no overshoot.
+scene.frame_start = 1
+scene.frame_end = WALK[-1][0]
+
+# Label anchors: points above each agent's head (and the VIP phone) that the web player pins labels to.
+ANCHORS = {}
+for name, x, y, side, _h, _m in STATIONS:
+    ANCHORS[name] = (x - side * 0.7, y, 1.62)
+ANCHORS["Your office"] = (0.58, OY - 0.4 + 0.155, 1.05)
+scene["ondra_anchors"] = {k: list(v) for k, v in ANCHORS.items()}
 
 for o in bpy.data.objects:
     if o.type == "LIGHT":

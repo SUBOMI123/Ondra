@@ -31,7 +31,7 @@ def save(url, rel):
 
 
 TEXTURES = ["concrete_floor_02", "black_walnut_veneer_01", "fabric_leather_02"]
-MODELS = ["potted_plant_02", "pachira_aquatica_01", "desk_lamp_arm_01", "calathea_orbifolia_01"]
+MODELS = ["potted_plant_02", "pachira_aquatica_01", "desk_lamp_arm_01", "calathea_orbifolia_01", "modern_arm_chair_01", "sofa_02", "modern_coffee_table_01"]
 
 for tid in TEXTURES:
     f = get(f"https://api.polyhaven.com/files/{tid}")
