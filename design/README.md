@@ -20,16 +20,17 @@ Open either file directly in a browser. `landing.html` embeds three.js (r150), s
 - **The owner's office:** the one room with a red label, because VIPs never reach the AI.
 - **Close:** "None of them are people. All of them are on your side."
 
-## Visual language
+## Visual language (Night Shift, November 2026)
+
+Superseded the original paper, ink and amber look; the mockups keep their layouts but not their colours. Full tokens and rules are in the `ondra-ui` skill (`.claude/skills/ondra-ui/references/tokens.md`).
 
 | Token | Value | Use |
 |---|---|---|
-| Ink | `#16171B` / `#17181C` | Text, sidebar |
-| Paper | `#F2F2EF` / `#F1EFEA` | App and page backgrounds |
-| Sodium amber | `#F2A33A` | Primary actions, active states |
-| AI blue | `#1E3F7A` on `#EAF1FF` | Anything the AI said or did |
-| VIP red | `#A3191E` on `#FFE9EA` | VIPs and overdue items only |
-| Type | Archivo (Google Fonts), width 125 for headings, 100 for body | |
+| Night / bg / surface | `#06080B` / `#0A0D12` / `#121822` | Grounds, darkest to lightest |
+| Text | `#EAF0F7`, muted `#8E9CB0` | |
+| Ondra blue | `#2F6CF6` fill, `#7FA9FF` as text | The brand, and anything the AI did |
+| VIP red | `#FF7A7A` on `#3A1517` | VIPs and overdue only |
+| Type | Funnel Display (headings), Funnel Sans (text), JetBrains Mono (data) | Free, OFL, self-hosted |
 
 ## Known gaps
 

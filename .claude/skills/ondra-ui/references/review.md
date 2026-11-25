@@ -4,7 +4,7 @@ Screenshot at 390, 768 and 1440 wide (Playwright is preinstalled: `require('play
 
 ## 1. Product rules (P0 if any fail)
 
-- [ ] VIP surfaces contain no AI-blue element: `[data-vip] [data-slot^="ai-"]` matches nothing.
+- [ ] VIP surfaces contain no Ondra-blue element: `[data-vip] [data-slot^="ai-"]` matches nothing.
 - [ ] Every AI-authored item is labelled in words, not only coloured.
 - [ ] Red appears only on VIP or overdue elements.
 - [ ] No sample content has the AI committing to a price, discount or delivery date.
@@ -21,7 +21,7 @@ Screenshot at 390, 768 and 1440 wide (Playwright is preinstalled: `require('play
 
 ## 3. Accessibility and contrast
 
-- [ ] Body text 4.5:1, large text and icons and focus rings 3:1. Known traps: amber on Paper (1.8:1), white on amber (2.1:1), the old muted grey (4.4:1).
+- [ ] Body text 4.5:1, large text and icons and focus rings 3:1. Known traps: the blue fill colour as small text on dark (use `brand-text`), dark text on blue fills (use white), `muted-foreground` on `muted` surfaces.
 - [ ] Visible focus on every interactive element, keyboard order matches visual order, Escape closes overlays.
 - [ ] Touch targets 44px (24px absolute minimum).
 - [ ] Images have alt text or `alt=""` when decorative; icon-only buttons have `aria-label`.

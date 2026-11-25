@@ -11,12 +11,12 @@ Applies to `apps/web`. The reference screens are in `design/mockups/app.html` (T
 
 ## Layout and density
 
-- Ink sidebar (the mockup's dark rail), Paper canvas, white cards with a border (no shadow).
+- Night sidebar (`#06080B`), light canvas (`#F4F7FA`), white cards with a border (no shadow). A dark theme for the dashboard reuses the marketing tokens.
 - Fixed type scale: 12, 14, 16, 20, 24, 30px. `font-display` (wdth 125) only for page titles and KPI values.
 - Dense lists at 36px rows, default 44px. Touch targets 44px on tablet breakpoints.
 - Group by proximity before adding containers. Never nest cards.
 - Detail opens in a Sheet or a resizable side pane, not a modal. Modals only for short blocking decisions.
-- Selected list row: square row, 3px amber bar on the left edge (allowed because the row is square), `accent` background.
+- Selected list row: square row, 3px Ondra-blue bar on the left edge (allowed because the row is square), `accent` background.
 
 ## States (every component ships all of them)
 
@@ -35,7 +35,7 @@ Tabler only (`@tabler/icons-react`), imported through one file, `apps/web/lib/ic
 | 20 | Sidebar, default buttons, list-row channel glyphs | 1.5 |
 | 24 | Page headers; empty states use 40 at stroke 1.25 | 1.5 |
 
-Map: phone `IconPhone` (Incoming/Outgoing/X for direction and missed), WhatsApp `IconBrandWhatsapp`, text `IconMessage`, email `IconMail`, Instagram `IconBrandInstagram`, AI `IconSparkles` (always with AI blue and the word "Ondra"), VIP `IconCrownFilled` (VIP red; not a star, which reads as favourite), overdue `IconClockExclamation`. Never `IconRobot`. Icons take `currentColor`; decorative ones get `aria-hidden`; icon-only buttons get `aria-label`.
+Map: phone `IconPhone` (Incoming/Outgoing/X for direction and missed), WhatsApp `IconBrandWhatsapp`, text `IconMessage`, email `IconMail`, Instagram `IconBrandInstagram`, AI `IconSparkles` (always with Ondra blue and the word "Ondra"), VIP `IconCrownFilled` (VIP red; not a star, which reads as favourite), overdue `IconClockExclamation`. Never `IconRobot`. Icons take `currentColor`; decorative ones get `aria-hidden`; icon-only buttons get `aria-label`.
 
 ## Charts
 
@@ -44,11 +44,11 @@ shadcn Chart on Recharts 3 (`recharts@^3.11`; React 19 compatible). Not Tremor: 
 Colour carries one meaning only, who handled the work:
 | Series | Token | Notes |
 |---|---|---|
-| Ondra | `--chart-ai` `#5B8DEF` | AI labels and text use `#1E3F7A` |
-| Staff | `--chart-staff` `#F2A33A` fill with `#C27A12` edge | Amber fill alone fails 3:1 on white |
-| Owner ("you") | `--chart-ink` `#16171B` | |
+| Ondra | `--chart-ai` `#2F6CF6` | AI labels and text use `#1F4FD1` |
+| Staff | `--chart-staff` `#8E9CB0` | Neutral slate: people are not a brand colour |
+| Owner ("you") | `--chart-ink` `#0C1220` | |
 | Other / last period | `--chart-muted` `#8A8D95`, dashed for comparisons | Drawn behind |
-Every other breakdown (channels, stages, makes) is one ink hue on `--chart-track` `#ECEAE5`; identity comes from icons and labels. VIP red is never a series. Bad deltas are muted with a down arrow, never red. At most 4 series; group the rest as Other. No donuts; use a stacked CategoryBar.
+Every other breakdown (channels, stages, makes) is one night hue on `--chart-track` `#E9EEF4`; identity comes from icons and labels. VIP red is never a series. Bad deltas are muted with a down arrow, never red. At most 4 series; group the rest as Other. No donuts; use a stacked CategoryBar.
 
 Marks: bars start at 0, 4px top radius, `maxBarSize={32}`; lines 2px monotone, no dots, `activeDot r=4`; area fill at 15%, no gradient; horizontal gridlines only; axis text 12px muted, tabular, 3-5 ticks. Keep `accessibilityLayer` on, add an `aria-label` summary sentence and a visually hidden table. `isAnimationActive="auto"`, 300ms, off on refresh. Parent must have a fixed height (a 0-height parent renders nothing; charts in hidden tabs mount at 0 width). Live data is shown as counts and badges, not charts.
 
@@ -56,7 +56,7 @@ Wrap every chart and KPI in a `ChartCard` that handles loading (skeleton at fina
 
 ## KPI tiles
 
-One hero tile (Ink background, 2fr) plus three standard tiles; two columns under 1000px. Anatomy: plain-words label (13px muted), value (`font-display`, 600, 34px or 44px for the hero, tabular), one context line, optional delta chip (`▲ 12% vs last week`, ok-green when good, muted when flat or bad; "good" direction is per metric) and optional 32px sparkline (ink, 1.5px, at least 7 points). Attribute in words: "19 by Ondra, 4 by staff", with "by Ondra" in AI blue.
+One hero tile (Ink background, 2fr) plus three standard tiles; two columns under 1000px. Anatomy: plain-words label (13px muted), value (`font-display`, 600, 34px or 44px for the hero, tabular), one context line, optional delta chip (`▲ 12% vs last week`, ok-green when good, muted when flat or bad; "good" direction is per metric) and optional 32px sparkline (ink, 1.5px, at least 7 points). Attribute in words: "19 by Ondra, 4 by staff", with "by Ondra" in Ondra blue.
 
 ## Formatting
 

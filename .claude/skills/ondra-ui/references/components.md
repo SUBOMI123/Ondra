@@ -16,25 +16,24 @@ The component base is **shadcn/ui on Radix**, styled with Ondra tokens. Componen
 shadcn reads raw variables on `:root`, mapped to utilities with `@theme inline`. Ondra values:
 
 ```css
-:root {
+:root {  /* dashboard light theme; the marketing site is Night Shift dark (tokens.md) */
   --radius: 0.75rem;
-  --background: #F1EFEA;  --foreground: #16171B;
-  --card: #FFFFFF;        --card-foreground: #16171B;
-  --popover: #FFFFFF;     --popover-foreground: #16171B;
-  --primary: #F2A33A;     --primary-foreground: #1A1206;   /* ink text on amber, never white */
-  --secondary: #ECEAE5;   --secondary-foreground: #16171B;
-  --muted: #ECEAE5;       --muted-foreground: #5F626A;
-  --accent: #FFF3E0;      --accent-foreground: #7A4A08;    /* hover/selected rows */
-  --destructive: #16171B; --destructive-foreground: #FFFFFF; /* Ink, not red: red is VIP-only */
-  --border: #E2E0DA;  --input: #DDD9D1;  --ring: #16171B;
-  --ai: #1E3F7A;  --ai-subtle: #EAF1FF;  --ai-border: #C9DAF8;  --ai-mark: #5B8DEF;
-  --vip: #A3191E; --vip-subtle: #FFE9EA;
+  --background: #F4F7FA;  --foreground: #0C1220;
+  --card: #FFFFFF;        --card-foreground: #0C1220;
+  --popover: #FFFFFF;     --popover-foreground: #0C1220;
+  --primary: #0C1220;     --primary-foreground: #FFFFFF;   /* neutral: blue is reserved for Ondra/AI in the product */
+  --secondary: #E9EEF4;   --secondary-foreground: #0C1220;
+  --muted: #E9EEF4;       --muted-foreground: #4E5A6B;
+  --accent: #EEF3FF;      --accent-foreground: #1F3E99;    /* hover/selected rows */
+  --destructive: #0C1220; --destructive-foreground: #FFFFFF; /* night, not red: red is VIP-only */
+  --border: #E1E6EE;  --input: #D5DCE6;  --ring: #2F6CF6;
+  --ai: #1F4FD1;  --ai-subtle: #E8EEFF;  --ai-border: #C8D5FF;  --ai-mark: #2F6CF6;   /* Ondra blue */
+  --vip: #B4122B; --vip-subtle: #FDE8EB;
   --success: #1F6B45; --success-subtle: #E6F4EC;
-  --sodium-text: #7A4A08;  /* the only amber allowed as text on light surfaces */
-  --sidebar: #17181C; --sidebar-foreground: #E4E5EA;
-  --sidebar-primary: #F2A33A; --sidebar-primary-foreground: #1A1206;
-  --sidebar-accent: #24262C; --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #2A2C33; --sidebar-ring: #F2A33A;   /* amber ring is fine on Ink */
+  --sidebar: #06080B; --sidebar-foreground: #EAF0F7;
+  --sidebar-primary: #2F6CF6; --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #121822; --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #222C3A; --sidebar-ring: #4C86FF;
 }
 @theme inline {
   --color-background: var(--background); --color-foreground: var(--foreground);
@@ -43,7 +42,7 @@ shadcn reads raw variables on `:root`, mapped to utilities with `@theme inline`.
   --color-vip: var(--vip); --color-vip-subtle: var(--vip-subtle);
 }
 ```
-Two deliberate departures from shadcn defaults: `destructive` is Ink (red belongs to VIPs), and `ring` is Ink (amber fails 3:1 on Paper).
+Two deliberate departures from shadcn defaults: `primary` and `destructive` are neutral night (blue belongs to Ondra and the AI, red to VIPs), and the sidebar is the night rail from the marketing brand.
 
 ## Conventions (follow them in our own components too)
 
@@ -58,7 +57,7 @@ Two deliberate departures from shadcn defaults: `destructive` is Ink (red belong
 
 | Need | Use | Notes |
 |---|---|---|
-| Buttons | shadcn Button | Primary = amber fill, ink text. One primary per view |
+| Buttons | shadcn Button | Primary = night fill, white text (white fill on dark). Never blue in the product. One primary per view |
 | Side detail (conversation, client) | Sheet or a resizable pane (`react-resizable-panels`) | Not a modal |
 | Confirm a destructive action | Prefer Undo in a toast; AlertDialog only when undo is impossible | Name the object and the consequence |
 | Command palette (⌘K) | shadcn Command (cmdk 1.1) + Dialog | Bind ⌘K yourself. Server search: `shouldFilter={false}` with a loading row. VIP results never offer an AI reply |
@@ -90,7 +89,7 @@ Install through the shadcn registry: `npx shadcn@latest add @magicui/<name>`. De
 - **Marquee** (CSS only) for a logo or channel strip, once we have real logos.
 - **NumberTicker** for proof stats, once we have real numbers. Patch it first: it renders `0` in static HTML and hardcodes `en-US` and colours. Render the final value, animate only after it is in view.
 - **AnimatedBeam** for "every channel flows into one inbox".
-- **BorderBeam** in sodium on a single highlighted card, rendered not at all under reduced motion.
+- **BorderBeam** in Ondra blue on a single highlighted card, rendered not at all under reduced motion.
 - **DotPattern / GridPattern** at `text-ink/10` as a quiet architectural backdrop.
 - **Safari / iPhone** frames around real dashboard screenshots.
 - **BlurFade** at most once per section, never on the hero headline or the hero image (it starts invisible).

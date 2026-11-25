@@ -125,7 +125,7 @@ export default function FloorTour() {
 
 function StaticTour() {
   return (
-    <section id="walkthrough" aria-label="Walk the dealership floor" className="on-dark bg-ink py-20 text-white sm:py-28">
+    <section id="walkthrough" aria-label="Walk the dealership floor" className="on-dark bg-night py-20 text-white sm:py-28">
       <div className="mx-auto w-full max-w-(--container-page) px-4 sm:px-7">
         <h2 className="font-display text-h2 max-w-[14ch]">Walk in. Every desk is staffed.</h2>
         <div className="mt-12 space-y-16">
@@ -347,7 +347,7 @@ function Cinematic() {
       ref={sectionRef}
       id="walkthrough"
       aria-label="Walk the dealership floor"
-      className="on-dark relative bg-ink text-white"
+      className="on-dark relative bg-night text-white"
       style={{ height: "560svh" }}
     >
       <div className="sticky top-0 h-svh overflow-hidden">
@@ -358,7 +358,7 @@ function Cinematic() {
           className="absolute inset-0 size-full"
         />
         {/* Scrim for legibility of captions, strongest at the bottom */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/85 via-ink/10 to-ink/30" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-t from-night/85 via-night/10 to-night/30" />
 
         {WALK_CAPTIONS.map((c, i) => (
           <div
@@ -392,7 +392,7 @@ function Cinematic() {
           <p className="text-small mt-4 text-white/60">Keep scrolling to walk the floor</p>
         </div>
 
-        <div ref={outroRef} className="absolute inset-0 flex items-center justify-center bg-ink/80 px-4 text-center opacity-0">
+        <div ref={outroRef} className="absolute inset-0 flex items-center justify-center bg-night/80 px-4 text-center opacity-0">
           <div>
             <p className="font-display mx-auto max-w-[15ch] text-[clamp(2.25rem,1.4rem+3.8vw,4.75rem)] font-extrabold leading-[0.98] tracking-[-0.02em]">
               None of them are people. All of them are on your side.
@@ -405,7 +405,7 @@ function Cinematic() {
 
         {/* Thin progress line: where you are on the floor */}
         <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[2px] bg-white/10">
-          <div ref={progressRef} className="h-full origin-left scale-x-0 bg-sodium" />
+          <div ref={progressRef} className="h-full origin-left scale-x-0 bg-brand" />
         </div>
       </div>
     </section>

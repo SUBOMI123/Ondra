@@ -59,7 +59,7 @@ function Lead({ children, className = "" }: { children: React.ReactNode; classNa
 function Logo({ className = "" }: { className?: string }) {
   return (
     <a href="#top" className={`font-display flex items-center gap-2.5 text-xl font-bold no-underline ${className}`}>
-      <i aria-hidden="true" className="block size-[11px] rounded-full bg-sodium" />
+      <i aria-hidden="true" className="block size-[11px] rounded-full bg-brand" />
       Ondra
     </a>
   );
@@ -103,31 +103,25 @@ function Nav() {
 
 function Hero() {
   return (
-    <section id="top" className="on-dark relative isolate flex min-h-[min(920px,100svh)] flex-col overflow-hidden bg-ink text-white">
-      {/* The showroom at dusk. Generated image, no badges or people. Replace with the pilot dealer's
-          showroom once we have written permission. */}
-      <img
-        src="/hero-showroom.jpg"
-        srcSet="/hero-showroom-960.jpg 960w, /hero-showroom.jpg 1536w"
-        sizes="100vw"
-        width={1536}
-        height={864}
-        alt=""
-        fetchPriority="high"
-        className="absolute inset-0 -z-20 size-full object-cover object-[68%_center] opacity-60 max-lg:object-[86%_center] max-lg:opacity-75 motion-safe:animate-settle"
-      />
-      {/* Ink scrim: dark where the words are, letting the lit showroom show on the right */}
+    <section id="top" className="on-dark relative isolate flex min-h-[min(920px,100svh)] flex-col overflow-hidden bg-night text-white">
+      {/* The first frame of the 3D walk, so the hero flows straight into the floor tour below. */}
+      <picture>
+        <source media="(max-aspect-ratio: 6/5)" srcSet="/walk-portrait/frame_0001.jpg" />
+        <img
+          src="/walk/frame_0001.jpg"
+          width={1600}
+          height={900}
+          alt=""
+          fetchPriority="high"
+          className="absolute inset-0 -z-20 size-full object-cover opacity-70 motion-safe:animate-settle"
+        />
+      </picture>
+      {/* Night scrim: dark where the words are, letting the lit floor show through */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-linear-to-r from-ink via-ink/80 to-ink/10 max-lg:bg-linear-to-t max-lg:via-ink/75 max-lg:to-ink/25"
+        className="absolute inset-0 -z-10 bg-linear-to-r from-night via-night/75 to-night/5 max-lg:bg-linear-to-t max-lg:via-night/70 max-lg:to-night/20"
       />
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-linear-to-t from-ink to-transparent" />
-
-      {/* Two desk labels over the lit cars, the same language as the walk-through */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
-        <HeroLabel at={["63%", "31%"]} delay={500} role="Voice agent" name="Reception" doing="Answering a call about a black G63" />
-        <HeroLabel at={["80%", "41%"]} delay={800} role="Messaging agent" name="WhatsApp" doing="Replying to a buyer in Lagos" />
-      </div>
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-linear-to-t from-night to-transparent" />
 
       <Wrap className="flex flex-1 flex-col justify-end pb-10 pt-36 sm:pb-14">
         <h1 className="font-display text-display max-w-[11ch]">Your dealership, fully staffed.</h1>
@@ -164,21 +158,6 @@ function Hero() {
   );
 }
 
-function HeroLabel({ at, delay, role, name, doing }: { at: [string, string]; delay: number; role: string; name: string; doing: string }) {
-  return (
-    <div className="absolute" style={{ left: at[0], top: at[1] }}>
-      <div className="floor-label motion-safe:animate-rise" style={{ animationDelay: `${delay}ms` }}>
-        <span className="role">
-          <i />
-          {role}
-        </span>
-        <b>{name}</b>
-        <span className="doing">{doing}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- inbox (the product) */
 
 type Row = {
@@ -205,7 +184,7 @@ function Tag({ kind, text }: Row["tag"]) {
     ai: "bg-ai-subtle text-ai",
     draft: "border border-dashed border-ai/40 text-ai",
     vip: "bg-vip-subtle text-vip",
-    team: "bg-muted text-ink-2",
+    team: "bg-muted text-fg-2",
   }[kind];
   return (
     <span className={`text-micro inline-flex items-center gap-1 rounded-pill px-2 py-0.5 font-medium ${cls}`}>
@@ -218,7 +197,7 @@ function Tag({ kind, text }: Row["tag"]) {
 function AiMessage({ children, meta }: { children: React.ReactNode; meta: string }) {
   return (
     <div data-slot="ai-bubble" className="ml-auto max-w-[78%]">
-      <div className="rounded-card rounded-tr-sm border border-ai/15 bg-ai-subtle px-4 py-3 text-ink">{children}</div>
+      <div className="rounded-card rounded-tr-sm border border-ai/15 bg-ai-subtle px-4 py-3 text-fg">{children}</div>
       <p className="text-micro mt-1.5 flex items-center justify-end gap-1 text-ai">
         <IconSparkles size={12} stroke={2} aria-hidden="true" />
         <span className="font-medium">Sent by Ondra</span>
@@ -231,7 +210,7 @@ function AiMessage({ children, meta }: { children: React.ReactNode; meta: string
 function BuyerMessage({ children, meta }: { children: React.ReactNode; meta: string }) {
   return (
     <div className="max-w-[78%]">
-      <div className="rounded-card rounded-tl-sm bg-paper px-4 py-3">{children}</div>
+      <div className="rounded-card rounded-tl-sm bg-bg px-4 py-3">{children}</div>
       <p className="text-micro mt-1.5 text-muted-foreground">{meta}</p>
     </div>
   );
@@ -239,25 +218,25 @@ function BuyerMessage({ children, meta }: { children: React.ReactNode; meta: str
 
 function Inbox() {
   return (
-    <section id="how" className="scroll-mt-14 bg-paper py-24 sm:py-32">
+    <section id="how" className="scroll-mt-14 bg-bg py-24 sm:py-32 border-t border-line">
       <div className="mx-auto w-full max-w-(--container-page) px-4 sm:px-7">
         <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
           <h2 className="font-display text-h2 max-w-[15ch]">One inbox. You can see what the AI did.</h2>
-          <p className="text-lead max-w-(--container-prose) text-ink-2">
+          <p className="text-lead max-w-(--container-prose) text-fg-2">
             Every call, WhatsApp, text and email lands in one place. Anything Ondra said, drafted or booked is marked in
             blue with its name on it. VIPs never are.
           </p>
         </div>
 
         <figure className="mt-14">
-          <div aria-hidden="true" className="overflow-hidden rounded-panel bg-white shadow-panel ring-1 ring-ink/5">
+          <div aria-hidden="true" className="overflow-hidden rounded-panel bg-surface shadow-panel ring-1 ring-white/8">
             <div className="grid md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
               {/* Conversation list */}
               <div className="hidden border-r border-line md:block">
                 <div className="flex items-center justify-between border-b border-line px-5 py-4">
                   <p className="font-display text-h4">Inbox</p>
                   <div className="text-micro flex gap-1.5">
-                    <span className="rounded-pill bg-ink px-2.5 py-1 text-white">All</span>
+                    <span className="rounded-pill bg-night px-2.5 py-1 text-white">All</span>
                     <span className="rounded-pill bg-vip-subtle px-2.5 py-1 text-vip">Needs you 1</span>
                     <span className="rounded-pill bg-muted px-2.5 py-1">Drafts 1</span>
                   </div>
@@ -267,7 +246,7 @@ function Inbox() {
                     <li
                       key={r.name}
                       data-vip={r.vip || undefined}
-                      className={`relative border-b border-line px-5 py-4 ${r.selected ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sodium" : ""}`}
+                      className={`relative border-b border-line px-5 py-4 ${r.selected ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-brand" : ""}`}
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="flex items-center gap-1.5 font-semibold">
@@ -277,7 +256,7 @@ function Inbox() {
                         </p>
                         <span className="text-micro shrink-0 tabular-nums text-muted-foreground">{r.time}</span>
                       </div>
-                      <p className="text-small mt-1 flex items-center gap-1.5 truncate text-ink-2">
+                      <p className="text-small mt-1 flex items-center gap-1.5 truncate text-fg-2">
                         <r.Icon size={15} stroke={1.75} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                         <span className="truncate">{r.snippet}</span>
                       </p>
@@ -349,12 +328,12 @@ function Inbox() {
                     <span className="h-px flex-1 bg-ai/15" />
                   </div>
 
-                  <div className="rounded-card border border-line bg-white p-4">
+                  <div className="rounded-card border border-line bg-surface p-4">
                     <p className="flex items-center gap-2 font-semibold">
                       <IconArrowForwardUp size={16} stroke={1.75} className="text-muted-foreground" />
                       Ondra passed this to Daniel, Sales
                     </p>
-                    <blockquote className="mt-2 border-l-2 border-line pl-3 text-ink-2">
+                    <blockquote className="mt-2 border-l-2 border-line pl-3 text-fg-2">
                       Cash buyer in Lagos, wants the black G63 shipped to Apapa. Asked about shipping costs. I didn&apos;t
                       quote. Please call before the walkaround.
                     </blockquote>
@@ -401,18 +380,18 @@ function Night() {
     },
   ];
   return (
-    <section className="border-t border-line bg-paper-2 py-24 sm:py-32">
+    <section className="border-t border-line bg-bg-2 py-24 sm:py-32">
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <H2 className="max-w-[14ch]">One night with nobody on the phones.</H2>
-          <Lead className="mt-5 text-ink-2">Buyers don&apos;t wait for opening hours. Most dealerships make them.</Lead>
+          <Lead className="mt-5 text-fg-2">Buyers don&apos;t wait for opening hours. Most dealerships make them.</Lead>
         </div>
-        <ol className="border-l border-ink/20">
+        <ol className="border-l border-fg/15">
           {hours.map((h, i) => (
             <li key={h.t} className="relative grid gap-1 pb-10 pl-8 last:pb-0 sm:grid-cols-[9.5rem_1fr] sm:gap-6">
-              <span aria-hidden="true" className={`absolute -left-[5px] top-2.5 size-[9px] rounded-full ${i === hours.length - 1 ? "bg-ink" : "bg-paper-2 ring-2 ring-ink/40"}`} />
+              <span aria-hidden="true" className={`absolute -left-[5px] top-2.5 size-[9px] rounded-full ${i === hours.length - 1 ? "bg-night" : "bg-bg-2 ring-2 ring-fg/40"}`} />
               <p className="font-display text-h3 whitespace-nowrap tabular-nums">{h.t}</p>
-              <p className="max-w-[46ch] pt-1 text-ink-2">{h.p}</p>
+              <p className="max-w-[46ch] pt-1 text-fg-2">{h.p}</p>
             </li>
           ))}
         </ol>
@@ -439,7 +418,7 @@ function WhatsApp() {
     },
   ];
   return (
-    <section id="whatsapp" className="on-dark scroll-mt-4 bg-ink py-24 text-white sm:py-32">
+    <section id="whatsapp" className="on-dark scroll-mt-4 bg-night py-24 text-white sm:py-32 border-t border-line">
       <Wrap>
         <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
           <div>
@@ -459,7 +438,7 @@ function WhatsApp() {
               </div>
               <div className="pl-6">
                 <p className="text-small text-white/55">Your buyer, Lagos</p>
-                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none text-sodium tabular-nums">9:14</p>
+                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none text-brand-text tabular-nums">9:14</p>
                 <p className="text-small mt-1 text-white/55">am, ready to buy</p>
               </div>
             </div>
@@ -486,18 +465,18 @@ function WhatsApp() {
 
 function Vip() {
   return (
-    <section id="vip" className="scroll-mt-4 bg-paper py-24 sm:py-32">
+    <section id="vip" className="scroll-mt-4 bg-bg py-24 sm:py-32 border-t border-line">
       <Wrap className="grid items-center gap-12 lg:grid-cols-2">
         <div>
           <H2 className="max-w-[15ch]">Some clients should only ever hear from you.</H2>
-          <Lead className="mt-5 text-ink-2">
+          <Lead className="mt-5 text-fg-2">
             Mark a client, or the people who buy for them, as VIP. Their calls ring you directly. Their messages wait for
             your personal reply. No AI answer, no AI draft, no voice agent, ever.
           </Lead>
           <p className="mt-4 max-w-[50ch] text-muted-foreground">If you miss the call, you get an alert straight away, not a summary at the end of the day.</p>
         </div>
         <div aria-hidden="true" className="mx-auto w-full max-w-[420px] space-y-3">
-          <div className="rounded-card bg-white p-5 shadow-float">
+          <div className="rounded-card bg-surface p-5 shadow-float">
             <div className="flex items-center justify-between">
               <span className="text-small flex items-center gap-1.5 rounded-pill bg-vip-subtle px-2.5 py-1 font-semibold text-vip">
                 <IconCrownFilled size={14} />
@@ -512,7 +491,7 @@ function Vip() {
               <span className="rounded-control border border-line py-2.5 text-center text-sm font-semibold">Text back</span>
             </div>
           </div>
-          <div className="rounded-card border border-line bg-white p-4 text-[14px]">
+          <div className="rounded-card border border-line bg-surface p-4 text-[14px]">
             <p className="font-semibold">WhatsApp from Alhaji M.&apos;s manager</p>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
               <span>Waiting for you</span>
@@ -535,11 +514,11 @@ function OwnerBriefing() {
     ["10", "bookings today: 3 test drives, 1 video walkaround, 6 service"],
   ];
   return (
-    <section className="border-y border-line bg-paper-2 py-24 sm:py-32">
+    <section className="border-y border-line bg-bg-2 py-24 sm:py-32 border-t border-line">
       <Wrap className="grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
         <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-panel bg-wa-wallpaper p-4 lg:order-1">
           <p className="text-micro pb-2 text-center text-muted-foreground">Today 7:30 am</p>
-          <div className="max-w-[94%] rounded-card rounded-tl-none bg-white px-4 py-3.5 text-[14.5px] leading-relaxed">
+          <div className="max-w-[94%] rounded-card rounded-tl-none bg-surface px-4 py-3.5 text-[14.5px] leading-relaxed">
             <p className="font-semibold">Good morning. Here&apos;s today.</p>
             <ul className="mt-2 space-y-1">
               {lines.map(([n, t]) => (
@@ -549,23 +528,23 @@ function OwnerBriefing() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-black/10 pt-2.5 text-center text-[14px] font-semibold text-ai">
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-2.5 text-center text-[14px] font-semibold text-ai">
               <span>Approve all 4</span>
               <span>Review</span>
             </div>
           </div>
           <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-card rounded-tr-none bg-wa-bubble px-3 py-2.5 text-[13px]">
-            <span className="size-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-ink" />
-            <span className="h-1 flex-1 rounded bg-black/20" />
+            <span className="size-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-fg" />
+            <span className="h-1 flex-1 rounded bg-white/20" />
             <span className="text-muted-foreground tabular-nums">0:14</span>
           </div>
-          <div className="mt-2.5 max-w-[85%] rounded-card rounded-tl-none bg-white px-4 py-3 text-[14px]">
+          <div className="mt-2.5 max-w-[85%] rounded-card rounded-tl-none bg-surface px-4 py-3 text-[14px]">
             Done. Task for Daniel: send Chidi the shipping quote by 3 pm. Chidi&apos;s profile is updated.
           </div>
         </div>
         <div className="order-1 lg:order-2">
           <H2 className="max-w-[15ch]">Run your morning from WhatsApp.</H2>
-          <Lead className="mt-5 text-ink-2">
+          <Lead className="mt-5 text-fg-2">
             A briefing before you get to the lot: who&apos;s waiting, what came in overnight, what&apos;s booked. Approve
             follow-ups with one tap. Send a voice note and Ondra turns it into tasks for your team.
           </Lead>
@@ -590,14 +569,14 @@ function Guardrails() {
     ["Your data stays yours", "Each dealer's data is kept separate and encrypted, and is never used to train AI models."],
   ];
   return (
-    <section className="bg-paper py-24 sm:py-32">
+    <section className="bg-bg py-24 sm:py-32 border-t border-line">
       <Wrap>
         <H2 className="max-w-[18ch]">The AI works for you. You stay in charge.</H2>
         <dl className="mt-14 grid gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {items.map(([t, p]) => (
-            <div key={t} className="border-t-2 border-ink pt-5">
+            <div key={t} className="border-t-2 border-fg/70 pt-5">
               <dt className="font-display text-h4">{t}</dt>
-              <dd className="mt-2.5 text-ink-2">{p}</dd>
+              <dd className="mt-2.5 text-fg-2">{p}</dd>
             </div>
           ))}
         </dl>
@@ -615,7 +594,7 @@ function Setup() {
     ["Approve, then let go", "Watch the first week in draft mode and correct anything that's off. Turn on automatic replies channel by channel."],
   ];
   return (
-    <section className="on-dark bg-ink py-24 text-white sm:py-32">
+    <section className="on-dark bg-night py-24 text-white sm:py-32 border-t border-line">
       <Wrap>
         <H2 className="max-w-[18ch]">Staff the desks without hiring.</H2>
         <Lead className="mt-5 text-white/70">
@@ -625,7 +604,7 @@ function Setup() {
         <ol className="mt-14 grid gap-10 md:grid-cols-3">
           {steps.map(([t, p], i) => (
             <li key={t} className="border-t border-white/20 pt-5">
-              <span className="font-display text-h3 text-sodium tabular-nums">{i + 1}</span>
+              <span className="font-display text-h3 text-brand-text tabular-nums">{i + 1}</span>
               <p className="font-display text-h4 mt-2">{t}</p>
               <p className="mt-2.5 text-white/70">{p}</p>
             </li>
@@ -640,17 +619,17 @@ function Setup() {
 
 function Demo() {
   return (
-    <section id="demo" className="scroll-mt-4 border-t border-line bg-paper-2 py-24 sm:py-32">
+    <section id="demo" className="scroll-mt-4 border-t border-line bg-bg-2 py-24 sm:py-32">
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.25fr]">
         <div>
           <H2 className="max-w-[12ch]">See it answer your buyers.</H2>
-          <Lead className="mt-5 text-ink-2">
+          <Lead className="mt-5 text-fg-2">
             Tell us how buyers reach you today. On the call we&apos;ll look at where leads slip through, then show Ondra
             answering the kinds of questions you get, on WhatsApp and on the phone.
           </Lead>
           <div className="mt-10 border-t border-line pt-6">
             <p className="font-semibold">Who we&apos;re piloting with</p>
-            <ul className="mt-3 space-y-3 text-ink-2">
+            <ul className="mt-3 space-y-3 text-fg-2">
               {[
                 ["Exporters", "selling to buyers in Africa and the Middle East over WhatsApp"],
                 ["Community dealers", "whose buyers would rather message than call"],
@@ -659,7 +638,7 @@ function Demo() {
                 <li key={t} className="flex gap-3">
                   <IconCheck size={20} stroke={1.75} className="mt-0.5 shrink-0 text-ok" aria-hidden="true" />
                   <span>
-                    <b className="font-semibold text-ink">{t}</b> {d}
+                    <b className="font-semibold text-fg">{t}</b> {d}
                   </span>
                 </li>
               ))}
@@ -689,7 +668,7 @@ function Faq() {
     ["How much does it cost?", "Pricing is being set with our pilot dealers. We'll go through it on the demo call, based on your size and channels."],
   ];
   return (
-    <section id="faq" className="scroll-mt-4 bg-paper py-24 sm:py-32">
+    <section id="faq" className="scroll-mt-4 bg-bg py-24 sm:py-32 border-t border-line">
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_2fr]">
         <H2>Questions dealers ask.</H2>
         <div className="divide-y divide-line border-y border-line">
@@ -699,7 +678,7 @@ function Faq() {
                 {q}
                 <IconPlus size={22} stroke={1.5} aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45" />
               </summary>
-              <p className="mt-3 max-w-[65ch] text-ink-2">{a}</p>
+              <p className="mt-3 max-w-[65ch] text-fg-2">{a}</p>
             </details>
           ))}
         </div>
@@ -712,7 +691,7 @@ function Faq() {
 
 function Footer() {
   return (
-    <footer className="on-dark bg-ink py-12 text-white/65">
+    <footer className="on-dark bg-night py-12 text-white/65">
       <Wrap className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <Logo className="text-white" />

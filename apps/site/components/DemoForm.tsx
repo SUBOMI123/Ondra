@@ -57,9 +57,9 @@ export default function DemoForm() {
 
   if (status === "sent") {
     return (
-      <div role="status" className="rounded-card border border-line bg-white p-8">
+      <div role="status" className="rounded-card border border-line bg-surface p-8">
         <p className="font-display text-2xl font-bold">Thanks. We&apos;ll be in touch within one business day.</p>
-        <p className="mt-3 text-ink-2">
+        <p className="mt-3 text-fg-2">
           We&apos;ll set up a call to look at how your calls and messages come in today, then show Ondra answering them.
         </p>
       </div>
@@ -67,11 +67,11 @@ export default function DemoForm() {
   }
 
   const input =
-    "mt-1.5 block w-full rounded-control border border-line bg-white px-3.5 py-3 text-[15px] text-ink placeholder:text-muted-foreground/70 focus:border-ink focus:outline-none";
-  const label = "block text-sm font-semibold text-ink";
+    "mt-1.5 block w-full rounded-control border border-line bg-surface px-3.5 py-3 text-[15px] text-fg placeholder:text-muted-foreground/70 focus:border-fg/70 focus:outline-none";
+  const label = "block text-sm font-semibold text-fg";
 
   return (
-    <form onSubmit={onSubmit} className="rounded-card border border-line bg-white p-6 sm:p-8" noValidate={false}>
+    <form onSubmit={onSubmit} className="rounded-card border border-line bg-surface p-6 sm:p-8" noValidate={false}>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className={label}>
           Your name
@@ -101,7 +101,7 @@ export default function DemoForm() {
           {CHANNELS.map((c) => (
             <label
               key={c}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-white"
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-white"
             >
               <input type="checkbox" name="channels" value={c} className="sr-only" />
               {c}
@@ -116,7 +116,7 @@ export default function DemoForm() {
           {["Yes, regularly", "Sometimes", "No"].map((c) => (
             <label
               key={c}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-white"
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-white"
             >
               <input type="radio" name="exports" value={c} className="sr-only" />
               {c}

@@ -18,13 +18,13 @@ export default function StickyNav() {
     <div
       aria-hidden={!shown}
       inert={!shown}
-      className={`on-dark fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-ink/95 text-white transition-[translate,opacity] duration-300 ease-out-expo motion-reduce:transition-none ${
+      className={`on-dark fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-night/95 text-white transition-[translate,opacity] duration-300 ease-out-expo motion-reduce:transition-none ${
         shown ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
       <div className="mx-auto flex h-14 w-full max-w-(--container-page) items-center justify-between px-4 sm:px-7">
         <a href="#top" className="font-display flex items-center gap-2 text-lg font-bold no-underline">
-          <i aria-hidden="true" className="block size-[9px] rounded-full bg-sodium" />
+          <i aria-hidden="true" className="block size-[9px] rounded-full bg-brand" />
           Ondra
         </a>
         <nav aria-label="Sections" className="flex items-center gap-6 text-small">

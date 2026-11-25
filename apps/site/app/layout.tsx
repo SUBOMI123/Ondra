@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/config";
+import "@fontsource-variable/funnel-display";
+import "@fontsource-variable/funnel-sans";
+import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 const title = "Ondra: AI agents that staff your dealership";
@@ -16,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#16171B",
+  themeColor: "#06080B",
   width: "device-width",
   initialScale: 1,
 };
@@ -25,13 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className="font-sans">{children}</body>
     </html>
