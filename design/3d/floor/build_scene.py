@@ -68,7 +68,7 @@ def img(path, non_color=False):
     return i
 
 
-def pbr_material(name, tex_prefix, scale=1.0, tint=(1, 1, 1), rough_range=(0.0, 1.0), coat=0.0, coat_rough=0.05, normal_strength=1.0):
+def pbr_material(name, tex_prefix, scale=1.0, tint=(1, 1, 1), rough_range=(0.0, 1.0), coat=0.0, coat_rough=0.05, normal_strength=1.0, flatten=0.0, flatten_to=(0.3, 0.3, 0.3)):
     """Principled material from Poly Haven diffuse / normal / roughness maps, mapped in object space."""
     m, n, l = new_mat(name)
     b = n["Principled BSDF"]
@@ -92,6 +92,16 @@ def pbr_material(name, tex_prefix, scale=1.0, tint=(1, 1, 1), rough_range=(0.0, 
     col_out = next(o for o in mix.outputs if o.name == "Result" and o.type == "RGBA")
     col_b.default_value = (*tint, 1)
     l.new(d.outputs["Color"], col_a)
+    if flatten:
+        flat = n.new("ShaderNodeMix")
+        flat.data_type = "RGBA"
+        flat.inputs["Factor"].default_value = flatten
+        fa = next(i for i in flat.inputs if i.name == "A" and i.type == "RGBA")
+        fb = next(i for i in flat.inputs if i.name == "B" and i.type == "RGBA")
+        fo = next(o for o in flat.outputs if o.name == "Result" and o.type == "RGBA")
+        fb.default_value = (*flatten_to, 1)
+        l.new(col_out, fa)
+        col_out = fo
     l.new(col_out, b.inputs["Base Color"])
     r = n.new("ShaderNodeTexImage")
     r.image = img(f"{A}/tex/{tex_prefix}_rough.{ext}", True)
@@ -210,10 +220,10 @@ def group(objs, name, loc, rot_z=0.0, scale=1.0):
 
 # ---------------------------------------------------------------- materials
 M = {
-    "floor": pbr_material("Floor concrete", "concrete_floor_02", scale=0.32, tint=(0.62, 0.6, 0.57), rough_range=(0.12, 0.32), coat=0.55, coat_rough=0.04, normal_strength=0.35),
+    "floor": pbr_material("Floor concrete", "concrete_floor_02", scale=0.32, tint=(0.62, 0.62, 0.62), rough_range=(0.12, 0.28), coat=0.55, coat_rough=0.04, normal_strength=0.25, flatten=0.6, flatten_to=(0.2, 0.2, 0.205)),
     "walnut": pbr_material("Walnut", "black_walnut_veneer_01", scale=0.9, tint=(0.36, 0.25, 0.18), rough_range=(0.32, 0.55), normal_strength=0.4),
     "walnut_desk": pbr_material("Walnut desk", "black_walnut_veneer_01", scale=0.7, tint=(0.3, 0.2, 0.145), rough_range=(0.18, 0.35), coat=0.35, coat_rough=0.12, normal_strength=0.3),
-    "leather": pbr_material("Leather black", "fabric_leather_02", scale=4.0, tint=(0.12, 0.11, 0.1), rough_range=(0.35, 0.6), normal_strength=0.6),
+    "leather": pbr_material("Leather black", "fabric_leather_02", scale=4.0, tint=(0.12, 0.11, 0.1), rough_range=(0.35, 0.6), normal_strength=0.6, flatten=0.85, flatten_to=(0.022, 0.02, 0.019)),
     "metal_black": flat_material("Metal black", (0.02, 0.02, 0.022), rough=0.32, metal=1.0),
     "metal_brushed": flat_material("Metal brushed", (0.6, 0.6, 0.62), rough=0.28, metal=1.0),
     "panel_dark": flat_material("Panel dark", (0.025, 0.022, 0.02), rough=0.8),
@@ -545,8 +555,8 @@ llo.location = (-0.62, OY - 0.35, 1.18)
 link(llo)
 pendant(0, OY, z=3.4 - 0.4)
 office_fill = bpy.data.lights.new("Office fill", "AREA")
-office_fill.energy = 140
-office_fill.color = (1.0, 0.72, 0.45)
+office_fill.energy = 70
+office_fill.color = (1.0, 0.86, 0.72)
 office_fill.size = 2.5
 ofo = bpy.data.objects.new("Office fill", office_fill)
 ofo.location = (0, OY, 2.95)
@@ -583,8 +593,12 @@ def camera(name, loc, target, lens, focus=None, fstop=None):
 
 camera("CAM establishing", (0.2, 3.0, 1.62), (0.0, -24.0, 1.2), 27)
 camera("CAM desk", (-1.35, -13.55, 1.52), (-3.85, -15.05, 1.0), 36, focus=2.1, fstop=3.2)
-camera("CAM office", (0.9, -29.4, 1.55), (0.15, -34.9, 0.95), 35, focus=5.3, fstop=4.0)
+camera("CAM office", (-0.35, -29.2, 1.5), (0.05, -34.9, 0.95), 35, focus=5.4, fstop=4.0)
 scene.camera = bpy.data.objects["CAM establishing"]
+
+for o in bpy.data.objects:
+    if o.type == "LIGHT":
+        o.visible_camera = False
 
 # ---------------------------------------------------------------- render settings
 scene.render.engine = "CYCLES"
