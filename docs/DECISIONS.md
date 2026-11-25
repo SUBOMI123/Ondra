@@ -24,14 +24,14 @@
 **Why:** cmdk and vaul sit on Radix Dialog; Tabler has the WhatsApp and Instagram marks lucide lacks; Tremor Raw is still on React 18 and Recharts 2. daisyUI and Mantine bring competing theme systems.
 **Alternatives:** Base UI (shadcn's default since July 2026; reconsider if vaul, which is unmaintained, becomes a problem).
 
-## 2026-11-25: Walk-through figures stay stylised
+## 2026-11-25: The walk-through is a photographic scroll tour with robot agents (supersedes the three.js floor)
 
-**Decision:** The 3D agents are faceless porcelain mannequins built in code, not realistic people.
-**Why:** The page's closing line is "None of them are people", and realistic humans would contradict it. Licensed rigged characters cost 3-10MB each and stutter on phones. Blender can't run in this environment.
-**Alternatives:** Licensed realistic characters in glTF (heavy, uncanny). A Blender-rendered image sequence scrubbed by scroll (best quality; needs a 3D artist and licensed assets).
+**Decision:** Replace the real-time three.js scene with five photoreal stills on a sticky stage (`apps/site/components/FloorTour.tsx`): entrance, reception and WhatsApp, bookings and service, handoffs and follow-ups, the owner's office. The agents are humanoid robots. Labels are pinned to coordinates in each photo.
+**Why:** The goal is for it to feel real. Real-time 3D can't get there on a phone: photoreal cars and characters need licensed models of 20-50MB each and a GPU budget dealers' phones don't have, and procedural models look like toys. Stills give photographic quality at about 150KB per scene, and the page dropped three.js (about 700KB of JS). Robots read as AI agents at a glance and keep the closing line ("None of them are people") true.
+**Alternatives:** Licensed glTF cars and robots in three.js (heavy, still not photographic). A Blender render sequence scrubbed frame by frame (smoothest camera moves, needs a 3D artist and licensed assets; worth it once there's budget). Mannequins (tried, rejected by the founder as not real enough).
 
 ## 2026-11-25: Hero image is AI-generated for now
 
-**Decision:** `apps/site/public/hero-showroom.jpg` was generated with Figma's image generator (no badges, plates or people). It is a placeholder.
+**Decision:** `apps/site/public/hero-showroom.jpg` and the floor tour scenes in `apps/site/public/floor/` were generated with Figma's image generator (no badges, plates or people; art direction in the `ondra-ui` skill, `references/marketing.md`). They are placeholders.
 **Why:** Stock photo hosts are blocked from the build environment, and the page needed real atmosphere.
 **Alternatives:** Replace with the pilot dealer's own showroom photographed at dusk, once we have written permission.

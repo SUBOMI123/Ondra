@@ -1,6 +1,6 @@
 ---
 name: ondra-ui
-description: Ondra's design system and UI rules for anything visual in this repo. Use whenever you build, restyle, review or write copy for the marketing site (apps/site) or the dealer dashboard (apps/web - Today, Inbox, Calls, Calendar, Clients, Tasks, Settings), including new components, Tailwind classes or theme tokens, shadcn or Radix components, charts, icons, empty and error states, motion, the three.js walk-through, emails that render HTML, and screenshots or critiques of a page. Covers the Ink, Paper, Sodium, AI-blue and VIP-red tokens, Archivo widths, layout, motion, UX copy, and how AI-generated and VIP content must look. Use it even for a small tweak to a button or a label. Not for backend, API, database or agent-prompt work with no UI.
+description: Ondra's design system and UI rules for anything visual in this repo. Use whenever you build, restyle, review or write copy for the marketing site (apps/site) or the dealer dashboard (apps/web - Today, Inbox, Calls, Calendar, Clients, Tasks, Settings), including new components, Tailwind classes or theme tokens, shadcn or Radix components, charts, icons, empty and error states, motion, the floor tour and its photography, emails that render HTML, and screenshots or critiques of a page. Covers the Ink, Paper, Sodium, AI-blue and VIP-red tokens, Archivo widths, layout, motion, UX copy, and how AI-generated and VIP content must look. Use it even for a small tweak to a button or a label. Not for backend, API, database or agent-prompt work with no UI.
 ---
 
 # Ondra UI
@@ -72,7 +72,7 @@ Build with tokens only. A hex literal in a component is a bug; add a token inste
 - Bounce or elastic easing; fade-and-slide-up on every section; anything that animates on its own in the walk-through
 - Spinners inside content (use a skeleton of the final size); a modal where inline would do
 - Buzzwords: streamline, empower, supercharge, seamless, cutting-edge, next-generation, world-class
-- "Bot" for the product, robots as icons, or realistic human faces on the agents (they are not people)
+- "Bot" for the product, robot icons in the UI, or human faces on the agents (they are not people)
 - White text on amber; amber text on Paper; an amber focus ring on Paper
 
 ## 6. Finish

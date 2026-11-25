@@ -1,6 +1,8 @@
 import {
+  IconArrowForwardUp,
   IconBrandInstagram,
   IconBrandWhatsapp,
+  IconCalendarEvent,
   IconCheck,
   IconCrownFilled,
   IconMail,
@@ -10,28 +12,28 @@ import {
   IconSparkles,
 } from "@tabler/icons-react";
 import DemoForm from "@/components/DemoForm";
-import Walkthrough from "@/components/Walkthrough";
+import FloorTour from "@/components/FloorTour";
+import StickyNav from "@/components/StickyNav";
 import { CONTACT_EMAIL } from "@/lib/config";
 
 export default function Home() {
   return (
     <>
       <Nav />
+      <StickyNav />
       <main>
         <Hero />
-        {/* The walk-through continues the hero's "fully staffed" line, so it comes straight after it.
-            Wrapper keeps #tour as a valid anchor when the 3D is skipped (reduced motion, no WebGL). */}
+        {/* The walk continues the hero's "fully staffed" line, so it comes straight after it. */}
         <div id="tour">
-          <Walkthrough />
+          <FloorTour />
         </div>
-        <Roster />
         <Night />
+        <Inbox />
         <WhatsApp />
         <Vip />
         <OwnerBriefing />
         <Guardrails />
         <Setup />
-        <Fit />
         <Demo />
         <Faq />
       </main>
@@ -163,101 +165,216 @@ function Hero() {
 }
 
 function HeroLabel({ at, delay, role, name, doing }: { at: [string, string]; delay: number; role: string; name: string; doing: string }) {
-  // Positioned inline: the shared .floor-label rule pins left/top for the 3D scene.
   return (
-    <div className="floor-label is-static motion-safe:animate-rise" style={{ left: at[0], top: at[1], animationDelay: `${delay}ms` }}>
-      <span className="role">
-        <i />
-        {role}
-      </span>
-      <b>{name}</b>
-      <span className="doing">{doing}</span>
+    <div className="absolute" style={{ left: at[0], top: at[1] }}>
+      <div className="floor-label motion-safe:animate-rise" style={{ animationDelay: `${delay}ms` }}>
+        <span className="role">
+          <i />
+          {role}
+        </span>
+        <b>{name}</b>
+        <span className="doing">{doing}</span>
+      </div>
     </div>
   );
 }
 
-/* ---------------------------------------------------------------- roster */
+/* ---------------------------------------------------------------- inbox (the product) */
 
-function Roster() {
-  const desks = [
-    {
-      desk: "Reception",
-      role: "Voice agent",
-      does: "Picks up every call, after hours or when your team is busy. Answers from your stock and your own answers. Every call is recorded and transcribed.",
-      channels: [IconPhone],
-    },
-    {
-      desk: "WhatsApp and email",
-      role: "Messaging agent",
-      does: "Replies in seconds with photos, specs and availability, and asks the questions your salespeople would ask.",
-      channels: [IconBrandWhatsapp, IconMessage, IconMail],
-    },
-    {
-      desk: "Test drives and visits",
-      role: "Booking agent",
-      does: "Books showroom visits, test drives and video walkarounds against your team's real calendars. One calendar, no double-booking.",
-      channels: [IconPhone, IconBrandWhatsapp],
-    },
-    {
-      desk: "Service desk",
-      role: "Service agent",
-      does: "Fits service into real bay capacity, using the appointment types you set up.",
-      channels: [IconPhone, IconMessage],
-    },
-    {
-      desk: "Handoffs",
-      role: "Routing agent",
-      does: "Sends each conversation to the right person in sales, service or logistics, or to you, with a short brief and a deadline.",
-      channels: [],
-    },
-    {
-      desk: "Follow-ups",
-      role: "Follow-up agent",
-      does: "Drafts reminders for buyers who went quiet, and waits for your approval before anything goes out.",
-      channels: [IconBrandWhatsapp, IconMail],
-    },
-  ];
+type Row = {
+  name: string;
+  place: string;
+  Icon: typeof IconPhone;
+  time: string;
+  snippet: string;
+  tag: { kind: "ai" | "draft" | "vip" | "team"; text: string };
+  vip?: boolean;
+  selected?: boolean;
+};
+
+const ROWS: Row[] = [
+  { name: "Chidi O.", place: "Lagos", Icon: IconBrandWhatsapp, time: "2:14 am", snippet: "Thursday works. Please book it.", tag: { kind: "ai", text: "Booked by Ondra" }, selected: true },
+  { name: "Alhaji M.", place: "Abuja", Icon: IconPhone, time: "1:52 am", snippet: "Missed call. Rang your mobile.", tag: { kind: "vip", text: "Waiting 2 h" }, vip: true },
+  { name: "Sarah K.", place: "Dallas", Icon: IconMessage, time: "11:40 pm", snippet: "Do you take trade-ins on a 2019 Tahoe?", tag: { kind: "draft", text: "Draft waiting for you" } },
+  { name: "Marcus T.", place: "Houston", Icon: IconPhone, time: "9:05 pm", snippet: "Asked about financing on the X5.", tag: { kind: "team", text: "With Daniel, Sales" } },
+  { name: "Grace A.", place: "Accra", Icon: IconMail, time: "8:30 pm", snippet: "Shipping to Tema port, how long?", tag: { kind: "ai", text: "Sent by Ondra" } },
+];
+
+function Tag({ kind, text }: Row["tag"]) {
+  const cls = {
+    ai: "bg-ai-subtle text-ai",
+    draft: "border border-dashed border-ai/40 text-ai",
+    vip: "bg-vip-subtle text-vip",
+    team: "bg-muted text-ink-2",
+  }[kind];
   return (
-    <section id="how" className="scroll-mt-4 bg-paper py-24 sm:py-32">
-      <Wrap>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-end">
-          <H2 className="max-w-[16ch]">Six agents. One calendar. Your rules.</H2>
-          <Lead className="text-ink-2">
-            Every conversation becomes a client profile with the vehicle, budget, destination, timeline and payment
-            method filled in. Your team works from one inbox with every recording, transcript and message.
-          </Lead>
+    <span className={`text-micro inline-flex items-center gap-1 rounded-pill px-2 py-0.5 font-medium ${cls}`}>
+      {kind === "vip" ? <IconCrownFilled size={12} aria-hidden="true" /> : kind === "team" ? null : <IconSparkles size={12} stroke={2} aria-hidden="true" />}
+      {text}
+    </span>
+  );
+}
+
+function AiMessage({ children, meta }: { children: React.ReactNode; meta: string }) {
+  return (
+    <div data-slot="ai-bubble" className="ml-auto max-w-[78%]">
+      <div className="rounded-card rounded-tr-sm border border-ai/15 bg-ai-subtle px-4 py-3 text-ink">{children}</div>
+      <p className="text-micro mt-1.5 flex items-center justify-end gap-1 text-ai">
+        <IconSparkles size={12} stroke={2} aria-hidden="true" />
+        <span className="font-medium">Sent by Ondra</span>
+        <span className="text-muted-foreground">{meta}</span>
+      </p>
+    </div>
+  );
+}
+
+function BuyerMessage({ children, meta }: { children: React.ReactNode; meta: string }) {
+  return (
+    <div className="max-w-[78%]">
+      <div className="rounded-card rounded-tl-sm bg-paper px-4 py-3">{children}</div>
+      <p className="text-micro mt-1.5 text-muted-foreground">{meta}</p>
+    </div>
+  );
+}
+
+function Inbox() {
+  return (
+    <section id="how" className="scroll-mt-14 bg-paper py-24 sm:py-32">
+      <div className="mx-auto w-full max-w-(--container-page) px-4 sm:px-7">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
+          <h2 className="font-display text-h2 max-w-[15ch]">One inbox. You can see what the AI did.</h2>
+          <p className="text-lead max-w-(--container-prose) text-ink-2">
+            Every call, WhatsApp, text and email lands in one place. Anything Ondra said, drafted or booked is marked in
+            blue with its name on it. VIPs never are.
+          </p>
         </div>
 
-        <ol className="mt-14 border-b border-line">
-          {desks.map((d) => (
-            <li key={d.desk} className="grid gap-x-8 gap-y-2 border-t border-line py-6 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_7rem] md:items-baseline">
-              <div>
-                <p className="font-display text-h4">{d.desk}</p>
-                <p className="text-small mt-1 flex items-center gap-1.5 text-ai">
-                  <IconSparkles size={14} stroke={1.75} aria-hidden="true" />
-                  {d.role}
-                </p>
+        <figure className="mt-14">
+          <div aria-hidden="true" className="overflow-hidden rounded-panel bg-white shadow-panel ring-1 ring-ink/5">
+            <div className="grid md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+              {/* Conversation list */}
+              <div className="hidden border-r border-line md:block">
+                <div className="flex items-center justify-between border-b border-line px-5 py-4">
+                  <p className="font-display text-h4">Inbox</p>
+                  <div className="text-micro flex gap-1.5">
+                    <span className="rounded-pill bg-ink px-2.5 py-1 text-white">All</span>
+                    <span className="rounded-pill bg-vip-subtle px-2.5 py-1 text-vip">Needs you 1</span>
+                    <span className="rounded-pill bg-muted px-2.5 py-1">Drafts 1</span>
+                  </div>
+                </div>
+                <ul>
+                  {ROWS.map((r) => (
+                    <li
+                      key={r.name}
+                      data-vip={r.vip || undefined}
+                      className={`relative border-b border-line px-5 py-4 ${r.selected ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sodium" : ""}`}
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="flex items-center gap-1.5 font-semibold">
+                          {r.vip && <IconCrownFilled size={14} className="text-vip" aria-hidden="true" />}
+                          {r.name}
+                          <span className="text-small font-normal text-muted-foreground">{r.place}</span>
+                        </p>
+                        <span className="text-micro shrink-0 tabular-nums text-muted-foreground">{r.time}</span>
+                      </div>
+                      <p className="text-small mt-1 flex items-center gap-1.5 truncate text-ink-2">
+                        <r.Icon size={15} stroke={1.75} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="truncate">{r.snippet}</span>
+                      </p>
+                      <div className="mt-2">
+                        <Tag {...r.tag} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <p className="max-w-[60ch] text-ink-2">{d.does}</p>
-              <p className="flex gap-2 text-muted-foreground md:justify-end" aria-label={d.channels.length ? "Channels" : undefined}>
-                {d.channels.map((Icon, i) => (
-                  <Icon key={i} size={18} stroke={1.5} aria-hidden="true" />
-                ))}
-              </p>
-            </li>
-          ))}
-          <li className="grid gap-x-8 gap-y-2 border-t-2 border-vip/40 bg-vip-subtle/60 px-4 py-6 md:-mx-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_7rem] md:items-baseline">
-            <div>
-              <p className="font-display text-h4 text-vip">Your office</p>
-              <p className="text-small mt-1 flex items-center gap-1.5 text-vip">
-                <IconCrownFilled size={14} aria-hidden="true" />
-                Not an agent
-              </p>
+
+              {/* Thread */}
+              <div className="flex min-w-0 flex-col">
+                <div className="border-b border-line px-5 py-4 sm:px-7">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-9 items-center justify-center rounded-full bg-wa-subtle text-wa">
+                        <IconBrandWhatsapp size={18} stroke={1.75} />
+                      </span>
+                      <div>
+                        <p className="font-semibold">Chidi O.</p>
+                        <p className="text-micro text-muted-foreground">WhatsApp</p>
+                      </div>
+                    </div>
+                    <div className="text-micro flex gap-4 tabular-nums">
+                      <span>
+                        <span className="text-muted-foreground">Dallas </span>2:14 am
+                      </span>
+                      <span>
+                        <span className="text-muted-foreground">Lagos </span>9:14 am
+                      </span>
+                    </div>
+                  </div>
+                  <dl className="text-micro mt-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
+                    {[
+                      ["Vehicle", "2023 G63, black"],
+                      ["Budget", "About $180k"],
+                      ["Payment", "Wire transfer"],
+                      ["Ships to", "Lagos"],
+                      ["Timeline", "This month"],
+                    ].map(([k, v]) => (
+                      <div key={k}>
+                        <dt className="text-muted-foreground">{k}</dt>
+                        <dd className="text-small font-medium">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="text-micro mt-3 flex items-center gap-1 text-ai">
+                    <IconSparkles size={12} stroke={2} />
+                    Profile filled in by Ondra from the conversation
+                  </p>
+                </div>
+
+                <div className="text-small flex flex-1 flex-col gap-4 bg-canvas px-5 py-6 sm:px-7">
+                  <BuyerMessage meta="2:14 am">Good evening. Is the black 2023 G63 still available? Can you ship to Lagos?</BuyerMessage>
+                  <AiMessage meta="2:14 am">
+                    Yes, it&apos;s on the lot: black, 18k miles, and we ship to Lagos regularly. Daniel can show it to you on a
+                    live video walkaround. Would Thursday at 10 am Dallas time work? That&apos;s 5 pm for you.
+                  </AiMessage>
+                  <BuyerMessage meta="2:16 am">Thursday works. Please book it.</BuyerMessage>
+                  <AiMessage meta="2:16 am">Booked. Daniel will call you on WhatsApp video on Thursday. Shipping costs are next on his list.</AiMessage>
+
+                  <div className="flex items-center gap-3 text-ai">
+                    <span className="h-px flex-1 bg-ai/15" />
+                    <span className="text-micro flex items-center gap-1.5 font-medium">
+                      <IconCalendarEvent size={14} stroke={1.75} />
+                      Video walkaround booked by Ondra for Thursday, 10:00 am
+                    </span>
+                    <span className="h-px flex-1 bg-ai/15" />
+                  </div>
+
+                  <div className="rounded-card border border-line bg-white p-4">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <IconArrowForwardUp size={16} stroke={1.75} className="text-muted-foreground" />
+                      Ondra passed this to Daniel, Sales
+                    </p>
+                    <blockquote className="mt-2 border-l-2 border-line pl-3 text-ink-2">
+                      Cash buyer in Lagos, wants the black G63 shipped to Apapa. Asked about shipping costs. I didn&apos;t
+                      quote. Please call before the walkaround.
+                    </blockquote>
+                    <div className="text-micro mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-pill bg-muted px-2.5 py-1">Due Thursday, 9:30 am</span>
+                      <span className="rounded-pill bg-muted px-2.5 py-1">Daniel accepted</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 border-t border-line px-5 py-3.5 sm:px-7">
+                  <span className="text-small flex-1 rounded-control border border-line px-3.5 py-2.5 text-muted-foreground">Reply as Daniel</span>
+                  <span className="btn btn-primary min-h-10 px-4 text-sm">Send</span>
+                </div>
+              </div>
             </div>
-            <p className="max-w-[60ch] text-ink-2">VIP clients skip the agents completely. Their calls ring you and their messages wait for you.</p>
-          </li>
-        </ol>
-      </Wrap>
+          </div>
+          <figcaption className="text-small mt-4 text-muted-foreground">Example conversation. Names and details are illustrative.</figcaption>
+        </figure>
+      </div>
     </section>
   );
 }
@@ -347,7 +464,7 @@ function WhatsApp() {
               </div>
             </div>
             <figcaption className="text-small mt-6 flex items-start gap-2 border-t border-white/12 pt-5 text-white/75">
-              <IconBrandWhatsapp size={18} stroke={1.5} className="mt-0.5 shrink-0 text-[#5fd08f]" aria-hidden="true" />
+              <IconBrandWhatsapp size={18} stroke={1.5} className="mt-0.5 shrink-0 text-wa-on-dark" aria-hidden="true" />
               Answered in her morning. Booked into yours: a video walkaround with Daniel at 10 am Dallas time.
             </figcaption>
           </figure>
@@ -420,7 +537,7 @@ function OwnerBriefing() {
   return (
     <section className="border-y border-line bg-paper-2 py-24 sm:py-32">
       <Wrap className="grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
-        <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-panel bg-[#E9E2D8] p-4 lg:order-1">
+        <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-panel bg-wa-wallpaper p-4 lg:order-1">
           <p className="text-micro pb-2 text-center text-muted-foreground">Today 7:30 am</p>
           <div className="max-w-[94%] rounded-card rounded-tl-none bg-white px-4 py-3.5 text-[14.5px] leading-relaxed">
             <p className="font-semibold">Good morning. Here&apos;s today.</p>
@@ -437,7 +554,7 @@ function OwnerBriefing() {
               <span>Review</span>
             </div>
           </div>
-          <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-card rounded-tr-none bg-[#D9FDD3] px-3 py-2.5 text-[13px]">
+          <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-card rounded-tr-none bg-wa-bubble px-3 py-2.5 text-[13px]">
             <span className="size-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-ink" />
             <span className="h-1 flex-1 rounded bg-black/20" />
             <span className="text-muted-foreground tabular-nums">0:14</span>
@@ -519,36 +636,6 @@ function Setup() {
   );
 }
 
-/* ---------------------------------------------------------------- fit */
-
-function Fit() {
-  const fits = [
-    ["Exporters", "selling to buyers in Africa and the Middle East, mostly over WhatsApp."],
-    ["Community dealers", "serving immigrant communities whose buyers would rather message than call."],
-    ["Independent and franchised dealers", "across the US, with or without a DMS."],
-  ];
-  return (
-    <section className="bg-paper py-24 sm:py-32">
-      <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.3fr]">
-        <H2 className="max-w-[15ch]">Made for dealers whose buyers won&apos;t wait for Monday.</H2>
-        <div>
-          <ul className="divide-y divide-line border-y border-line">
-            {fits.map(([t, p]) => (
-              <li key={t} className="py-5 text-lead">
-                <b className="font-semibold">{t}</b> <span className="text-ink-2">{p}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-6 max-w-[60ch] text-muted-foreground">
-            We&apos;re building Ondra with an independent luxury dealer in Dallas who exports to Nigeria, and taking on a
-            small number of pilot dealers alongside them.
-          </p>
-        </div>
-      </Wrap>
-    </section>
-  );
-}
-
 /* ---------------------------------------------------------------- demo */
 
 function Demo() {
@@ -561,14 +648,27 @@ function Demo() {
             Tell us how buyers reach you today. On the call we&apos;ll look at where leads slip through, then show Ondra
             answering the kinds of questions you get, on WhatsApp and on the phone.
           </Lead>
-          <ul className="mt-8 space-y-3 text-ink-2">
-            {["Pilot places are limited while we onboard dealers one by one.", "Prefer WhatsApp? Leave your number and we'll message you there."].map((t) => (
-              <li key={t} className="flex gap-3">
-                <IconCheck size={20} stroke={1.75} className="mt-0.5 shrink-0 text-ok" aria-hidden="true" />
-                {t}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-10 border-t border-line pt-6">
+            <p className="font-semibold">Who we&apos;re piloting with</p>
+            <ul className="mt-3 space-y-3 text-ink-2">
+              {[
+                ["Exporters", "selling to buyers in Africa and the Middle East over WhatsApp"],
+                ["Community dealers", "whose buyers would rather message than call"],
+                ["Independent and franchised dealers", "across the US, with or without a DMS"],
+              ].map(([t, d]) => (
+                <li key={t} className="flex gap-3">
+                  <IconCheck size={20} stroke={1.75} className="mt-0.5 shrink-0 text-ok" aria-hidden="true" />
+                  <span>
+                    <b className="font-semibold text-ink">{t}</b> {d}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-small mt-5 text-muted-foreground">
+              We&apos;re building Ondra with an independent luxury dealer in Dallas who exports to Nigeria. Pilot places
+              are limited while we onboard dealers one by one.
+            </p>
+          </div>
         </div>
         <DemoForm />
       </Wrap>

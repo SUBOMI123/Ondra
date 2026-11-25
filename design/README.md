@@ -40,4 +40,5 @@ Open either file directly in a browser. `landing.html` embeds three.js (r150), s
 ## Since the mockups
 
 - The marketing site now lives in `apps/site`. The UI rules for everything (tokens, components, copy, review) are in the `ondra-ui` skill at `.claude/skills/ondra-ui/`; where these mockups disagree with it, the skill wins.
-- The hero uses a generated dusk showroom image (`apps/site/public/hero-showroom.jpg`) until we have the pilot dealer's photo.
+- The 3D walk-through in `landing.html` has been replaced on the live site by a photographic floor tour with robot agents (`apps/site/components/FloorTour.tsx`). See `docs/DECISIONS.md` for why.
+- The hero and tour images are generated placeholders (`apps/site/public/`, prompts in `docs/marketing/image-prompts.md`) until we have the pilot dealer's own showroom.

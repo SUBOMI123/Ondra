@@ -95,7 +95,7 @@ Install through the shadcn registry: `npx shadcn@latest add @magicui/<name>`. De
 - **Safari / iPhone** frames around real dashboard screenshots.
 - **BlurFade** at most once per section, never on the hero headline or the hero image (it starts invisible).
 
-Avoid: globe (fights the three.js scene), particles, meteors, confetti, shimmer, rainbow or pulsating buttons, typing and word-rotate text, scroll-velocity and scroll-progress (the walk-through owns scroll). Only 2 of 80 Magic UI components handle reduced motion; wrap the app in `<MotionConfig reducedMotion="user">` and pause CSS loops under `motion-reduce`.
+Avoid: globe (competes with the floor tour), particles, meteors, confetti, shimmer, rainbow or pulsating buttons, typing and word-rotate text, scroll-velocity and scroll-progress (the walk-through owns scroll). Only 2 of 80 Magic UI components handle reduced motion; wrap the app in `<MotionConfig reducedMotion="user">` and pause CSS loops under `motion-reduce`.
 
 ## Not adopted
 
