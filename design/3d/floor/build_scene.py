@@ -601,6 +601,7 @@ for o in bpy.data.objects:
     if o.type == "LIGHT":
         o.visible_camera = False
         o.visible_glossy = False  # no hot dots reflected in the glass walls
+        o.visible_transmission = False  # ...or seen through them
 
 # ---------------------------------------------------------------- render settings
 scene.render.engine = "CYCLES"
