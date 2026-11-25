@@ -16,6 +16,7 @@ import Appear from "@/components/Appear";
 import ChannelFlow from "@/components/ChannelFlow";
 import FloorTour from "@/components/FloorTour";
 import HeroTitle from "@/components/HeroTitle";
+import Wordmark from "@/components/Wordmark";
 import { Briefing, PolicyCheck, SalesThread, ServiceCall, VipCall } from "@/components/stories";
 import StickyNav from "@/components/StickyNav";
 import { CONTACT_EMAIL } from "@/lib/config";
@@ -64,9 +65,8 @@ function Lead({ children, className = "" }: { children: React.ReactNode; classNa
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <a href="#top" className={`font-display flex items-center gap-2.5 text-xl font-bold no-underline ${className}`}>
-      <i aria-hidden="true" className="block size-[11px] rounded-full bg-brand" />
-      Ondra
+    <a href="#top" className={`flex items-center no-underline ${className}`}>
+      <Wordmark className="h-[23px] w-auto" />
     </a>
   );
 }

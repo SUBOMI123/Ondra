@@ -1,5 +1,7 @@
 "use client";
 
+import Wordmark from "./Wordmark";
+
 import { useEffect, useState } from "react";
 
 /** A compact bar that slides in once the hero is out of view, so "Book a demo" is always one tap away. */
@@ -23,9 +25,8 @@ export default function StickyNav() {
       }`}
     >
       <div className="mx-auto flex h-14 w-full max-w-(--container-page) items-center justify-between px-4 sm:px-7">
-        <a href="#top" className="font-display flex items-center gap-2 text-lg font-bold no-underline">
-          <i aria-hidden="true" className="block size-[9px] rounded-full bg-brand" />
-          Ondra
+        <a href="#top" className="flex items-center no-underline">
+          <Wordmark className="h-[19px] w-auto" />
         </a>
         <nav aria-label="Sections" className="flex items-center gap-6 text-small">
           {[

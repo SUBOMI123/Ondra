@@ -66,3 +66,9 @@
 **Decision:** The homepage drops every country, city and export reference and stops leading with WhatsApp. It sells by job, like Numa and Flai: one inbox, Sales (an after-hours text thread that books a test drive from real stock), Service (a live service call booking a bay), VIPs, the owner's morning, guardrails. WhatsApp stays as one of four channels, in the briefing and in the FAQ. The demo form asks about a DMS instead of overseas buyers.
 **Why:** The founder wants the site to read as a product for any US dealer. The old page said WhatsApp 51 times and Lagos 16, which read as a niche tool. Phone calls, the biggest channel for dealers, had no story at all.
 **Alternatives:** Keep the cross-border section on the homepage. Rejected for the homepage. The export wedge is still where competitors are weakest and where the pilot is, so it lives in outreach and a later dedicated page (see `docs/marketing/positioning.md`).
+
+## 2026-11-25: Logo is a wordmark with a speedometer o
+
+**Decision:** "ondra" in Inter 500 outlines, with the o drawn as an open speedometer: its ends rest on the baseline, its top overshoots like a round letter, and its needle is the AI blue. One version everywhere. A thicker-dial version is used for the favicon. Files are in `design/brand/`.
+**Why:** The founder chose the speedometer. It reads as automotive at a glance and stays readable as an o when it is drawn to the letters' metrics.
+**Alternatives:** Handoff o (two halves passing), Always-on ring, Open door, Aisle, plain wordmark. A detailed gauge with ticks and numbers was rejected as too busy; the numbers can't be read below about 120 px.
