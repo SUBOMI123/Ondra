@@ -52,6 +52,7 @@ apps/api       FastAPI app: domain logic, webhooks, routing, agent orchestration
 apps/voice     LiveKit voice agent worker
 apps/worker    background jobs
 apps/web       Next.js dashboard
+apps/site      marketing landing page (static Next.js export)
 packages/core  shared models, tools, policies, adapter interfaces and mocks
 evals/         golden conversations and the eval runner
 infra/         docker compose, later terraform
