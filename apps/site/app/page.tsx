@@ -16,6 +16,7 @@ import Appear from "@/components/Appear";
 import ChannelFlow from "@/components/ChannelFlow";
 import FloorTour from "@/components/FloorTour";
 import HeroTitle from "@/components/HeroTitle";
+import { Briefing, PolicyCheck, VipCall, WhatsAppPhone } from "@/components/stories";
 import StickyNav from "@/components/StickyNav";
 import { CONTACT_EMAIL } from "@/lib/config";
 
@@ -120,9 +121,9 @@ function Hero() {
           className="absolute inset-0 -z-20 size-full object-cover object-bottom opacity-55 motion-safe:animate-settle"
         />
       </picture>
-      {/* Twilight: deep navy at the top fading into the lit floor, then night at the foot */}
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-linear-to-b from-twilight via-twilight/60 to-night" />
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-2/3 bg-linear-to-b from-dusk/25 to-transparent" />
+      {/* Night above, a warm sodium glow rising off the polished floor */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,var(--color-night)_0%,rgb(11_9_7/0.72)_38%,rgb(11_9_7/0.25)_68%,var(--color-night)_100%)]" />
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-[radial-gradient(70%_55%_at_50%_100%,rgb(242_163_58/0.22),transparent_70%)]" />
 
       <Wrap className="flex flex-1 flex-col items-center justify-center pb-12 pt-40 text-center sm:pb-16">
         <HeroTitle text="Your dealership, fully staffed." className="font-display text-display max-w-[14ch] text-balance" />
@@ -422,58 +423,41 @@ function Night() {
 
 function WhatsApp() {
   const points = [
-    {
-      t: "Your number, the official API",
-      p: "Ondra connects your existing WhatsApp Business number through Meta's official API. No grey-market tools that get numbers banned.",
-    },
-    {
-      t: "Export questions, captured",
-      p: "Destination, payment method, timeline and budget go straight into the client profile, so your team starts the call already knowing the deal.",
-    },
-    {
-      t: "No DMS? No problem",
-      p: "If you run on WhatsApp and a spreadsheet, Ondra is your CRM. If you have a DMS or CRM, we'll work with you to connect it.",
-    },
+    ["Your number, the official API", "Your existing WhatsApp Business number, connected through Meta. No grey-market tools that get numbers banned."],
+    ["Export questions, captured", "Destination, payment, timeline and budget go straight into the client profile."],
+    ["No DMS? No problem", "Run on WhatsApp and a spreadsheet and Ondra is your CRM. Have a DMS? We'll connect it."],
   ];
   return (
-    <section id="whatsapp" className="on-dark scroll-mt-4 bg-night py-24 text-white sm:py-32 border-t border-line">
-      <Wrap>
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-          <div>
-            <H2 className="max-w-[16ch]">Built for buyers who live on WhatsApp.</H2>
-            <Lead className="mt-5 text-white/70">
-              Most dealer AI tools are built for US buyers on phone and text. Ondra is built for dealers whose buyers are
-              in Lagos, Accra, Dubai or down the road, and would rather message than call.
-            </Lead>
-          </div>
-          {/* Dual clock: the detail only a cross-border dealer cares about */}
-          <figure className="rounded-panel border border-white/12 p-6 sm:p-8">
-            <div className="grid grid-cols-2 divide-x divide-white/12">
-              <div className="pr-6">
-                <p className="text-small text-white/55">Your showroom, Dallas</p>
-                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none tabular-nums">2:14</p>
-                <p className="text-small mt-1 text-white/55">am, closed</p>
-              </div>
-              <div className="pl-6">
-                <p className="text-small text-white/55">Your buyer, Lagos</p>
-                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none text-brand-text tabular-nums">9:14</p>
-                <p className="text-small mt-1 text-white/55">am, ready to buy</p>
-              </div>
+    <section id="whatsapp" className="scroll-mt-14 border-t border-line bg-night py-24 sm:py-32">
+      <Wrap className="grid items-center gap-16 lg:grid-cols-[1.05fr_1fr]">
+        <div>
+          <H2 className="max-w-[15ch]">Built for buyers who live on WhatsApp.</H2>
+          <Lead className="mt-5 text-fg-2">
+            Your buyers are in Lagos, Accra, Dubai or down the road, and they would rather message than call. Ondra answers in
+            their morning and books into yours.
+          </Lead>
+          <div className="mt-10 grid max-w-md grid-cols-2 divide-x divide-line rounded-card border border-line">
+            <div className="p-5">
+              <p className="text-small text-muted-foreground">Your showroom, Dallas</p>
+              <p className="font-display mt-1 text-[2.6rem] leading-none tracking-[-0.04em] tabular-nums">2:14</p>
+              <p className="text-small mt-1 text-muted-foreground">am, closed</p>
             </div>
-            <figcaption className="text-small mt-6 flex items-start gap-2 border-t border-white/12 pt-5 text-white/75">
-              <IconBrandWhatsapp size={18} stroke={1.5} className="mt-0.5 shrink-0 text-wa-on-dark" aria-hidden="true" />
-              Answered in her morning. Booked into yours: a video walkaround with Daniel at 10 am Dallas time.
-            </figcaption>
-          </figure>
+            <div className="p-5">
+              <p className="text-small text-muted-foreground">Your buyer, Lagos</p>
+              <p className="font-display mt-1 text-[2.6rem] leading-none tracking-[-0.04em] text-frost tabular-nums">9:14</p>
+              <p className="text-small mt-1 text-muted-foreground">am, ready to buy</p>
+            </div>
+          </div>
+          <dl className="mt-10 grid gap-5">
+            {points.map(([t, d]) => (
+              <div key={t} className="grid gap-1 sm:grid-cols-[12rem_1fr] sm:gap-6">
+                <dt className="font-medium">{t}</dt>
+                <dd className="text-fg-2">{d}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <ul className="mt-16 grid gap-x-10 gap-y-10 md:grid-cols-3">
-          {points.map((i) => (
-            <li key={i.t} className="border-t border-white/20 pt-5">
-              <p className="font-display text-h4">{i.t}</p>
-              <p className="mt-2.5 text-white/70">{i.p}</p>
-            </li>
-          ))}
-        </ul>
+        <WhatsAppPhone />
       </Wrap>
     </section>
   );
@@ -483,40 +467,17 @@ function WhatsApp() {
 
 function Vip() {
   return (
-    <section id="vip" className="scroll-mt-4 bg-bg py-24 sm:py-32 border-t border-line">
-      <Wrap className="grid items-center gap-12 lg:grid-cols-2">
+    <section id="vip" className="scroll-mt-14 border-t border-line bg-bg py-24 sm:py-32">
+      <Wrap className="grid items-center gap-16 lg:grid-cols-2">
         <div>
           <H2 className="max-w-[15ch]">Some clients should only ever hear from you.</H2>
           <Lead className="mt-5 text-fg-2">
-            Mark a client, or the people who buy for them, as VIP. Their calls ring you directly. Their messages wait for
-            your personal reply. No AI answer, no AI draft, no voice agent, ever.
+            Mark a client, or the people who buy for them, as VIP. Their calls ring you directly and their messages wait for your
+            reply. No AI answer, no AI draft, ever.
           </Lead>
-          <p className="mt-4 max-w-[50ch] text-muted-foreground">If you miss the call, you get an alert straight away, not a summary at the end of the day.</p>
+          <p className="mt-4 max-w-[50ch] text-muted-foreground">Miss the call and you get an alert straight away, not a summary at the end of the day.</p>
         </div>
-        <div aria-hidden="true" className="mx-auto w-full max-w-[420px] space-y-3">
-          <div className="rounded-card bg-surface p-5 shadow-float">
-            <div className="flex items-center justify-between">
-              <span className="text-small flex items-center gap-1.5 rounded-pill bg-vip-subtle px-2.5 py-1 font-semibold text-vip">
-                <IconCrownFilled size={14} />
-                VIP
-              </span>
-              <span className="text-small text-muted-foreground">Incoming call</span>
-            </div>
-            <p className="font-display mt-3 text-[22px] font-bold">Alhaji M.</p>
-            <p className="text-small text-muted-foreground">Ringing your mobile. The voice agent stays off.</p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <span className="rounded-control bg-ok py-2.5 text-center text-sm font-semibold text-white">Answer</span>
-              <span className="rounded-control border border-line py-2.5 text-center text-sm font-semibold">Text back</span>
-            </div>
-          </div>
-          <div className="rounded-card border border-line bg-surface p-4 text-[14px]">
-            <p className="font-semibold">WhatsApp from Alhaji M.&apos;s manager</p>
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-              <span>Waiting for you</span>
-              <span>AI replies off</span>
-            </div>
-          </div>
-        </div>
+        <VipCall />
       </Wrap>
     </section>
   );
@@ -525,40 +486,11 @@ function Vip() {
 /* ---------------------------------------------------------------- owner on WhatsApp */
 
 function OwnerBriefing() {
-  const lines = [
-    ["2", "VIPs waiting for you"],
-    ["5", "hot leads overnight, 3 from Nigeria"],
-    ["4", "follow-ups ready to approve"],
-    ["10", "bookings today: 3 test drives, 1 video walkaround, 6 service"],
-  ];
   return (
-    <section className="border-y border-line bg-bg-2 py-24 sm:py-32 border-t border-line">
-      <Wrap className="grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
-        <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-panel bg-wa-wallpaper p-4 lg:order-1">
-          <p className="text-micro pb-2 text-center text-muted-foreground">Today 7:30 am</p>
-          <div className="max-w-[94%] rounded-card rounded-tl-none bg-surface px-4 py-3.5 text-[14.5px] leading-relaxed">
-            <p className="font-semibold">Good morning. Here&apos;s today.</p>
-            <ul className="mt-2 space-y-1">
-              {lines.map(([n, t]) => (
-                <li key={t} className="flex gap-2.5">
-                  <b className="w-5 shrink-0 text-right tabular-nums">{n}</b>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-2.5 text-center text-[14px] font-semibold text-ai">
-              <span>Approve all 4</span>
-              <span>Review</span>
-            </div>
-          </div>
-          <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-card rounded-tr-none bg-wa-bubble px-3 py-2.5 text-[13px]">
-            <span className="size-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-fg" />
-            <span className="h-1 flex-1 rounded bg-white/20" />
-            <span className="text-muted-foreground tabular-nums">0:14</span>
-          </div>
-          <div className="mt-2.5 max-w-[85%] rounded-card rounded-tl-none bg-surface px-4 py-3 text-[14px]">
-            Done. Task for Daniel: send Chidi the shipping quote by 3 pm. Chidi&apos;s profile is updated.
-          </div>
+    <section className="border-t border-line bg-bg-2 py-24 sm:py-32">
+      <Wrap className="grid items-center gap-16 lg:grid-cols-[1fr_1.05fr]">
+        <div className="order-2 lg:order-1">
+          <Briefing />
         </div>
         <div className="order-1 lg:order-2">
           <H2 className="max-w-[15ch]">Run your morning from WhatsApp.</H2>
@@ -579,25 +511,33 @@ function OwnerBriefing() {
 
 function Guardrails() {
   const items = [
-    ["Approve first", "For the first week, every reply the AI writes waits for your approval. Switch on automatic replies when you trust them."],
-    ["No promises you didn't make", "It won't commit to a final price, a discount or a delivery date unless your policy says it can."],
-    ["Hands off when it should", "If it isn't sure, or a buyer is upset, it passes the conversation to a person with a brief, and alerts a manager if needed."],
-    ["STOP means stop", "When a customer opts out, Ondra stops messaging them on every channel, straight away."],
-    ["Learns your answers", "Questions it couldn't answer land in one list. Answer once and it uses your answer from then on."],
-    ["Your data stays yours", "Each dealer's data is kept separate and encrypted, and is never used to train AI models."],
+    ["Approve first", "For the first week, every reply waits for your approval."],
+    ["Hands off when it should", "Unsure, or a buyer is upset? It passes to a person with a brief."],
+    ["STOP means stop", "Opt-outs stop messages on every channel, straight away."],
+    ["Learns your answers", "Questions it couldn't answer land in one list. Answer once."],
+    ["Your data stays yours", "Kept separate, encrypted, never used to train AI models."],
   ];
   return (
-    <section className="bg-bg py-24 sm:py-32 border-t border-line">
+    <section className="border-t border-line bg-bg py-24 sm:py-32">
       <Wrap>
-        <H2 className="max-w-[18ch]">The AI works for you. You stay in charge.</H2>
-        <dl className="mt-14 grid gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map(([t, p]) => (
-            <div key={t} className="border-t-2 border-fg/70 pt-5">
-              <dt className="font-display text-h4">{t}</dt>
-              <dd className="mt-2.5 text-fg-2">{p}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
+          <H2 className="max-w-[16ch]">It won&apos;t promise what you didn&apos;t.</H2>
+          <Lead className="text-fg-2">
+            Every reply is checked against your rules before it goes out. Prices, discounts and delivery dates stay with your
+            team unless you say otherwise.
+          </Lead>
+        </div>
+        <div className="mt-14 grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:items-start">
+          <PolicyCheck />
+          <dl className="divide-y divide-line border-y border-line">
+            {items.map(([t, d]) => (
+              <div key={t} className="py-4">
+                <dt className="font-medium">{t}</dt>
+                <dd className="text-small mt-1 text-muted-foreground">{d}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </Wrap>
     </section>
   );

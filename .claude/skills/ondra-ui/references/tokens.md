@@ -2,19 +2,19 @@
 
 Tailwind v4, CSS-first. Tokens live in one `@theme` block. Until `packages/ui` exists, `apps/site/app/globals.css` is the source of truth; when `apps/web` starts, move the block to `packages/ui/styles/tokens.css` and import it from both apps (`@source "../../../packages/ui"`).
 
-## Colour: night sky (the marketing site and the default theme)
+## Colour: champagne night (the marketing site and the default theme)
 
 | Token | Value | Role |
 |---|---|---|
-| `night` | `#04060B` | Hero, key bands, footer |
-| `bg` / `bg-2` | `#070A12` / `#0A0E19` | Page / alternating bands |
-| `surface` / `muted` | `#0F1422` / `#161D2E` | Cards, inputs, labels / quiet chips and tracks |
-| `line` / `line-strong` | white 8% / white 16% | Hairlines, ghost-pill outlines |
-| `twilight` / `dusk` | `#0D1838` / `#24306A` | The night-sky atmosphere (hero gradient only) |
-| `fg` / `fg-2` / `muted-foreground` | `#F3F4F8` / `#C9CEDB` / `#9AA3B8` | Text levels |
-| `frost` / `on-frost` | white 88% / `#070A14` | Primary pill buttons |
+| `night` | `#0B0907` | Hero, key bands, footer |
+| `bg` / `bg-2` | `#0D0B09` / `#110E0B` | Page / alternating bands |
+| `surface` / `muted` | `#18140F` / `#221C15` | Cards, inputs, labels / quiet chips and tracks |
+| `line` / `line-strong` | warm white 9% / 18% | Hairlines, ghost-pill outlines |
+| `dusk` | `#F2A33A` | Sodium glow off the floor (hero), and "held back" policy flags. Never a button |
+| `fg` / `fg-2` / `muted-foreground` | `#F6EFE3` / `#D9CFBF` / `#A99D8B` | Text levels |
+| `frost` / `on-frost` | `#EAD9B5` (champagne) / `#1B140B` | Primary pill buttons |
 | `brand` / `ai` / `ai-subtle` | `#8AA6FF` / `#B3C5FF` / `#121B36` | Ondra and anything the AI did |
-| `vip` / `vip-subtle` | `#FF8A80` / `#34161A` | VIPs and overdue only |
+| `vip` / `vip-subtle` | `#FF6B6B` / `#321416` | VIPs and overdue only |
 | `ok` | `#4ADE9A` | Positive deltas, Answer buttons |
 | `wa*` | WhatsApp dark-mode colours | Chat mocks only |
 
