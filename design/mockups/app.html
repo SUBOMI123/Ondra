@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ondra — Dealer workspace (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F2EF; --card:#FFFFFF; --ink:#17181C; --muted:#5C5F67; --faint:#8A8D95; --rule:#E2E0DA; --rule2:#ECEAE5;
+  --side:#17181C; --side2:#24262C; --sideTxt:#C9CBD2;
+  --sodium:#F2A33A; --sodium-ink:#1A1206; --sodium-bg:#FFF3E0; --sodium-txt:#7A4A08;
+  --ai:#1E3F7A; --ai-bg:#EAF1FF; --ai-line:#C9DAF8;
+  --vip:#A3191E; --vip-bg:#FFE9EA;
+  --ok:#1F6B45; --ok-bg:#E6F4EC;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Archivo",system-ui,sans-serif;font-variation-settings:"wdth" 100;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid #2F6FEB;outline-offset:2px;border-radius:4px}
+.w{font-variation-settings:"wdth" 125}
+.app{display:flex;flex-wrap:wrap;min-height:100vh}
+
+/* sidebar */
+.side{flex:1 1 220px;max-width:100%;background:var(--side);color:var(--sideTxt);padding:20px 12px;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 10px 4px;color:#fff;font-weight:700;font-size:18px;font-variation-settings:"wdth" 125;text-decoration:none}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--sodium);box-shadow:0 0 12px 3px rgba(242,163,58,.45)}
+.ws{font-size:12px;color:#8E9099;padding:0 10px 18px}
+.nav a{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:8px;color:var(--sideTxt);text-decoration:none}
+.nav a:hover{background:#1F2126}
+.nav a.on{background:var(--side2);color:#fff}
+.nav a .count{margin-left:auto;font-size:12px;background:var(--sodium);color:var(--sodium-ink);border-radius:999px;padding:0 8px;font-weight:600}
+.nav a .count.red{background:#E5484D;color:#fff}
+.nav svg{flex:none}
+.side .sep{height:1px;background:#2A2C33;margin:12px 6px}
+.side .me{margin-top:auto;font-size:12px;color:#8E9099;padding:12px 10px 0;border-top:1px solid #2A2C33}
+
+/* main */
+.main{flex:999 1 600px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 28px;background:var(--card);border-bottom:1px solid var(--rule)}
+.top h1{font-size:22px;font-weight:700;font-variation-settings:"wdth" 125;flex:1 1 auto}
+.search{width:280px;max-width:100%;height:40px;border:1px solid var(--rule);border-radius:10px;padding:0 12px;background:var(--paper)}
+.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.status i{width:8px;height:8px;border-radius:50%;background:#2DA865}
+.view{display:none;padding:24px 28px;flex:1}
+.view.on{display:block}
+.view.flush{padding:0}
+.sample{font-size:12px;color:var(--faint)}
+
+/* common */
+.card{background:var(--card);border:1px solid var(--rule);border-radius:14px}
+.pad{padding:18px}
+.h2{font-size:15px;font-weight:700}
+.sub{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--rule);background:var(--card);cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:#C9C6BE}
+.btn.primary{background:var(--sodium);border-color:var(--sodium);color:var(--sodium-ink);font-weight:600}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.vip{background:var(--vip-bg);border-color:#F6C9CB;color:var(--vip)}
+.tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.t-ai{background:var(--ai-bg);color:var(--ai)}
+.t-vip{background:var(--vip-bg);color:var(--vip)}
+.t-hot{background:var(--sodium-bg);color:var(--sodium-txt)}
+.t-ok{background:var(--ok-bg);color:var(--ok)}
+.t-n{background:#EEEDE9;color:#45474E}
+.grid{display:grid;gap:16px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule)}
+td{padding:12px 14px;border-bottom:1px solid var(--rule2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.scroll-x{overflow-x:auto}
+
+/* today */
+.kpis{display:grid;grid-template-columns:2fr repeat(3,minmax(0,1fr));gap:16px}
+.kpi{padding:18px}
+.kpi.hero{background:var(--ink);color:#fff;border-color:var(--ink)}
+.kpi small{display:block;font-size:13px;color:var(--muted)}
+.kpi.hero small{color:#B9BBC2}
+.kpi strong{display:block;font-variation-settings:"wdth" 125;font-weight:600;font-size:34px;line-height:1.1;margin-top:8px;font-feature-settings:"tnum"}
+.kpi.hero strong{font-size:44px}
+.kpi p{font-size:13px;color:var(--muted);margin-top:4px}.kpi.hero p{color:#D6D7DC}
+.two{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.list-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--rule2)}
+.list-row:first-child{border-top:0}
+.when{flex:0 0 108px;font-size:12.5px;color:var(--muted);font-feature-settings:"tnum"}
+.when b{color:var(--ink);font-size:13.5px}
+.grow{flex:1;min-width:0}
+.needs a{display:block;padding:12px;border-radius:10px;text-decoration:none;color:inherit;margin-top:8px;background:var(--paper)}
+.needs a.v{background:var(--vip-bg);color:var(--vip)}
+.pipe{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;min-width:600px}
+.pipe div{background:var(--paper);border-radius:10px;padding:12px}
+.pipe b{display:block;font-size:22px;font-variation-settings:"wdth" 125;font-feature-settings:"tnum"}
+.bar{height:8px;border-radius:999px;background:#ECEAE5;margin-top:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ink);border-radius:999px}
+.stack{display:flex;height:12px;border-radius:999px;overflow:hidden;margin-top:6px}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi.hero{grid-column:span 2}.two{grid-template-columns:1fr}}
+
+/* inbox */
+.inbox{display:flex;flex-wrap:wrap;min-height:calc(100vh - 73px)}
+.ilist{flex:1 1 300px;max-width:360px;border-right:1px solid var(--rule);background:var(--card)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.chip{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--rule);background:var(--card);cursor:pointer;font-size:12.5px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.conv{display:flex;gap:12px;width:100%;text-align:left;padding:14px;border:0;border-bottom:1px solid var(--rule2);background:transparent;cursor:pointer}
+.conv.on{background:#FAF9F6;box-shadow:inset 3px 0 0 var(--sodium)}
+.av{flex:0 0 38px;height:38px;border-radius:50%;background:#E9E6DE;display:grid;place-items:center;font-size:12.5px;font-weight:700}
+.av.v{background:var(--vip-bg);color:var(--vip)}
+.conv .nm{display:flex;justify-content:space-between;gap:8px}
+.conv .nm b{font-size:14px}
+.conv .pv{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.thread{flex:999 1 420px;min-width:0;display:flex;flex-direction:column}
+.thead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--rule)}
+.msgs{flex:1;padding:22px 20px;display:flex;flex-direction:column;gap:12px}
+.m{max-width:72%;padding:10px 14px;border-radius:14px;font-size:14px}
+.m .who{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.m.c{background:var(--card);border:1px solid var(--rule);border-bottom-left-radius:4px}
+.m.a{align-self:flex-end;background:var(--ai-bg);border-bottom-right-radius:4px}
+.m.a .who{color:var(--ai)}
+.m.s{align-self:center;background:transparent;border:1px dashed #CFCAC0;border-radius:999px;font-size:12.5px;color:var(--muted);padding:6px 14px;max-width:90%;text-align:center}
+.callcard{align-self:stretch;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.callcard .top2{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wave{flex:1;min-width:120px;height:28px;display:flex;align-items:center;gap:2px}
+.wave i{flex:1;background:#C9C6BE;border-radius:2px}
+.compose{display:flex;gap:8px;padding:14px 20px;background:var(--card);border-top:1px solid var(--rule)}
+.compose input{flex:1;min-width:0;height:42px;border:1px solid var(--rule);border-radius:10px;padding:0 12px}
+.brief{flex:1 1 300px;max-width:100%;border-left:1px solid var(--rule);background:var(--card);padding:18px;display:flex;flex-direction:column;gap:16px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.facts div{background:var(--paper);border-radius:8px;padding:8px 10px}
+.facts dt{font-size:11.5px;color:var(--muted)}.facts dd{font-size:13px;font-weight:600}
+.draft{border:1px solid var(--ai-line);background:#F6F9FF;border-radius:12px;padding:14px}
+.lbl{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;display:block}
+@media (max-width:1100px){.ilist{max-width:none}}
+
+.carimg{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#E4E2DC;display:block}
+/* calls */
+.live{background:var(--ink);color:#fff;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.live .lv{display:flex;align-items:center;gap:8px;font-size:13px;color:#E8E9EE}
+.live .lv i{width:8px;height:8px;border-radius:50%;background:#E5484D}
+.live .tr{background:#24262C;border-radius:10px;padding:10px 12px;font-size:13px;color:#DADBE0}
+.live .tr b{color:#9EC2FF;font-weight:600}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:64px repeat(5,minmax(140px,1fr));min-width:820px}
+.cal .hd{position:sticky;top:0;background:var(--card);padding:10px;border-bottom:1px solid var(--rule);font-weight:600;font-size:13px}
+.cal .hd span{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.cal .hr{height:56px;border-bottom:1px solid var(--rule2);font-size:12px;color:var(--faint);padding:2px 8px;text-align:right}
+.cal .colm{position:relative;border-left:1px solid var(--rule2)}
+.cal .colm .cell{height:56px;border-bottom:1px solid var(--rule2)}
+.ap{position:absolute;left:6px;right:6px;border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.3;overflow:hidden}
+.ap b{display:block;font-size:12.5px}
+.ap.ai{background:var(--ai-bg);border:1px solid var(--ai-line);color:#16305E}
+.ap.st{background:#EEEDE9;border:1px solid #DDD9D0}
+.ap.hold{background:repeating-linear-gradient(45deg,#F4F3EF,#F4F3EF 6px,#ECEAE5 6px,#ECEAE5 12px);color:var(--muted)}
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:1100px){.calwrap{grid-template-columns:1fr}}
+
+/* clients */
+.prof{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.tl{list-style:none;display:flex;flex-direction:column;gap:16px}
+.tl li{display:grid;grid-template-columns:12px 1fr;gap:12px}
+.tl li::before{content:"";width:10px;height:10px;border-radius:50%;background:#C9C6BE;margin-top:5px}
+.tl li.ai::before{background:#5B8DEF}.tl li.hot::before{background:var(--sodium)}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kv dt{font-size:12px;color:var(--muted)}.kv dd{font-weight:600;font-size:13.5px}
+@media (max-width:1100px){.prof{grid-template-columns:1fr}}
+
+/* tasks */
+.board{display:grid;grid-template-columns:repeat(4,minmax(250px,1fr));gap:14px;min-width:1040px}
+.col{background:#E9E8E3;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.col h3{font-size:13.5px;display:flex;justify-content:space-between;padding:2px 4px}
+.tk{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.tk.late{border-color:#F3C9A4}
+.tk .ft{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--muted)}
+.tk .ft .late{color:#9A4A06;font-weight:600}
+
+/* settings */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 14px;border:0;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+.tab.on{color:var(--ink);border-bottom-color:var(--sodium)}
+.pane{display:none}.pane.on{display:block}
+.settwo{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:12.5px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--rule);border-radius:8px;padding:9px 10px;background:var(--card);width:100%}
+.inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rule{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--rule2)}
+.rule:first-child{border-top:0}
+.rule .n{width:24px;height:24px;border-radius:6px;background:var(--paper);display:grid;place-items:center;font-size:12px;font-weight:700}
+.rule p{font-size:14px}.rule p b{font-weight:700}
+.switch{width:38px;height:22px;border-radius:999px;background:#2DA865;position:relative;border:0;cursor:pointer}
+.switch::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.switch.off{background:#C9C6BE}.switch.off::after{right:auto;left:3px}
+.chan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:1000px){.settwo,.chan{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="landing.html"><i aria-hidden="true"></i>Ondra</a>
+    <div class="ws">Mr. Jay Autos</div>
+    <nav class="nav" aria-label="Workspace">
+      <a href="#today" data-v="today"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>Today</a>
+      <a href="#inbox" data-v="inbox"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg>Inbox<span class="count">6</span></a>
+      <a href="#calls" data-v="calls"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>Calls<span class="count red">1 live</span></a>
+      <a href="#calendar" data-v="calendar"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+      <a href="#clients" data-v="clients"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Clients</a>
+      <a href="#tasks" data-v="tasks"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tasks<span class="count">4</span></a>
+      <div class="sep"></div>
+      <a href="#settings" data-v="settings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+    </nav>
+    <div class="me">Mr. Jay · Owner</div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <h1 id="title">Today</h1>
+      <span class="status"><i aria-hidden="true"></i>All channels connected</span>
+      <label for="q" style="position:absolute;left:-9999px">Search</label>
+      <input id="q" class="search" type="search" placeholder="Search clients, cars, calls">
+    </header>
+
+    <!-- TODAY -->
+    <section class="view" id="v-today" aria-label="Today">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <div><div class="w" style="font-size:24px;font-weight:700">Good afternoon, Jay</div><div class="sub">This week across calls, WhatsApp, text and email.</div></div>
+        <span class="sample">Sample data</span>
+      </div>
+      <div class="kpis">
+        <div class="card kpi hero"><small>Deals in play started or rescued by Ondra</small><strong>$1.42M</strong><p>18 deals from buyers who called or messaged when nobody could pick up.</p></div>
+        <div class="card kpi"><small>Answered after hours</small><strong>38</strong><p>of 61 new buyers</p></div>
+        <div class="card kpi"><small>Median first reply</small><strong>41s</strong><p>day and night</p></div>
+        <div class="card kpi"><small>Appointments booked</small><strong>23</strong><p>19 by Ondra, 4 by staff</p></div>
+      </div>
+      <div class="two">
+        <div class="card pad">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><h2 class="h2">While you were away</h2><a href="#inbox" class="sub">Open inbox</a></div>
+          <div style="margin-top:8px">
+            <div class="list-row"><div class="when"><b>2:14 am</b><br>9:14 am Lagos</div><div class="grow"><b>Tunde Adebayo</b> · call<div class="sub">2024 G63, black, about $230k. Walkaround booked Thu 10:00.</div></div><span class="tag t-hot">Hot lead</span></div>
+            <div class="list-row"><div class="when"><b>1:05 am</b><br>8:05 am Abuja</div><div class="grow"><b>Ibrahim Sule</b> · WhatsApp<div class="sub">2024 LX600, asked for shipping timeline.</div></div><span class="tag t-n">Sent to Sales</span></div>
+            <div class="list-row"><div class="when"><b>11:52 pm</b><br>5:52 am Accra</div><div class="grow"><b>Kola Bello</b> · Instagram<div class="sub">Shipping cost to Tema, answered fully.</div></div><span class="tag t-ai">Handled by Ondra</span></div>
+            <div class="list-row"><div class="when"><b>10:31 pm</b><br>Dallas</div><div class="grow"><b>+1 (469) 555-0142</b> · text<div class="sub">2025 Escalade, still asking about budget.</div></div><span class="tag t-ai">Qualifying</span></div>
+          </div>
+        </div>
+        <div class="card pad needs">
+          <h2 class="h2">Needs you</h2>
+          <a href="#inbox" class="v"><b>VIP waiting, 1 hour</b><br>Ope Martins, about the Cullinan</a>
+          <a href="#inbox"><b>3 follow-ups to approve</b><br><span class="sub">Drafted by Ondra, one tap each</span></a>
+          <a href="#settings"><b>2 questions Ondra couldn't answer</b><br><span class="sub">Answer once and it will use them</span></a>
+          <a href="#tasks"><b>Mansory build update due Friday</b><br><span class="sub">Femi Oladipo, Dubai</span></a>
+        </div>
+      </div>
+      <div class="two">
+        <div class="card pad"><h2 class="h2" style="margin-bottom:12px">Pipeline</h2>
+          <div class="scroll-x"><div class="pipe">
+            <div><span class="sub">Qualified</span><b>14</b><span class="sub">$3.1M</span></div>
+            <div><span class="sub">Sourcing</span><b>6</b><span class="sub">$1.2M</span></div>
+            <div><span class="sub">Offer sent</span><b>5</b><span class="sub">$980k</span></div>
+            <div style="background:var(--sodium-bg)"><span class="sub" style="color:var(--sodium-txt)">Deposit paid</span><b>4</b><span class="sub" style="color:var(--sodium-txt)">$860k</span></div>
+            <div><span class="sub">Delivered</span><b>7</b><span class="sub">$1.5M</span></div>
+          </div></div>
+        </div>
+        <div class="card pad"><h2 class="h2" style="margin-bottom:10px">Where buyers came from</h2>
+          <div class="sub" style="display:flex;justify-content:space-between"><span>WhatsApp</span><b style="color:var(--ink)">29</b></div><div class="bar"><i style="width:48%"></i></div>
+          <div class="sub" style="display:flex;justify-content:space-between;margin-top:8px"><span>Phone</span><b style="color:var(--ink)">18</b></div><div class="bar"><i style="width:30%"></i></div>
+          <div class="sub" style="display:flex;justify-content:space-between;margin-top:8px"><span>Instagram</span><b style="color:var(--ink)">9</b></div><div class="bar"><i style="width:15%"></i></div>
+          <div class="sub" style="display:flex;justify-content:space-between;margin-top:8px"><span>Email and text</span><b style="color:var(--ink)">5</b></div><div class="bar"><i style="width:8%"></i></div>
+          <div class="sub" style="margin-top:14px">Who handled conversations</div>
+          <div class="stack" role="img" aria-label="Ondra alone 58 percent, staff 34 percent, owner 8 percent"><i style="width:58%;background:#5B8DEF"></i><i style="width:34%;background:var(--sodium)"></i><i style="width:8%;background:var(--ink)"></i></div>
+          <div class="sub" style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap"><span><b style="color:var(--ink)">58%</b> Ondra alone</span><span><b style="color:var(--ink)">34%</b> staff</span><span><b style="color:var(--ink)">8%</b> you</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INBOX -->
+    <section class="view flush" id="v-inbox" aria-label="Inbox">
+      <div class="inbox">
+        <div class="ilist">
+          <div class="filters" role="group" aria-label="Filter conversations"><button class="chip on">All</button><button class="chip">Mine</button><button class="chip">VIP</button><button class="chip">Ondra handling</button><button class="chip">Waiting on staff</button></div>
+          <div id="convs"></div>
+        </div>
+        <div class="thread">
+          <div class="thead"><div style="flex:1 1 auto"><b id="t-name" style="font-size:15px"></b><div class="sub" id="t-meta"></div></div><a class="btn" href="#clients">Client profile</a><button class="btn">Assign</button></div>
+          <div class="msgs" id="msgs"></div>
+          <form class="compose" onsubmit="return false"><label for="reply" style="position:absolute;left:-9999px">Reply</label><input id="reply" placeholder="Reply as Mr. Jay Autos"><button class="btn dark" type="button">Send</button></form>
+        </div>
+        <aside class="brief" aria-label="Brief">
+          <div id="b-img"></div>
+          <div><span class="lbl" style="color:var(--ai)">What Ondra knows</span><p id="b-sum" style="font-size:14px"></p></div>
+          <dl class="facts" id="b-facts"></dl>
+          <div class="card pad" style="padding:14px"><span class="lbl">Routed to</span><b id="b-owner" style="font-size:15px"></b><div class="sub" id="b-why"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn">Reassign</button><button class="btn">Take over</button><button class="btn vip">Mark VIP</button></div></div>
+          <div id="b-draft"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CALLS -->
+    <section class="view" id="v-calls" aria-label="Calls">
+      <div class="calwrap">
+        <div class="card"><div class="scroll-x"><table>
+          <thead><tr><th>Time</th><th>Caller</th><th>What happened</th><th>Handled by</th><th>Length</th></tr></thead>
+          <tbody>
+            <tr><td>2:14 am</td><td><b>Tunde Adebayo</b><div class="sub">+234 803 555 0192</div></td><td><span class="tag t-ok">Booked</span> Walkaround, Thu 10:00</td><td><span class="tag t-ai">Ondra</span></td><td>4:12</td></tr>
+            <tr><td>8:15 am</td><td><b>Ope Martins</b><div class="sub">Manager for a VIP</div></td><td><span class="tag t-vip">Rang owner</span> Missed, alert sent</td><td>Mr. Jay</td><td>0:25</td></tr>
+            <tr><td>9:02 am</td><td><b>Grace Ellis</b><div class="sub">+1 (214) 555-0187</div></td><td><span class="tag t-n">Transferred</span> Asked for a manager about a trade-in</td><td>Ondra → Daniel</td><td>6:40</td></tr>
+            <tr><td>10:20 am</td><td><b>Mark Hollis</b><div class="sub">+1 (972) 555-0133</div></td><td><span class="tag t-ok">Booked</span> Oil change, Bay 2, Thu 9:00</td><td><span class="tag t-ai">Ondra</span></td><td>2:51</td></tr>
+            <tr><td>11:47 am</td><td><b>Unknown</b><div class="sub">+1 (817) 555-0174</div></td><td><span class="tag t-n">Message taken</span> Wants a call back about financing</td><td><span class="tag t-ai">Ondra</span></td><td>1:30</td></tr>
+          </tbody></table></div></div>
+        <div class="live" aria-live="polite">
+          <div class="lv"><i aria-hidden="true"></i>Live now · 1:42</div>
+          <b style="font-size:16px">Ada Nwankwo</b><span style="color:#B9BBC2;font-size:13px">Asking about a 2023 GLE 63, shipping to Abuja</span>
+          <div class="tr"><b>Ondra</b> We have a 2023 GLE 63 in Obsidian Black with 14,000 miles. Would a video walkaround tomorrow work?</div>
+          <div class="tr">Yes, after 4pm Lagos time.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary">Take over the call</button><button class="btn" style="background:#24262C;border-color:#34363D;color:#fff">Transfer to Daniel</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="view" id="v-calendar" aria-label="Calendar">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="display:flex;gap:6px"><button class="btn">Today</button><button class="btn" aria-label="Previous day">‹</button><button class="btn" aria-label="Next day">›</button><b style="align-self:center;margin-left:8px">Thursday, Nov 26</b></div>
+        <div class="sub" style="display:flex;gap:14px"><span><span class="tag t-ai">Booked by Ondra</span></span><span><span class="tag t-n">Booked by staff</span></span></div>
+      </div>
+      <div class="calwrap">
+        <div class="card scroll-x"><div class="cal" id="cal"></div></div>
+        <div class="card pad"><h2 class="h2">What can be booked</h2><p class="sub" style="margin-bottom:10px">Set in Settings, Appointment types.</p>
+          <div id="types-mini"></div>
+          <a class="btn" href="#settings" style="margin-top:12px">Edit appointment types</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLIENTS -->
+    <section class="view" id="v-clients" aria-label="Client profile">
+      <div class="card pad" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <div class="av" style="width:64px;height:64px;flex:none;font-size:20px">TA</div>
+        <div style="flex:1 1 260px"><div class="w" style="font-size:24px;font-weight:700">Tunde Adebayo</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="tag t-hot">Hot lead</span><span class="tag t-n">Repeat buyer, 2 cars</span><span class="tag t-n">Lagos</span><span class="tag t-n">WhatsApp and calls</span></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn dark" href="#inbox">Message on WhatsApp</a><button class="btn">Call</button><button class="btn vip">Add to VIP list</button></div>
+      </div>
+      <div class="prof">
+        <div class="grid">
+          <div class="card pad"><h2 class="h2" style="margin-bottom:12px">Preferences</h2><dl class="kv"><div><dt>Brands</dt><dd>Mercedes-AMG, Lexus</dd></div><div><dt>Colours</dt><dd>Black, dark grey</dd></div><div><dt>Budget</dt><dd>$200k–$250k</dd></div><div><dt>Ships to</dt><dd>Apapa, Lagos</dd></div></dl></div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:12px">People</h2><div class="sub"><b style="color:var(--ink)">Tunde</b>, prefers voice notes</div><div class="sub" style="margin-top:6px"><b style="color:var(--ink)">Seyi</b>, assistant, handles payments</div></div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:12px">Purchases</h2><div class="sub"><b style="color:var(--ink)">2024 Lexus LX600</b><br>Delivered to Lagos, Mar 2025</div><div class="sub" style="margin-top:8px"><b style="color:var(--ink)">2022 Range Rover Sport</b><br>Delivered to Lagos, Aug 2023</div></div>
+        </div>
+        <div class="card pad"><h2 class="h2">Timeline</h2><p class="sub" style="margin-bottom:14px">Built from calls, WhatsApp, voice notes and email</p>
+          <ol class="tl">
+            <li class="hot"><div><b>Call answered by Ondra, walkaround booked</b><div class="sub">Wants a black 2024 G63 before December, about $230k. Recording and transcript attached.</div><div class="sub" style="font-size:12px;margin-top:2px">Today, 2:14 am</div></div></li>
+            <li class="ai"><div><b>Voice note from Mr. Jay logged</b><div class="sub">"He's thinking of upgrading from the LX, likes the G-Class." Saved as a preference.</div><div class="sub" style="font-size:12px;margin-top:2px">Sep 28</div></div></li>
+            <li><div><b>Referred Kunle Bakare</b><div class="sub">Kunle bought a 2023 GLE 63 in July.</div><div class="sub" style="font-size:12px;margin-top:2px">Jul 9</div></div></li>
+            <li><div><b>LX600 delivered</b><div class="sub">Confirmed by the clearing agent. Check-in sent a week later.</div><div class="sub" style="font-size:12px;margin-top:2px">Mar 21, 2025</div></div></li>
+          </ol>
+        </div>
+        <div class="grid">
+          <div class="card pad"><h2 class="h2" style="margin-bottom:10px">Open deal</h2><img class="carimg" style="margin-bottom:12px" src="https://images.unsplash.com/photo-1599758918450-c0d699978e59?w=900&q=70&auto=format&fit=crop" alt="A black G-Class, the car Tunde is interested in"><b>2024 G63, black</b><div class="sub">Daniel · Sourcing</div><div class="bar" style="margin-top:10px"><i style="width:40%;background:var(--sodium)"></i></div><div class="sub" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--sodium-bg);color:var(--sodium-txt)">Next: send 3 options with landed cost, due 2:00 pm</div></div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:10px">Coming up</h2><div class="sub"><b style="color:var(--ink)">Walkaround</b>, Thu 5:00 pm Lagos</div><div class="sub" style="margin-top:6px"><b style="color:var(--ink)">Birthday</b>, Dec 4, draft ready for approval</div></div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:10px">Consent</h2><div class="sub">WhatsApp: opted in · Text: opted in · Calls: recording disclosed</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" id="v-tasks" aria-label="Tasks">
+      <div class="filters" style="padding:0 0 14px;border:0" role="group" aria-label="Filter by person"><button class="chip on">Everyone</button><button class="chip">Mr. Jay</button><button class="chip">Daniel, Sales</button><button class="chip">Amaka, Logistics</button><button class="chip">Ada, Service</button></div>
+      <div class="scroll-x"><div class="board" id="board"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings" aria-label="Settings">
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-p="types" role="tab">Appointment types</button>
+        <button class="tab" data-p="routing" role="tab">Routing rules</button>
+        <button class="tab" data-p="knowledge" role="tab">What Ondra knows</button>
+        <button class="tab" data-p="channels" role="tab">Channels</button>
+      </div>
+
+      <div class="pane on" id="p-types">
+        <div class="settwo">
+          <div class="card"><div class="scroll-x"><table><thead><tr><th>Type</th><th>Length</th><th>Who or what</th><th>Hours</th><th>Bookable by Ondra</th></tr></thead><tbody id="types"></tbody></table></div>
+            <div class="pad" style="border-top:1px solid var(--rule)"><button class="btn primary">Add appointment type</button></div></div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:14px">Edit: Test drive</h2>
+            <div class="inline"><div class="field"><label for="f1">Length</label><select id="f1"><option>45 minutes</option></select></div><div class="field"><label for="f2">Gap after</label><select id="f2"><option>15 minutes</option></select></div></div>
+            <div class="field"><label for="f3">Who can take it</label><input id="f3" value="Sales: Daniel, Ifeoma"></div>
+            <div class="field"><label for="f4">Needs</label><input id="f4" value="The car, held for the slot"></div>
+            <div class="inline"><div class="field"><label for="f5">Minimum notice</label><select id="f5"><option>2 hours</option></select></div><div class="field"><label for="f6">Book up to</label><select id="f6"><option>21 days ahead</option></select></div></div>
+            <div class="field"><label for="f7">Ondra must ask for</label><input id="f7" value="Car of interest, driver's licence on hand, trade-in yes/no"></div>
+            <div class="field"><label for="f8">Reminders</label><input id="f8" value="24 hours and 2 hours before, on the customer's channel"></div>
+            <button class="btn dark">Save changes</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" id="p-routing">
+        <div class="card pad"><h2 class="h2">Who gets what</h2><p class="sub" style="margin-bottom:8px">Checked top to bottom. The first rule that matches wins.</p>
+          <div id="rules"></div>
+          <button class="btn primary" style="margin-top:14px">Add rule</button></div>
+      </div>
+
+      <div class="pane" id="p-knowledge">
+        <div class="settwo">
+          <div class="card pad"><h2 class="h2">Questions Ondra couldn't answer</h2><p class="sub" style="margin-bottom:12px">Answer once. Ondra uses it next time.</p>
+            <div class="list-row" style="display:block;border-top:0"><b>Do you accept payment in naira?</b><div class="sub">Asked 4 times this week</div><div class="field" style="margin-top:8px"><label for="k1">Your answer</label><textarea id="k1" rows="2" placeholder="Type how you want Ondra to answer"></textarea></div><button class="btn dark">Save answer</button></div>
+            <div class="list-row" style="display:block"><b>Can you ship to Port Harcourt instead of Apapa?</b><div class="sub">Asked twice this week</div><button class="btn" style="margin-top:8px">Answer</button></div>
+          </div>
+          <div class="card pad"><h2 class="h2" style="margin-bottom:10px">What Ondra already knows</h2>
+            <div class="list-row"><div class="grow"><b>How buying from abroad works</b><div class="sub">Deposit, payment, shipping, clearing</div></div><button class="btn">Edit</button></div>
+            <div class="list-row"><div class="grow"><b>Hours and locations</b><div class="sub">Dallas showroom, Lagos office</div></div><button class="btn">Edit</button></div>
+            <div class="list-row"><div class="grow"><b>Never say</b><div class="sub">Final prices, discounts, delivery dates</div></div><button class="btn">Edit</button></div>
+            <div class="list-row"><div class="grow"><b>Inventory</b><div class="sub">Synced every hour, 46 cars</div></div><button class="btn">Edit</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" id="p-channels">
+        <div class="chan">
+          <div class="card pad"><div style="display:flex;justify-content:space-between"><h2 class="h2">Phone</h2><span class="tag t-ok">Connected</span></div><p class="sub" style="margin:6px 0 12px">Your number (214) 555-0100 forwards to Ondra.</p><div class="field"><label for="c1">When should Ondra answer?</label><select id="c1"><option>Every call</option><option>Only when nobody picks up</option></select></div><button class="btn">Make a test call</button></div>
+          <div class="card pad"><div style="display:flex;justify-content:space-between"><h2 class="h2">WhatsApp</h2><span class="tag t-ok">Connected</span></div><p class="sub" style="margin:6px 0 12px">Business number +1 (214) 555-0100. Staff can keep using the WhatsApp Business app.</p><button class="btn">Manage message templates</button></div>
+          <div class="card pad"><div style="display:flex;justify-content:space-between"><h2 class="h2">Email</h2><span class="tag t-ok">Connected</span></div><p class="sub" style="margin:6px 0 12px">sales@mrjayautos.com and service@ forward to Ondra.</p><button class="btn">Connect Gmail instead</button></div>
+          <div class="card pad"><div style="display:flex;justify-content:space-between"><h2 class="h2">Instagram</h2><span class="tag t-n">Not connected</span></div><p class="sub" style="margin:6px 0 12px">Answer direct messages from @m_jautos.</p><button class="btn primary">Connect Instagram</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+var titles={today:'Today',inbox:'Inbox',calls:'Calls',calendar:'Calendar',clients:'Clients',tasks:'Tasks',settings:'Settings'};
+function show(){var v=(location.hash||'#today').slice(1);if(!titles[v])v='today';
+  document.querySelectorAll('.view').forEach(function(s){s.classList.toggle('on',s.id==='v-'+v)});
+  document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.v===v);a.setAttribute('aria-current',a.dataset.v===v?'page':'false')});
+  document.getElementById('title').textContent=titles[v];window.scrollTo(0,0);}
+window.addEventListener('hashchange',show);show();
+
+function el(h){var d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+/* inbox data */
+var convs=[
+ {id:'t',img:'https://images.unsplash.com/photo-1599758918450-c0d699978e59?w=900&q=70&auto=format&fit=crop',n:'Tunde Adebayo',i:'TA',ch:'Call + WhatsApp',pl:'Lagos',tm:'2:14 am',pv:'Around 230k. Yes, Apapa.',tg:['t-hot','Hot lead'],own:'Daniel, Sales',why:'Budget confirmed, repeat buyer',
+  sum:'Repeat buyer (2024 LX600). Wants a black 2024 G63 in Lagos before December. Budget about $230k. Walkaround booked Thu 5:00 pm Lagos time.',
+  f:[['Car','2024 G63, black'],['Budget','About $230,000'],['Ships to','Apapa, Lagos'],['Timeline','Before December']],
+  m:[['call','Inbound call · 4:12 · answered by Ondra','Qualified, walkaround booked, sent to Daniel'],['c','Sent photos of the LX last time, can you do the same for the G63?','9:20 am'],['a','Of course. Daniel will send photos and a video walkaround of each option before Thursday.','9:20 am'],['s','Assigned to Daniel (Sales) with the call brief · due 2:00 pm']],
+  d:'Hi Tunde, Daniel here. I have three black 2024 G63s for you. Photos and landed cost to Apapa are coming this afternoon.'},
+ {id:'o',n:'Ope Martins',i:'OM',v:1,ch:'Call',pl:'Lagos',tm:'8:15 am',pv:'Calling for our principal about the Cullinan',tg:['t-vip','VIP · reply yourself'],own:'Mr. Jay',why:'On the VIP list, Ondra stays silent',
+  sum:'Manager for a VIP client. Called about the Cullinan you posted. Your phone rang; the call was missed and you were alerted.',
+  f:[['Car','Rolls-Royce Cullinan'],['Budget','Not discussed'],['Ships to','Lagos'],['Timeline','Not stated']],
+  m:[['call','Inbound call · 0:25 · rang Mr. Jay directly','Missed. Caller told you will call back shortly.'],['s','WhatsApp alert sent to Mr. Jay at 8:15 · second alert at 9:15']],d:''},
+ {id:'c',n:'Chidi Nwosu',i:'CN',ch:'Instagram',pl:'Abuja',tm:'Yesterday',pv:'Please where is my Range Rover?',tg:['t-n','Shipping question'],own:'Amaka, Logistics',why:'Topic: shipment status',
+  sum:'Paid in full Oct 18 for a 2023 Range Rover Sport. Your shipping app shows it left Houston Nov 14, due in Lagos around Dec 2.',
+  f:[['Car','2023 Range Rover Sport'],['Payment','Paid in full'],['Ships to','Lagos, then Abuja'],['ETA','About Dec 2']],
+  m:[['c','Good afternoon. Please where is my Range Rover? I paid last month.','4:10 pm'],['a','Hi Chidi, it left Houston on Nov 14 and is due in Lagos around Dec 2. Amaka from logistics will confirm clearing and delivery to Abuja.','4:10 pm'],['s','Status from your shipping app · assigned to Amaka']],
+  d:'Hi Chidi, Amaka here. Your clearing agent has all documents. I will message you as soon as the vessel docks.'},
+ {id:'n',n:'+1 (469) 555-0142',i:'NEW',ch:'Text',pl:'Dallas',tm:'10:03 am',pv:'How much for the Escalade?',tg:['t-ai','Ondra qualifying'],own:'Ondra',why:'New contact, still collecting details',
+  sum:'New contact asking about the 2025 Escalade. Ondra is finding out if this is a local or export purchase and when they want to buy.',
+  f:[['Car','2025 Escalade'],['Budget','Asking'],['Ships to','Asking'],['Timeline','Asking']],
+  m:[['c','How much for the Escalade?','10:03 am'],['a','Thanks for texting Mr. Jay Autos. The 2025 Escalade is available. Are you buying here in Dallas, and when are you hoping to buy?','10:03 am']],d:''},
+ {id:'f',img:'https://images.unsplash.com/photo-1709072245760-ec5b9a6b9f9b?w=900&q=70&auto=format&fit=crop',n:'Femi Oladipo',i:'FO',ch:'WhatsApp',pl:'Dubai',tm:'Mon',pv:'Any update on the Mansory build?',tg:['t-n','Custom build'],own:'Mr. Jay',why:'Custom builds always go to you',
+  sum:'Custom G-Class build in progress, deposit paid. Last update was 19 days ago. Asking for photos.',
+  f:[['Car','Mansory G-Class build'],['Payment','Deposit paid'],['Ships to','Dubai'],['Build due','Jan 2027']],
+  m:[['c','Any update on the Mansory build? Would love some photos.','11:20 am'],['s','Custom build · assigned to Mr. Jay · last update 19 days ago']],
+  d:'Hi Femi, the build is on schedule. I have asked the workshop for fresh photos and will send them by Friday.'}
+];
+var cur='t';
+function drawInbox(){
+  var box=document.getElementById('convs');box.innerHTML='';
+  convs.forEach(function(c){
+    var b=el('<button class="conv'+(c.id===cur?' on':'')+'"><span class="av'+(c.v?' v':'')+'">'+c.i+'</span><span class="grow"><span class="nm"><b>'+esc(c.n)+'</b><span class="sub">'+c.tm+'</span></span><span class="pv">'+esc(c.pv)+'</span><span class="tags"><span class="tag '+c.tg[0]+'">'+c.tg[1]+'</span><span class="tag t-n">'+c.ch+' · '+c.pl+'</span></span></span></button>');
+    b.onclick=function(){cur=c.id;drawInbox()};box.appendChild(b);});
+  var c=convs.filter(function(x){return x.id===cur})[0];
+  document.getElementById('t-name').textContent=c.n;
+  document.getElementById('t-meta').textContent=c.ch+' · '+c.pl+' · Routed to '+c.own;
+  var ms=document.getElementById('msgs');ms.innerHTML='';
+  c.m.forEach(function(m){
+    if(m[0]==='call'){var bars='';for(var k=0;k<40;k++){bars+='<i style="height:'+(6+((k*37)%22))+'px"></i>'}
+      ms.appendChild(el('<div class="callcard"><div class="top2"><button class="btn" aria-label="Play recording">Play</button><div class="wave" aria-hidden="true">'+bars+'</div></div><b>'+esc(m[1])+'</b><span class="sub">'+esc(m[2])+'</span><button class="btn" style="align-self:flex-start">Read transcript</button></div>'));}
+    else if(m[0]==='s'){ms.appendChild(el('<div class="m s">'+esc(m[1])+'</div>'))}
+    else{ms.appendChild(el('<div class="m '+m[0]+'"><span class="who">'+(m[0]==='a'?'Ondra':esc(c.n))+' · '+m[2]+'</span>'+esc(m[1])+'</div>'))}
+  });
+  document.getElementById('b-img').innerHTML=c.img?'<img class="carimg" src="'+c.img+'" alt="'+esc(c.f[0][1])+'">':'';
+  document.getElementById('b-sum').textContent=c.sum;
+  document.getElementById('b-facts').innerHTML=c.f.map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'}).join('');
+  document.getElementById('b-owner').textContent=c.own;document.getElementById('b-why').textContent='Why: '+c.why;
+  document.getElementById('b-draft').innerHTML=c.d?'<div class="draft"><span class="lbl" style="color:var(--ai)">Suggested reply, waiting for approval</span><p style="margin-bottom:12px">'+esc(c.d)+'</p><div style="display:flex;gap:8px"><button class="btn dark">Approve and send</button><button class="btn">Edit</button></div></div>'
+   :'<div class="card pad sub" style="border-style:dashed">'+(c.v?'VIP contacts never get an AI reply or draft. Reply yourself when you are ready.':'Ondra is handling this conversation. Use Take over to step in.')+'</div>';
+}
+drawInbox();
+
+/* calendar */
+(function(){
+  var cols=[['Daniel','Sales'],['Ifeoma','Sales'],['Bay 1','Service'],['Bay 2','Service'],['Showroom','Visits']];
+  var hours=['8:00','9:00','10:00','11:00','12:00','1:00','2:00','3:00','4:00'];
+  var appts=[[0,2,1,'ai','Video walkaround','Tunde A., G63'],[0,5,1.5,'st','Delivery','Kunle B., GLE 63'],[1,1,.75,'st','Test drive','Escalade, G. Ellis'],[1,4,1,'ai','Showroom visit','A. Okafor'],[2,0,1,'ai','Oil change','LX600, M. Hollis'],[2,3,2,'ai','Inspection','Range Rover Sport'],[3,1,1,'ai','Oil change','Tahoe'],[3,5,1,'hold','Held','Loaner car out'],[4,6,1,'ai','Showroom visit','I. Sule']];
+  var cal=document.getElementById('cal'),h='<div class="hd"></div>';
+  cols.forEach(function(c){h+='<div class="hd">'+c[0]+'<span>'+c[1]+'</span></div>'});
+  h+='<div>'+hours.map(function(x){return '<div class="hr">'+x+'</div>'}).join('')+'</div>';
+  cols.forEach(function(c,ci){h+='<div class="colm">'+hours.map(function(){return '<div class="cell"></div>'}).join('');
+    appts.filter(function(a){return a[0]===ci}).forEach(function(a){h+='<div class="ap '+a[3]+'" style="top:'+(a[1]*56+3)+'px;height:'+(a[2]*56-6)+'px"><b>'+a[4]+'</b>'+a[5]+'</div>'});
+    h+='</div>'});
+  cal.innerHTML=h;
+})();
+
+/* appointment types */
+var types=[['Test drive','45 min','Sales + the car','Mon–Sat 9–6','Yes'],['Video walkaround','30 min','Sales','Mon–Sat 8–8','Yes'],['Showroom visit','60 min','Sales','Mon–Sat 9–6','Yes'],['Oil change','60 min','Service bay','Mon–Fri 7–4','Yes'],['Inspection','2 hr','Service bay + advisor','Mon–Fri 7–4','Yes'],['Trade-in appraisal','30 min','Manager','Mon–Sat 10–5','Asks first'],['Vehicle delivery','90 min','Sales + Logistics','By arrangement','No, staff only']];
+document.getElementById('types').innerHTML=types.map(function(t){return '<tr><td><b>'+t[0]+'</b></td><td>'+t[1]+'</td><td>'+t[2]+'</td><td>'+t[3]+'</td><td>'+(t[4]==='Yes'?'<span class="tag t-ok">Yes</span>':'<span class="tag t-n">'+t[4]+'</span>')+'</td></tr>'}).join('');
+document.getElementById('types-mini').innerHTML=types.slice(0,6).map(function(t){return '<div class="list-row"><div class="grow"><b>'+t[0]+'</b><div class="sub">'+t[1]+' · '+t[2]+'</div></div></div>'}).join('');
+
+/* routing */
+var rules=[['A <b>VIP</b> calls or messages','Ring Mr. Jay directly. Ondra stays silent. Alert again after 1 hour.',1],['Anyone asks about <b>price, discounts or financing terms</b>','Hand to Sales with a brief. Ondra does not quote final prices.',1],['Question is about <b>shipping, customs or delivery</b>','Answer from the shipping app if possible, otherwise send to Amaka.',1],['Anyone asks for <b>service or repairs</b>','Book from Service appointment types. Questions go to Ada.',1],['A message arrives <b>outside working hours</b>','Ondra replies and books. Tasks go to the next person on shift, by their time zone.',1],['A customer is <b>upset or asks for a manager</b>','Transfer the call or alert the manager on duty right away.',1],['A <b>custom build</b> is mentioned','Assign to Mr. Jay.',0]];
+document.getElementById('rules').innerHTML=rules.map(function(r,i){return '<div class="rule"><span class="n">'+(i+1)+'</span><p>When '+r[0]+'<br><span class="sub">'+r[1]+'</span></p><button class="switch'+(r[2]?'':' off')+'" role="switch" aria-checked="'+(r[2]?'true':'false')+'" aria-label="Rule '+(i+1)+' on or off" onclick="this.classList.toggle(\'off\');this.setAttribute(\'aria-checked\',this.classList.contains(\'off\')?\'false\':\'true\')"></button></div>'}).join('');
+
+/* tasks */
+var cols=[['Ondra handling',[['+1 (469) 555-0142','Qualify Escalade enquiry','Ondra',''],['Kola Bello','Shipping cost to Tema','Ondra','Answered']]],
+ ['To do',[['Ope Martins · VIP','Call back about the Cullinan','Mr. Jay','Overdue 1h'],['Tunde Adebayo','Send 3 G63 options with landed cost','Daniel','Due 2:00 pm'],['Femi Oladipo','Fresh build photos from the workshop','Mr. Jay','Due Fri'],['3 quiet clients','Reach out, drafts ready','Mr. Jay','This week']]],
+ ['Waiting on others',[['Chidi Nwosu','Title copy to the clearing agent','Amaka','Overdue 1 day'],['Adaeze Okafor','Confirm deposit received','Daniel','Waiting on bank']]],
+ ['Done today',[['Mark Hollis','Oil change booked, Bay 2','Ondra','10:20 am'],['Tunde Adebayo','Qualified and sent to Sales','Ondra','2:19 am']]]];
+document.getElementById('board').innerHTML=cols.map(function(c){return '<section class="col"><h3>'+c[0]+'<span class="sub">'+c[1].length+'</span></h3>'+c[1].map(function(t){var late=/Overdue/.test(t[3]);return '<div class="tk'+(late?' late':'')+'"><div class="sub">'+esc(t[0])+'</div><b>'+esc(t[1])+'</b><div class="ft"><span class="tag '+(t[2]==='Ondra'?'t-ai':t[2]==='Mr. Jay'?'t-vip':'t-n')+'">'+t[2]+'</span><span class="'+(late?'late':'')+'">'+t[3]+'</span></div></div>'}).join('')+'</section>'}).join('');
+
+/* settings tabs */
+document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x===t);x.setAttribute('aria-selected',x===t)});
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on',p.id==='p-'+t.dataset.p)});}});
+document.querySelectorAll('.chip').forEach(function(c){c.onclick=function(){var g=c.parentNode;g.querySelectorAll('.chip').forEach(function(x){x.classList.toggle('on',x===c)})}});
+</script>
+</body>
+</html>
