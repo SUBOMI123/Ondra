@@ -13,8 +13,8 @@ import {
   IconMoonStars,
   IconPhone,
   IconSearch,
+  IconPencilCheck,
   IconSettings,
-  IconSparkles,
   IconUsers,
 } from "@tabler/icons-react"
 
@@ -53,7 +53,7 @@ const data = {
   ],
   views: [
     { name: "VIPs waiting", url: "#", icon: IconCrown },
-    { name: "Drafts to approve", url: "#", icon: IconSparkles },
+    { name: "Drafts to approve", url: "#", icon: IconPencilCheck },
     { name: "After-hours leads", url: "#", icon: IconMoonStars },
   ],
 }

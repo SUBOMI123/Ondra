@@ -33,7 +33,6 @@ import {
   IconMail,
   IconMessage,
   IconPhone,
-  IconSparkles,
   IconGripVertical,
   IconLayoutColumns,
   IconPlus,
@@ -59,6 +58,7 @@ import {
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { OndraMark } from "@/components/ondra-mark"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -146,13 +146,13 @@ function Handler({ lead }: { lead: Lead }) {
   if (lead.handledBy === "Ondra")
     return (
       <Badge variant="outline" className="gap-1 border-transparent bg-ai-subtle px-1.5 text-ai">
-        <IconSparkles /> Ondra
+        <OndraMark /> Ondra
       </Badge>
     )
   if (lead.handledBy === "Draft")
     return (
       <Badge variant="outline" className="gap-1 border-dashed border-ai px-1.5 text-ai">
-        <IconSparkles /> Draft for you
+        <OndraMark /> Draft for you
       </Badge>
     )
   if (lead.handledBy === "VIP")
@@ -650,7 +650,7 @@ function TableCellViewer({ item }: { item: Lead }) {
           ) : (
             <div className="rounded-lg bg-ai-subtle p-3">
               <div className="flex items-center gap-1.5 font-medium text-ai">
-                <IconSparkles className="size-4" aria-hidden="true" /> Brief from Ondra
+                <OndraMark className="size-4" /> Brief from Ondra
               </div>
               <p className="mt-1 text-foreground">{item.brief}</p>
             </div>

@@ -1,4 +1,4 @@
-import { IconSparkles, IconTrendingDown, IconTrendingUp } from "@tabler/icons-react"
+import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/card"
 
 // Example figures for the UI prototype. Step 9 computes these from events.
-const CARDS = [
+type Split = { ondra: number; team: number }
+const CARDS: { label: string; value: string; delta: { up: boolean; text: string }; split?: Split; line?: string; sub: string }[] = [
   {
     label: "Leads answered after hours",
     value: "47",
     delta: { up: true, text: "+35%" },
-    line: "41 by Ondra, 6 by your team",
-    ai: true,
+    split: { ondra: 41, team: 6 },
     sub: "This week, 7 pm to 9 am and Sundays",
   },
   {
@@ -31,8 +31,7 @@ const CARDS = [
     label: "Appointments booked",
     value: "23",
     delta: { up: true, text: "+9" },
-    line: "19 by Ondra, 4 by your team",
-    ai: true,
+    split: { ondra: 19, team: 4 },
     sub: "Test drives 15, service 8",
   },
   {
@@ -43,6 +42,36 @@ const CARDS = [
     sub: "Reminders sent the day before",
   },
 ]
+
+/** Who did the work, as a proportion: Ondra's share in the AI blue, the team's in neutral. */
+function SplitBar({ split }: { split: Split }) {
+  const total = split.ondra + split.team
+  const pct = (split.ondra / total) * 100
+  return (
+    <div className="flex w-full flex-col gap-2">
+      <div
+        className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`${split.ondra} by Ondra, ${split.team} by your team`}
+      >
+        <div className="h-full bg-ai" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-chart-2/60" style={{ width: `${100 - pct}%` }} />
+      </div>
+      <div className="flex items-center gap-4 text-sm tabular-nums">
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-[2px] bg-ai" aria-hidden="true" />
+          <span className="text-muted-foreground">Ondra</span>
+          <span className="font-medium">{split.ondra}</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-[2px] bg-chart-2/60" aria-hidden="true" />
+          <span className="text-muted-foreground">Your team</span>
+          <span className="font-medium">{split.team}</span>
+        </span>
+      </div>
+    </div>
+  )
+}
 
 export function SectionCards() {
   return (
@@ -59,11 +88,8 @@ export function SectionCards() {
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className={`line-clamp-1 flex items-center gap-1.5 font-medium ${c.ai ? "text-ai" : ""}`}>
-              {c.ai && <IconSparkles className="size-4" aria-hidden="true" />}
-              {c.line}
-            </div>
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            {c.split ? <SplitBar split={c.split} /> : <div className="line-clamp-1 font-medium">{c.line}</div>}
             <div className="text-muted-foreground">{c.sub}</div>
           </CardFooter>
         </Card>
