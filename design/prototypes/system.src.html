@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ondra Dashboard System</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..500&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------ tokens
+   Light is the base; dark mirrors every token. "Device" follows the OS. */
+:root {
+  --bg: #F4F3F0; --surface: #FFFFFF; --surface-2: #FAF9F6; --hover: #F1EFEA;
+  --line: #E5E2DC; --line-strong: #D2CDC4;
+  --fg: #191510; --fg-2: #4A443B; --muted: #776F63;
+  --action: #1B140B; --on-action: #F6EFE3; --action-hover: #2E251A;
+  --select: #EFE3C8; --on-select: #1B140B;
+  --ai: #3F5BD6; --ai-subtle: #EEF1FC; --ai-line: #CBD4F6;
+  --vip: #C93C3C; --vip-subtle: #FBEDEC;
+  --ok: #1E7F4F; --ok-subtle: #E5F3EB;
+  --warn: #A3600E; --warn-subtle: #FAF0DF;
+  --focus: #1B140B;
+  --sidebar: #12100C; --sidebar-fg: #EDE6D9; --sidebar-muted: #9C9384; --sidebar-active: #241F18; --sidebar-line: rgb(255 238 214 / .08);
+  --shadow-sheet: 0 24px 60px -24px rgb(25 21 16 / .35);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0D0B09; --surface: #15120E; --surface-2: #1A1612; --hover: #1F1A15;
+  --line: rgb(255 238 214 / .09); --line-strong: rgb(255 238 214 / .17);
+  --fg: #F6EFE3; --fg-2: #D9CFBF; --muted: #A99D8B;
+  --action: #EAD9B5; --on-action: #1B140B; --action-hover: #F3E6C9;
+  --select: #EAD9B5; --on-select: #1B140B;
+  --ai: #B3C5FF; --ai-subtle: #161A2C; --ai-line: #2B3563;
+  --vip: #FF7B7B; --vip-subtle: #2E1416;
+  --ok: #4ADE9A; --ok-subtle: #10261A;
+  --warn: #F2A33A; --warn-subtle: #2A1E0C;
+  --focus: #EAD9B5;
+  --sidebar: #090706; --sidebar-active: #1E1A14;
+  --shadow-sheet: 0 24px 60px -20px rgb(0 0 0 / .7);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0D0B09; --surface: #15120E; --surface-2: #1A1612; --hover: #1F1A15;
+    --line: rgb(255 238 214 / .09); --line-strong: rgb(255 238 214 / .17);
+    --fg: #F6EFE3; --fg-2: #D9CFBF; --muted: #A99D8B;
+    --action: #EAD9B5; --on-action: #1B140B; --action-hover: #F3E6C9;
+    --select: #EAD9B5; --on-select: #1B140B;
+    --ai: #B3C5FF; --ai-subtle: #161A2C; --ai-line: #2B3563;
+    --vip: #FF7B7B; --vip-subtle: #2E1416;
+    --ok: #4ADE9A; --ok-subtle: #10261A;
+    --warn: #F2A33A; --warn-subtle: #2A1E0C;
+    --focus: #EAD9B5;
+    --sidebar: #090706; --sidebar-active: #1E1A14;
+    --shadow-sheet: 0 24px 60px -20px rgb(0 0 0 / .7);
+    color-scheme: dark;
+  }
+}
+
+/* ------------------------------------------------------------------ base */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 400 14px/1.45 "Inter", system-ui, sans-serif;
+  font-feature-settings: "cv01", "ss03"; -webkit-font-smoothing: antialiased;
+}
+.i { width: 16px; height: 16px; flex: none; stroke-width: 1.75; }
+.i20 { width: 20px; height: 20px; stroke-width: 1.5; }
+.mono { font-family: "JetBrains Mono", monospace; font-size: 12.5px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+
+/* page chrome for this sheet */
+.page { max-width: 1320px; margin: 0 auto; padding-block: 36px 80px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+.head { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; justify-content: space-between; margin-bottom: 28px; }
+.head h1 { font-size: 30px; font-weight: 500; letter-spacing: -.025em; }
+.head p { color: var(--muted); margin-top: 6px; max-width: 64ch; }
+.part { margin-top: 56px; }
+.part > h2 { font-size: 20px; font-weight: 500; letter-spacing: -.015em; }
+.part > p.lede { color: var(--muted); margin: 4px 0 18px; max-width: 70ch; }
+
+/* ------------------------------------------------------------------ controls */
+.seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 7px 14px; border-radius: 999px; cursor: pointer; color: var(--fg-2); display: flex; gap: 6px; align-items: center; }
+.seg button[aria-pressed="true"] { background: var(--select); color: var(--on-select); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid transparent; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.btn-lg { min-height: 44px; padding: 0 18px; }
+.btn-primary { background: var(--action); color: var(--on-action); }
+.btn-primary:hover { background: var(--action-hover); }
+.btn-quiet { background: var(--surface); border-color: var(--line-strong); }
+.btn-quiet:hover { background: var(--hover); }
+.btn-ghost { background: none; color: var(--fg-2); }
+.btn-ghost:hover { background: var(--hover); }
+.btn-danger { background: none; border-color: var(--line-strong); color: var(--vip); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn-ai { background: var(--ai-subtle); color: var(--ai); border-color: var(--ai-line); }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 500; }
+.field .hint { font-size: 12.5px; color: var(--muted); }
+.input { height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg); font: inherit; width: 100%; }
+.input::placeholder { color: var(--muted); }
+.input[aria-invalid="true"] { border-color: var(--vip); }
+.err { font-size: 12.5px; color: var(--vip); display: flex; gap: 6px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--select); color: var(--on-select); border-color: transparent; }
+.switch { width: 36px; height: 22px; border-radius: 999px; background: var(--line-strong); position: relative; border: 0; cursor: pointer; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / .2); }
+.switch[aria-checked="true"] { background: var(--action); }
+.switch[aria-checked="true"]::after { transform: translateX(14px); background: var(--on-action); }
+
+/* tags: provenance and state */
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.tag .i { width: 13px; height: 13px; stroke-width: 2; }
+.t-ai { background: var(--ai-subtle); color: var(--ai); }
+.t-draft { border: 1px dashed var(--ai); color: var(--ai); }
+.t-vip { background: var(--vip-subtle); color: var(--vip); }
+.t-team { background: var(--hover); color: var(--fg-2); }
+.t-ok { background: var(--ok-subtle); color: var(--ok); }
+.t-warn { background: var(--warn-subtle); color: var(--warn); }
+.t-off { background: none; border: 1px solid var(--line-strong); color: var(--muted); }
+
+/* ------------------------------------------------------------------ app frame */
+.frame { display: grid; grid-template-columns: 232px 1fr; min-height: 720px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--bg); }
+.side { background: var(--sidebar); color: var(--sidebar-fg); display: flex; flex-direction: column; padding: 18px 12px; gap: 2px; }
+.side .logo { padding: 4px 10px 18px; }
+.side .logo svg { height: 20px; width: auto; }
+.nav { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 10px; color: var(--sidebar-muted); text-decoration: none; font-size: 14px; }
+.nav:hover { color: var(--sidebar-fg); background: var(--sidebar-active); }
+.nav[aria-current="page"] { color: var(--sidebar-fg); background: var(--sidebar-active); }
+.nav .count { margin-left: auto; font-size: 12px; color: var(--sidebar-muted); }
+.nav .count.vip { color: #FF8A8A; }
+.side .grow { flex: 1; }
+.me { display: flex; gap: 10px; align-items: center; padding: 10px; border-top: 1px solid var(--sidebar-line); margin-top: 8px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; flex: none; background: var(--hover); color: var(--fg-2); }
+.side .avatar { background: #2A241C; color: var(--sidebar-fg); }
+.main { display: grid; grid-template-rows: 56px 1fr; min-width: 0; }
+.top { display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.top h1 { font-size: 16px; font-weight: 600; }
+.search span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search { margin-left: auto; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; width: 280px; border-radius: 10px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.search kbd { margin-left: auto; font: 500 11px "Inter"; border: 1px solid var(--line-strong); border-radius: 5px; padding: 1px 5px; }
+.work { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr) 300px; min-height: 0; }
+
+/* inbox list */
+.list { border-right: 1px solid var(--line); background: var(--surface); }
+.filters { display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.filters .chip { height: 28px; font-size: 13px; padding: 0 10px; }
+.row > div { min-width: 0; }
+.row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); position: relative; cursor: pointer; }
+.row:hover { background: var(--hover); }
+.row[aria-selected="true"] { background: var(--surface-2); }
+.row[aria-selected="true"]::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--fg); }
+.row .name { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.row .snip { color: var(--fg-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.row .snip .i { color: var(--muted); }
+.row .when { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row .tags { grid-column: 2 / -1; display: flex; gap: 6px; margin-top: 6px; }
+.row.unread .name::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--fg); }
+
+/* thread with the provenance gutter */
+.thread { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; background: var(--bg); }
+.thead { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; gap: 12px; align-items: center; }
+.thead .who { font-weight: 600; }
+.thead .sub { color: var(--muted); font-size: 12.5px; }
+.thead .actions { margin-left: auto; display: flex; gap: 8px; }
+.events { padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
+.ev { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; align-items: start; }
+.actor { font-size: 12px; font-weight: 500; color: var(--muted); padding-top: 10px; display: flex; gap: 5px; align-items: flex-start; }
+.actor.ai { color: var(--ai); }
+.actor .i { width: 13px; height: 13px; margin-top: 1px; stroke-width: 2; }
+.bubble { max-width: 560px; padding: 10px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.bubble.ai { background: var(--ai-subtle); border-color: var(--ai-line); }
+.bubble.draft { background: var(--surface); border: 1px dashed var(--ai); }
+.bubble .meta { font-size: 12px; color: var(--muted); margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+.bubble.ai .meta { color: var(--ai); }
+.callcard { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; max-width: 560px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.callcard .ic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ai-subtle); color: var(--ai); }
+.wave { display: flex; gap: 2px; align-items: center; height: 20px; }
+.wave i { width: 2px; border-radius: 2px; background: var(--muted); display: block; }
+.system { margin-left: 88px; display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ai); }
+.system::before, .system::after { content: ""; height: 1px; flex: 1; background: var(--ai-line); }
+.composer { padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--surface); display: flex; gap: 10px; align-items: center; }
+.composer .input { height: 42px; border-radius: 999px; }
+.draft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* brief panel */
+.brief { border-left: 1px solid var(--line); background: var(--surface); padding: 16px; display: grid; gap: 18px; align-content: start; }
+.brief h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; gap: 6px; align-items: center; }
+.brief h3.ai { color: var(--ai); }
+.kv { display: grid; grid-template-columns: 92px 1fr; gap: 6px 10px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.prov { font-size: 12px; color: var(--ai); display: flex; gap: 5px; align-items: center; margin-top: 8px; }
+.task { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.task .due { color: var(--warn); font-size: 12px; margin-top: 4px; display: flex; gap: 5px; align-items: center; }
+
+/* ------------------------------------------------------------------ component sheet */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.card > h3 { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--fg-2); }
+.stack { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vstack { display: grid; gap: 12px; }
+.kpi { display: grid; gap: 4px; }
+.kpi .lab { font-size: 13px; color: var(--muted); }
+.kpi .val { font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 600; letter-spacing: -.03em; }
+.kpi .ctx { font-size: 13px; color: var(--fg-2); }
+.kpi .ctx b { color: var(--ai); font-weight: 500; }
+.delta { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ok); }
+.bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--hover); margin-top: 10px; }
+.bar i { display: block; }
+.empty { text-align: center; padding: 18px 8px; display: grid; justify-items: center; gap: 8px; }
+.empty .big { width: 40px; height: 40px; stroke-width: 1.25; color: var(--muted); }
+.empty p { color: var(--muted); max-width: 32ch; font-size: 13px; }
+.error { display: grid; gap: 8px; }
+.error .req { font-size: 12px; color: var(--muted); }
+.sk { background: var(--hover); border-radius: 8px; height: 12px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+.toast { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--fg); color: var(--bg); font-size: 13.5px; box-shadow: var(--shadow-sheet); }
+.toast button { margin-left: auto; background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12.5px; padding: 0 10px 8px; border-bottom: 1px solid var(--line); }
+.table td { padding: 10px; border-bottom: 1px solid var(--line); }
+.table tr:hover td { background: var(--hover); }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.scroll-x { overflow-x: auto; }
+
+/* ------------------------------------------------------------------ phone */
+.phones { display: flex; gap: 24px; flex-wrap: wrap; }
+.phone { width: 340px; height: 680px; border-radius: 40px; border: 1px solid var(--line-strong); background: var(--bg); overflow: hidden; display: grid; grid-template-rows: 54px auto 1fr 70px; box-shadow: var(--shadow-sheet); }
+.phone .status { display: flex; justify-content: space-between; align-items: end; padding: 0 26px 6px; font-size: 13px; font-weight: 600; }
+.phone .ptop { padding: 6px 16px 10px; display: flex; align-items: center; justify-content: space-between; }
+.phone .ptop h1 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
+.phone .plist { overflow: hidden; background: var(--surface); border-top: 1px solid var(--line); }
+.tabs { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--surface); padding-bottom: 14px; }
+.tab { display: grid; justify-items: center; gap: 3px; padding-top: 8px; font-size: 11px; color: var(--muted); position: relative; }
+.tab[aria-current="page"] { color: var(--fg); }
+.tab .badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--vip); color: #fff; font-size: 10px; font-weight: 600; display: grid; place-items: center; padding: 0 4px; }
+
+/* ------------------------------------------------------------------ responsive */
+@media (max-width: 1180px) { .work { grid-template-columns: minmax(0, 300px) 1fr; } .brief { display: none; } }
+@media (max-width: 860px) {
+  .frame { grid-template-columns: 1fr; } .side { display: none; }
+  .work { grid-template-columns: 1fr; } .list { display: none; }
+  .search { width: auto; } .search span, .search kbd { display: none; }
+  .ev { grid-template-columns: 1fr; gap: 4px; } .actor { padding-top: 0; } .system { margin-left: 0; }
+  .page { padding-block: 24px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } .grid { grid-template-columns: minmax(0, 1fr); } .card { min-width: 0; } .phone { width: 100%; max-width: 340px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="head">
+    <div>
+      <h1>Ondra dashboard system</h1>
+      <p>The dealer workspace in light and dark. Real components on real content: an inbox thread, its controls and states, and the phone layout salespeople use on the floor.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="light" aria-pressed="false">{{i:sun}}Light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">{{i:moon}}Dark</button>
+      <button type="button" data-theme-set="system" aria-pressed="true">{{i:device-desktop}}Device</button>
+    </div>
+  </header>
+
+  <!-- ============================================================ 1. frame -->
+  <section class="part" aria-labelledby="p1">
+    <h2 id="p1">The workspace</h2>
+    <p class="lede">The sidebar stays dark in both themes so the work area carries the theme. In the thread, the column on the left says who acted: the customer, Ondra in blue, or a person. Blue only ever means Ondra did it.</p>
+
+    <div class="frame">
+      <aside class="side" aria-label="Main">
+        <div class="logo">{{logo}}</div>
+        <a class="nav" href="#">{{i20:layout-dashboard}}Today</a>
+        <a class="nav" href="#" aria-current="page">{{i20:inbox}}Inbox<span class="count">12</span></a>
+        <a class="nav" href="#">{{i20:phone}}Calls</a>
+        <a class="nav" href="#">{{i20:calendar-event}}Calendar</a>
+        <a class="nav" href="#">{{i20:users}}Clients</a>
+        <a class="nav" href="#">{{i20:layout-kanban}}Deals</a>
+        <a class="nav" href="#">{{i20:checkbox}}Tasks<span class="count vip">2 overdue</span></a>
+        <a class="nav" href="#">{{i20:car}}Inventory</a>
+        <div class="grow"></div>
+        <a class="nav" href="#">{{i20:settings}}Settings</a>
+        <div class="me"><span class="avatar">DO</span><div><div style="font-size:13px;font-weight:500">Daniel Okafor</div><div style="font-size:12px;color:var(--sidebar-muted)">Sales</div></div></div>
+      </aside>
+
+      <div class="main">
+        <div class="top">
+          <h1>Inbox</h1>
+          <div class="search">{{i:search}}<span>Search clients, cars, messages</span><kbd>⌘K</kbd></div>
+        </div>
+        <div class="work">
+          <div class="list" role="listbox" aria-label="Conversations">
+            <div class="filters">
+              <button class="chip" aria-pressed="true">All</button>
+              <button class="chip" aria-pressed="false">Mine</button>
+              <button class="chip" aria-pressed="false">{{i:crown}}VIP</button>
+              <button class="chip" aria-pressed="false">Drafts</button>
+            </div>
+            <div class="row unread" role="option" aria-selected="true">
+              <span class="avatar">KL</span>
+              <div><div class="name">Kevin Lee</div><div class="snip">{{i:mail}}<span>6 works. See you Thursday.</span></div></div>
+              <span class="when">9:20 pm</span>
+              <div class="tags"><span class="tag t-ai">{{i:sparkles}}Booked by Ondra</span></div>
+            </div>
+            <div class="row unread" role="option" aria-selected="false">
+              <span class="avatar" style="background:var(--vip-subtle);color:var(--vip)">RH</span>
+              <div><div class="name">{{i:crown-vip}}Robert Hale</div><div class="snip">{{i:phone-x}}<span>Missed call. Rang your mobile.</span></div></div>
+              <span class="when">8:52 pm</span>
+              <div class="tags"><span class="tag t-vip">Waiting 2 h</span></div>
+            </div>
+            <div class="row" role="option" aria-selected="false">
+              <span class="avatar">SK</span>
+              <div><div class="name">Sarah King</div><div class="snip">{{i:message}}<span>Do you take trade-ins on a 2019 Tahoe?</span></div></div>
+              <span class="when">8:40 pm</span>
+              <div class="tags"><span class="tag t-draft">{{i:sparkles}}Draft for you</span></div>
+            </div>
+            <div class="row" role="option" aria-selected="false">
+              <span class="avatar">MT</span>
+              <div><div class="name">Marcus Taylor</div><div class="snip">{{i:phone}}<span>Brakes squeaking, booked Wednesday.</span></div></div>
+              <span class="when">7:05 pm</span>
+              <div class="tags"><span class="tag t-ai">{{i:sparkles}}Booked by Ondra</span><span class="tag t-team">Maria, Service</span></div>
+            </div>
+            <div class="row" role="option" aria-selected="false">
+              <span class="avatar">ER</span>
+              <div><div class="name">Elena Ruiz</div><div class="snip">{{i:brand-whatsapp}}<span>Is the 2020 RX certified pre-owned?</span></div></div>
+              <span class="when">6:30 pm</span>
+              <div class="tags"><span class="tag t-team">With you</span></div>
+            </div>
+            <div class="row" role="option" aria-selected="false">
+              <span class="avatar">JP</span>
+              <div><div class="name">Jordan Price</div><div class="snip">{{i:message}}<span>STOP</span></div></div>
+              <span class="when">5:12 pm</span>
+              <div class="tags"><span class="tag t-off">{{i:ban}}Opted out of texts</span></div>
+            </div>
+          </div>
+
+          <section class="thread" aria-label="Conversation with Kevin Lee">
+            <div class="thead">
+              <span class="avatar">KL</span>
+              <div><div class="who">Kevin Lee</div><div class="sub">Email from your website, then a call</div></div>
+              <div class="actions">
+                <button class="btn btn-quiet">{{i:hand-stop}}Take over</button>
+                <button class="btn btn-ghost" aria-label="More">{{i:dots}}</button>
+              </div>
+            </div>
+            <div class="events">
+              <div class="ev"><div class="actor">Kevin</div>
+                <div class="bubble">Is the gray 2022 Silverado still available? Is the price negotiable? I'd need financing.<div class="meta">{{i:mail}}Email, 9:12 pm</div></div></div>
+              <div class="ev"><div class="actor ai">{{i:sparkles}}Ondra</div>
+                <div class="bubble ai">It's here: Silverado LT, 28k miles. Daniel can go through price and financing with you in person. Could you come by Thursday after work, say 6 pm?<div class="meta">Sent 9:12 pm, 14 seconds after it arrived</div></div></div>
+              <div class="ev"><div class="actor">Kevin</div>
+                <div class="callcard"><span class="ic">{{i:phone-incoming}}</span><div><div style="font-weight:500">Call, 1:12</div><div style="font-size:12.5px;color:var(--muted)">Answered by Ondra. Asked if Thursday could be 6:30.</div></div><span class="wave" aria-hidden="true">{{wave}}</span></div></div>
+              <div class="system">{{i:calendar-event}}Test drive booked by Ondra for Thursday, 6:30 pm</div>
+              <div class="ev"><div class="actor ai">{{i:sparkles}}Ondra</div>
+                <div class="bubble draft">Hi Kevin, it's all set for Thursday at 6:30. The Silverado will be out front. Do you want Daniel to start your credit application beforehand?
+                  <div class="meta" style="color:var(--ai)">Draft waiting for your approval. Follow-ups need approval for the first week.</div>
+                  <div class="draft-actions"><button class="btn btn-primary">{{i:check}}Approve and send</button><button class="btn btn-quiet">Edit</button><button class="btn btn-ghost">Discard</button></div>
+                </div></div>
+              <div class="ev"><div class="actor"><span class="avatar" style="width:22px;height:22px;font-size:10px">DO</span></div>
+                <div class="bubble">I'll have the paperwork ready. See you Thursday.<div class="meta">Daniel, 9:41 pm</div></div></div>
+            </div>
+            <div class="composer">
+              <input class="input" placeholder="Reply as Daniel" aria-label="Reply">
+              <button class="btn btn-ai" aria-label="Ask Ondra to draft a reply" title="Ask Ondra to draft a reply">{{i:sparkles}}Draft</button>
+              <button class="btn btn-primary">Send</button>
+            </div>
+          </section>
+
+          <aside class="brief" aria-label="Brief">
+            <div>
+              <h3 class="ai">{{i:sparkles}}Brief from Ondra</h3>
+              <p style="font-size:13px;color:var(--fg-2)">Wants the Silverado and asked if the price is negotiable. Ondra didn't quote. Needs financing, no trade-in. Worth a call to pre-qualify before Thursday.</p>
+            </div>
+            <div>
+              <h3>Deal</h3>
+              <dl class="kv">
+                <dt>Vehicle</dt><dd>2022 Silverado LT</dd>
+                <dt>Stock</dt><dd class="mono">S22-4471</dd>
+                <dt>Budget</dt><dd>About $45k</dd>
+                <dt>Financing</dt><dd>Needs it</dd>
+                <dt>Timeline</dt><dd>This week</dd>
+              </dl>
+              <div class="prov">{{i:sparkles}}Filled in by Ondra from the conversation</div>
+            </div>
+            <div>
+              <h3>Tasks</h3>
+              <div class="task">Call Kevin to pre-qualify<div class="due">{{i:clock}}Due Thursday, noon</div></div>
+            </div>
+            <div>
+              <h3>Consent</h3>
+              <dl class="kv"><dt>Email</dt><dd>Replies allowed</dd><dt>Text</dt><dd>Opted in, Nov 25</dd><dt>Calls</dt><dd>Recording disclosed</dd></dl>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 2. components -->
+  <section class="part" aria-labelledby="p2">
+    <h2 id="p2">Controls and states</h2>
+    <p class="lede">Every component ships every state. In light, the main action is an espresso pill; in dark, it turns champagne. Neither is ever blue.</p>
+    <div class="grid">
+      <div class="card"><h3>Buttons</h3>
+        <div class="vstack">
+          <div class="stack"><button class="btn btn-primary">Save changes</button><button class="btn btn-quiet">Cancel</button><button class="btn btn-ghost">Skip</button></div>
+          <div class="stack"><button class="btn btn-ai">{{i:sparkles}}Ask Ondra to draft</button><button class="btn btn-primary" disabled>Saving…</button></div>
+          <div class="stack"><button class="btn btn-danger">{{i:trash}}Delete client</button></div>
+        </div>
+      </div>
+      <div class="card"><h3>Who did it</h3>
+        <div class="stack">
+          <span class="tag t-ai">{{i:sparkles}}Sent by Ondra</span>
+          <span class="tag t-ai">{{i:sparkles}}Booked by Ondra</span>
+          <span class="tag t-draft">{{i:sparkles}}Draft for you</span>
+          <span class="tag t-team">Daniel, Sales</span>
+          <span class="tag t-vip">{{i:crown}}VIP, rings you</span>
+          <span class="tag t-off">{{i:ban}}Opted out of texts</span>
+          <span class="tag t-ok">{{i:check}}Showed up</span>
+          <span class="tag t-warn">{{i:clock}}Due in 20 min</span>
+        </div>
+      </div>
+      <div class="card"><h3>Form fields</h3>
+        <div class="vstack">
+          <div class="field"><label for="f1">Business hours on Saturday</label><input id="f1" class="input" value="9:00 am to 6:00 pm"><span class="hint">Ondra answers outside these hours and books into the next opening.</span></div>
+          <div class="field"><label for="f2">Owner's mobile</label><input id="f2" class="input" value="(214) 555-01" aria-invalid="true" aria-describedby="f2e"><span id="f2e" class="err">{{i:alert-circle}}Enter a 10-digit US number, like (214) 555-0100.</span></div>
+          <div class="stack" style="justify-content:space-between"><span>Ondra replies without approval</span><button class="switch" role="switch" aria-checked="false" aria-label="Ondra replies without approval"></button></div>
+        </div>
+      </div>
+      <div class="card"><h3>Hero number</h3>
+        <div class="kpi">
+          <span class="lab">Leads answered after hours this week</span>
+          <span class="val">47</span>
+          <span class="ctx"><b>41 by Ondra</b>, 6 by your team</span>
+          <span class="delta">{{i:arrow-up-right}}12 more than last week</span>
+          <div class="bar" aria-hidden="true"><i style="width:87%;background:var(--ai)"></i><i style="width:13%;background:var(--muted)"></i></div>
+        </div>
+      </div>
+      <div class="card"><h3>Empty</h3>
+        <div class="empty">{{iBig:inbox}}<b>No conversations waiting</b><p>New calls, texts, emails and WhatsApp messages land here. Ondra answers them; anything that needs you is marked.</p><button class="btn btn-quiet">Send a test message</button></div>
+      </div>
+      <div class="card"><h3>Error</h3>
+        <div class="error">
+          <b>Couldn't load today's calls</b>
+          <p style="color:var(--fg-2);font-size:13px">The connection to the phone system timed out. Calls are still being answered; only this list is affected.</p>
+          <div class="stack"><button class="btn btn-quiet">Try again</button></div>
+          <span class="req">Request 7f3a-21c9</span>
+        </div>
+      </div>
+      <div class="card"><h3>Loading</h3>
+        <div class="vstack" aria-busy="true" aria-label="Loading conversations">
+          <div style="display:grid;grid-template-columns:28px 1fr;gap:10px"><div class="sk" style="height:28px;border-radius:50%"></div><div class="vstack" style="gap:6px"><div class="sk" style="width:40%"></div><div class="sk" style="width:85%"></div></div></div>
+          <div style="display:grid;grid-template-columns:28px 1fr;gap:10px"><div class="sk" style="height:28px;border-radius:50%"></div><div class="vstack" style="gap:6px"><div class="sk" style="width:55%"></div><div class="sk" style="width:70%"></div></div></div>
+        </div>
+      </div>
+      <div class="card"><h3>Confirmation</h3>
+        <div class="toast" role="status">{{i:check}}Sent to Kevin Lee<button>Undo</button></div>
+      </div>
+      <div class="card" style="grid-column:1 / -1"><h3>Table</h3>
+        <div class="scroll-x"><table class="table">
+          <thead><tr><th>Vehicle</th><th>Stock</th><th class="num">Price</th><th class="num">Days on lot</th><th>Interest</th></tr></thead>
+          <tbody>
+            <tr><td>2022 Chevrolet Silverado LT</td><td class="mono">S22-4471</td><td class="num">$44,900</td><td class="num">18</td><td><span class="tag t-ai">{{i:sparkles}}3 leads via Ondra</span></td></tr>
+            <tr><td>2021 Toyota Highlander XLE</td><td class="mono">T21-0938</td><td class="num">$33,900</td><td class="num">41</td><td><span class="tag t-team">1 lead</span></td></tr>
+            <tr><td>2020 Lexus RX 350</td><td class="mono">L20-1172</td><td class="num">$36,500</td><td class="num">7</td><td><span class="tag t-warn">{{i:lock}}On hold for Elena</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 3. phone -->
+  <section class="part" aria-labelledby="p3">
+    <h2 id="p3">On the floor</h2>
+    <p class="lede">On a phone the sidebar becomes five tabs at the bottom, within thumb reach. The VIP count shows on the Inbox tab so it's seen without opening anything.</p>
+    <div class="phones">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>5G</span></div>
+        <div class="ptop"><h1>Inbox</h1><button class="btn btn-ghost" aria-label="Search">{{i20:search}}</button></div>
+        <div class="plist">
+          <div class="row unread"><span class="avatar" style="background:var(--vip-subtle);color:var(--vip)">RH</span><div><div class="name">{{i:crown-vip}}Robert Hale</div><div class="snip">{{i:phone-x}}<span>Missed call. Rang your mobile.</span></div></div><span class="when">8:52</span><div class="tags"><span class="tag t-vip">Waiting 2 h</span></div></div>
+          <div class="row unread"><span class="avatar">KL</span><div><div class="name">Kevin Lee</div><div class="snip">{{i:mail}}<span>6 works. See you Thursday.</span></div></div><span class="when">9:20</span><div class="tags"><span class="tag t-ai">{{i:sparkles}}Booked by Ondra</span></div></div>
+          <div class="row"><span class="avatar">SK</span><div><div class="name">Sarah King</div><div class="snip">{{i:message}}<span>Do you take trade-ins on a 2019 Tahoe?</span></div></div><span class="when">8:40</span><div class="tags"><span class="tag t-draft">{{i:sparkles}}Draft for you</span></div></div>
+          <div class="row"><span class="avatar">MT</span><div><div class="name">Marcus Taylor</div><div class="snip">{{i:phone}}<span>Brakes squeaking, booked Wed.</span></div></div><span class="when">7:05</span><div class="tags"><span class="tag t-ai">{{i:sparkles}}Booked by Ondra</span></div></div>
+        </div>
+        <nav class="tabs" aria-label="Main">
+          <span class="tab">{{i20:layout-dashboard}}Today</span>
+          <span class="tab" aria-current="page">{{i20:inbox}}Inbox<span class="badge">1</span></span>
+          <span class="tab">{{i20:calendar-event}}Calendar</span>
+          <span class="tab">{{i20:checkbox}}Tasks</span>
+          <span class="tab">{{i20:menu-2}}More</span>
+        </nav>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var KEY = "ondra-theme";
+  function apply(mode) {
+    if (mode === "light" || mode === "dark") document.documentElement.setAttribute("data-theme", mode);
+    else document.documentElement.removeAttribute("data-theme");
+    document.querySelectorAll("[data-theme-set]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-theme-set") === mode));
+    });
+  }
+  var saved = "system";
+  try { saved = localStorage.getItem(KEY) || "system"; } catch (e) {}
+  apply(saved);
+  document.querySelectorAll("[data-theme-set]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = b.getAttribute("data-theme-set");
+      apply(m);
+      try { localStorage.setItem(KEY, m); } catch (e) {}
+    });
+  });
+  document.querySelectorAll(".chip[aria-pressed]").forEach(function (c) {
+    c.addEventListener("click", function () {
+      c.parentElement.querySelectorAll(".chip").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+      c.setAttribute("aria-pressed", "true");
+    });
+  });
+  document.querySelectorAll(".switch").forEach(function (s) {
+    s.addEventListener("click", function () { s.setAttribute("aria-checked", String(s.getAttribute("aria-checked") !== "true")); });
+  });
+})();
+</script>
+</body>
+</html>

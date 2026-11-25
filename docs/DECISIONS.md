@@ -96,3 +96,9 @@ Full detail is in `docs/ARCHITECTURE.md`.
 - One VPS (Hetzner) with Docker Compose: cheapest, but we would run all the operations ourselves.
 - AWS or GCP throughout: right for later compliance needs, too heavy now.
 - Everything on Cloudflare: its Python Workers can't run our FastAPI stack, and D1 has no RLS or pgvector.
+
+## 2026-11-25: Dashboard has light and dark themes, chosen per user
+
+**Decision:** `apps/web` ships light, dark and "Device" (follows the OS, the default), selectable in the user menu and saved per user. The sidebar is dark in both themes. In light the primary action is an espresso pill; in dark it is champagne. AI blue marks only what Ondra did, and is never used for actions, selection or focus. The reference is `design/prototypes/system.html`; tokens are in the `ondra-ui` skill (`references/dashboard.md`).
+**Why:** The founder wants both. A light canvas reads better in bright showrooms and on long shifts; dark matches the brand and evening use. The who-did-it column in threads is the signature, so blue has to keep one meaning.
+**Alternatives:** Light only with a dark sidebar (simpler, but loses the brand's dark side). Dark only, matching the marketing site (harder to read in daylight).
