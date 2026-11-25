@@ -1,6 +1,6 @@
 # Dashboard (Operate mode)
 
-Applies to `apps/web`. The reference is `design/prototypes/system.html` (source `system.src.html`, built with `design/prototypes/build.py`). It shows the inbox workspace, every control and state, and the phone layout, in light and dark. `design/mockups/app.html` is older: keep its screen list and content ideas, but take colour, type and layout from the prototype.
+Applies to `apps/web`, which is built on shadcn/ui's `dashboard-01` block and new-york-v4 components with shadcn's neutral theme (see `docs/DECISIONS.md`, 2026-11-25). Use shadcn components as they are and change tokens, not component internals. `design/prototypes/system.html` is an earlier custom direction, kept for reference only; where it conflicts with `apps/web/app/globals.css`, the app wins. `design/mockups/app.html` is older: keep its screen list and content ideas, but take colour, type and layout from the prototype.
 
 ## Principles
 
