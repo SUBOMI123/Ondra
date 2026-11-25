@@ -227,10 +227,10 @@ function Inbox() {
     <section id="how" className="scroll-mt-14 bg-bg py-24 sm:py-32 border-t border-line">
       <div className="mx-auto w-full max-w-(--container-page) px-4 sm:px-7">
         <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
-          <h2 className="font-display text-h2 max-w-[15ch]">One inbox. You can see what the AI did.</h2>
+          <h2 className="font-display text-h2 max-w-[15ch]">All your conversations in one inbox.</h2>
           <p className="text-lead max-w-(--container-prose) text-fg-2">
-            Every call, text, email and WhatsApp message lands in one place. Anything Ondra said, drafted or booked is marked in
-            blue with its name on it. VIPs never are.
+            Calls, texts, email and WhatsApp, side by side. Anything Ondra said, drafted or booked is marked in blue with its
+            name on it, so you always know what came from the AI.
           </p>
         </div>
 
@@ -401,7 +401,7 @@ function Night() {
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <H2 className="max-w-[14ch]">One night with nobody on the phones.</H2>
-          <Lead className="mt-5 text-fg-2">Buyers don&apos;t wait for opening hours. Most dealerships make them.</Lead>
+          <Lead className="mt-5 text-fg-2">Buyers call and message after you close. Most of those go nowhere.</Lead>
         </div>
         <ol className="border-l border-fg/15">
           {hours.map((h, i) => (
@@ -494,7 +494,7 @@ function Vip() {
           <H2 className="max-w-[15ch]">Some clients should only ever hear from you.</H2>
           <Lead className="mt-5 text-fg-2">
             Mark a client, or the people who buy for them, as VIP. Their calls ring you directly and their messages wait for your
-            reply. No AI answer, no AI draft, ever.
+            reply. The AI never answers them or writes a reply for them.
           </Lead>
           <p className="mt-4 max-w-[50ch] text-muted-foreground">Miss the call and you get an alert straight away, not a summary at the end of the day.</p>
         </div>
@@ -542,10 +542,10 @@ function Guardrails() {
     <section className="border-t border-line bg-bg py-24 sm:py-32">
       <Wrap>
         <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
-          <H2 className="max-w-[16ch]">It won&apos;t promise what you didn&apos;t.</H2>
+          <H2 className="max-w-[16ch]">Prices and dates stay with your team.</H2>
           <Lead className="text-fg-2">
-            Every reply is checked against your rules before it goes out. Prices, discounts and delivery dates stay with your
-            team unless you say otherwise.
+            Every reply is checked against your rules before it goes out. Ondra won&apos;t commit to a final price, a discount
+            or a delivery date unless you&apos;ve said it can.
           </Lead>
         </div>
         <div className="mt-14 grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:items-start">
@@ -575,7 +575,7 @@ function Setup() {
   return (
     <section className="on-dark bg-night py-24 text-white sm:py-32 border-t border-line">
       <Wrap>
-        <H2 className="max-w-[18ch]">Staff the desks without hiring.</H2>
+        <H2 className="max-w-[18ch]">Up and running in a few days.</H2>
         <Lead className="mt-5 text-white/70">
           Phone and email can be answered within days. Business texting and WhatsApp need carrier and Meta registration,
           which takes a few weeks. We do the paperwork with you.

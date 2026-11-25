@@ -53,7 +53,7 @@ The product isn't built yet. Until it is, the page sticks to what the plan commi
 - **Languages the voice agent speaks.** STT/TTS vendors haven't been chosen (§17.3).
 - **Prices.** Not set (§17.6).
 - **"Live this week."** WhatsApp needs Meta business verification, and production SMS needs A2P 10DLC registration. Both take weeks. Phone and email can be fast.
-- **"Indistinguishable from a human."** Don't say it. The page leans the other way: "None of them are people."
+- **"Indistinguishable from a human."** Don't say it. The page is open that the agents are AI.
 
 ## Open questions for the founders
 

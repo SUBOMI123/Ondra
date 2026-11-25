@@ -45,20 +45,20 @@ const SCENES: Scene[] = [
   {
     src: "/floor/desks-1",
     alt: "A robot in a headset taking a phone call at a walnut desk, and a second robot replying to messages on two monitors, with a black SUV and a silver coupe behind them",
-    title: "Reception and messages",
-    line: "Calls picked up on the first ring. Messages answered in seconds, at any hour.",
+    title: "Reception",
+    line: "Calls answered on the first ring and messages within seconds, day or night.",
     focus: [0.5, 0.4],
     pan: [0.12, 0.84],
     labels: [
-      { u: 0.166, v: 0.24, role: "Voice agent", name: "Reception", doing: "Answering a call about a Silverado" },
-      { u: 0.8, v: 0.28, role: "Messaging agent", name: "Texts and email", doing: "Sending a buyer photos of the Highlander" },
+      { u: 0.166, v: 0.24, role: "Voice agent", name: "Reception", doing: "On a call about the Silverado" },
+      { u: 0.8, v: 0.28, role: "Messaging agent", name: "Texts and email", doing: "Sending photos of the Highlander" },
     ],
   },
   {
     src: "/floor/desks-2",
     alt: "A robot booking test drives on a calendar, car keys on a tray beside it, and a second robot scheduling service with the workshop visible through glass",
     title: "Bookings and service",
-    line: "Test drives, video walkarounds and service slots, booked against your real calendars.",
+    line: "Test drives and service appointments go straight into your calendar.",
     focus: [0.45, 0.45],
     pan: [0.1, 0.86],
     labels: [
@@ -69,24 +69,24 @@ const SCENES: Scene[] = [
   {
     src: "/floor/desks-3",
     alt: "A standing robot holding a tablet, passing work on, and a seated robot drafting follow-up messages, with a bronze sedan on display behind",
-    title: "Handoffs and follow-ups",
-    line: "The right buyer to the right person, with a brief. Follow-ups wait for your approval.",
+    title: "Your team",
+    line: "When a buyer is ready, the right salesperson gets them with the whole story. Follow-ups wait for your OK.",
     focus: [0.5, 0.4],
     pan: [0.14, 0.9],
     labels: [
-      { u: 0.195, v: 0.14, role: "Routing agent", name: "Handoffs", doing: "Sending a qualified buyer to Daniel in Sales" },
-      { u: 0.9, v: 0.28, role: "Follow-up agent", name: "Follow-ups", doing: "Drafting nudges for buyers who went quiet" },
+      { u: 0.195, v: 0.14, role: "Routing agent", name: "Handoffs", doing: "Passing a ready buyer to Daniel" },
+      { u: 0.9, v: 0.28, role: "Follow-up agent", name: "Follow-ups", doing: "Checking in with buyers who went quiet" },
     ],
   },
   {
     src: "/floor/office",
     alt: "The owner's empty glass office at night: a walnut desk, a leather chair, a brass lamp and a desk phone with a red light",
     title: "Your office",
-    line: "VIP calls skip the agents and ring straight through to you.",
+    line: "Your best clients get you, not the AI. Their calls ring straight to your phone.",
     vip: true,
     focus: [0.58, 0.48],
     pan: [0.45, 0.62],
-    labels: [{ u: 0.61, v: 0.44, role: "Not an agent", name: "Your office", doing: "A VIP is calling. It rings you, not the AI.", vip: true }],
+    labels: [{ u: 0.61, v: 0.44, role: "You", name: "Your office", doing: "Robert Hale is calling. It rings your phone.", vip: true }],
   },
 ];
 
@@ -96,7 +96,7 @@ const smooth = (x: number) => x * x * (3 - 2 * x);
 
 function LabelCard({ l, className = "", style }: { l: Label; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`floor-label ${l.vip ? "vip" : ""} ${className}`} style={style}>
+    <div className={`floor-label ${l.vip ? "you" : ""} ${className}`} style={style}>
       <span className="role">
         <i />
         {l.role}
@@ -143,7 +143,7 @@ function StaticTour() {
               />
               <figcaption className="mt-5 grid gap-5 md:grid-cols-[1fr_1.4fr]">
                 <div>
-                  <p className={`font-display text-h3 ${s.vip ? "text-vip-on-dark" : ""}`}>{s.title}</p>
+                  <p className={`font-display text-h3 ${s.vip ? "text-frost" : ""}`}>{s.title}</p>
                   <p className="mt-2 text-white/70">{s.line}</p>
                 </div>
                 <ul className="grid gap-3 sm:grid-cols-2">
@@ -157,7 +157,7 @@ function StaticTour() {
             </figure>
           ))}
         </div>
-        <p className="font-display text-h2 mt-20 max-w-[16ch]">None of them are people. All of them are on your side.</p>
+        <p className="font-display text-h2 mt-20 max-w-[16ch]">Your team, with a lot more hands.</p>
       </div>
     </section>
   );
@@ -368,7 +368,7 @@ function Cinematic() {
             }}
             className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-(--container-page) px-4 pb-12 opacity-0 sm:px-7 sm:pb-16"
           >
-            <p className={`font-display text-h2 max-w-[16ch] ${c.vip ? "text-vip-on-dark" : ""}`}>{c.title}</p>
+            <p className={`font-display text-h2 max-w-[16ch] ${c.vip ? "text-frost" : ""}`}>{c.title}</p>
             <p className="text-lead mt-3 max-w-[40ch] text-white/80">{c.line}</p>
           </div>
         ))}
@@ -388,17 +388,17 @@ function Cinematic() {
         </div>
 
         <div ref={introRef} className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto w-full max-w-(--container-page) px-4 pb-14 sm:px-7 sm:pb-20">
-          <h2 className="font-display max-w-[13ch] text-[clamp(2.25rem,1.4rem+3.6vw,4.5rem)] font-extrabold leading-[0.98] tracking-[-0.02em]">Walk in. Every desk is staffed.</h2>
+          <h2 className="font-display max-w-[13ch] text-[clamp(2.25rem,1.4rem+3.6vw,4.5rem)] font-normal leading-[1.02] tracking-[-0.04em]">Walk in. Every desk is staffed.</h2>
           <p className="text-small mt-4 text-white/60">Keep scrolling to walk the floor</p>
         </div>
 
         <div ref={outroRef} className="absolute inset-0 flex items-center justify-center bg-night/80 px-4 text-center opacity-0">
           <div>
-            <p className="font-display mx-auto max-w-[15ch] text-[clamp(2.25rem,1.4rem+3.8vw,4.75rem)] font-extrabold leading-[0.98] tracking-[-0.02em]">
-              None of them are people. All of them are on your side.
+            <p className="font-display mx-auto max-w-[15ch] text-[clamp(2.25rem,1.4rem+3.8vw,4.75rem)] font-normal leading-[1.02] tracking-[-0.04em]">
+              Your team, with a lot more hands.
             </p>
             <p className="text-lead mx-auto mt-5 max-w-[42ch] text-white/75">
-              Ondra&apos;s agents answer, book and route. Your team takes the handoffs that need a person.
+              Ondra covers the phones, the inbox and the calendar, so your people can spend their time with buyers.
             </p>
           </div>
         </div>

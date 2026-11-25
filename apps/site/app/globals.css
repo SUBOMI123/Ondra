@@ -264,11 +264,15 @@
   line-height: 1.35;
   color: var(--color-fg-2);
 }
-.floor-label.vip .role i {
-  background: var(--color-vip);
+/* The owner's office: a person, so warm champagne instead of AI blue */
+.floor-label.you .role i {
+  background: var(--color-frost);
 }
-.floor-label.vip b {
-  color: var(--color-vip);
+.floor-label.you b {
+  color: var(--color-frost);
+}
+.floor-label.you::after {
+  background: rgb(234 217 181 / 0.6);
 }
 @media (max-width: 700px) {
   .floor-label {

@@ -32,7 +32,7 @@ export default function ChannelFlow() {
     <section className="border-t border-line bg-bg py-24 sm:py-32">
       <div className="mx-auto w-full max-w-(--container-page) px-4 sm:px-7">
         <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
-          <h2 className="font-display text-h2 max-w-[15ch]">Every channel in. The right person out.</h2>
+          <h2 className="font-display text-h2 max-w-[15ch]">Every message ends up with the right person.</h2>
           <p className="text-lead max-w-(--container-prose) text-fg-2">
             Ondra picks up every call, text, email and WhatsApp message, works out what the buyer wants, and hands it to the right
             person with a brief. VIP calls skip it entirely.
