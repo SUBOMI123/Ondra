@@ -71,3 +71,12 @@ async def test_roles_are_enforced_server_side(client):
     admin = await login(client, "admin@prestigemotors.example")
     assert (await client.get("/users", headers=sales)).status_code == 403
     assert (await client.get("/users", headers=admin)).status_code == 200
+
+
+async def test_vehicle_search_matches_every_word(client):
+    h = await login(client, "daniel@prestigemotors.example")
+    tahoes = (await client.get("/vehicles?q=tahoe&limit=200", headers=h)).json()
+    assert tahoes["total"] > 0 and all(v["model"] == "Tahoe" for v in tahoes["items"])
+    narrowed = (await client.get(f"/vehicles?q=tahoe {tahoes['items'][0]['year']}&limit=200", headers=h)).json()
+    assert 0 < narrowed["total"] <= tahoes["total"]
+    assert (await client.get("/vehicles?q=lamborghini", headers=h)).json()["total"] == 0

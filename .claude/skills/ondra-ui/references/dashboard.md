@@ -16,6 +16,11 @@ Applies to `apps/web`, which is built on shadcn/ui's `dashboard-01` block and ne
 - **The work gets the room.** On work screens (Inbox), collapse the app sidebar to icons and keep secondary detail (contact, consent) behind a disclosure.
 - **One primary action per item.** A draft has "Approve and send" plus a quiet "Edit". A call has one "Play". Everything else goes in a menu.
 - **Remove template leftovers.** Drag handles, checkboxes and actions with no real job (no bulk actions, no manual order) are noise.
+- **Same thing in the same place.** Repeated cards and rows keep one layout: if one card shows the owner at the bottom, every card does; optional details get their own line rather than borrowing another field's slot.
+- **No dead ends.** Don't render a link or button for something that doesn't exist yet; leave it out until it works.
+- **Red marks the item, not the paragraph.** On an overdue row, the title or date is red; the explanation stays muted.
+- **Screen-reader-only text needs a positioned parent** (`relative` on the card or row). Otherwise it is placed against the page and, inside a scrolling board, widens the whole page.
+- **Pick the pattern for the job.** A personal to-do list is a list grouped by urgency with a checkbox, not a status board; a pipeline is a board.
 - **Run the gate:** `npm run review:ui` in `apps/web` (every page, 4 widths, both themes, product-rule and source checks) plus a screenshot read against `review.md` section 5 before calling a page done.
 
 ## Themes

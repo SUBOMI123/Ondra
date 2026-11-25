@@ -1,36 +1,30 @@
 "use client"
 
-import { IconBrandWhatsapp, IconCrownFilled, IconMail, IconMessage, IconPhone } from "@tabler/icons-react"
+import { IconCrownFilled } from "@tabler/icons-react"
 import { useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { OndraMark } from "@/components/ondra-mark"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { SALES_STAGES, SERVICE_STAGES, type Channel, type DealCard } from "@/lib/examples"
+import { SALES_STAGES, SERVICE_STAGES, type DealCard } from "@/lib/examples"
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
 const compact = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 })
-const CHANNEL_ICON: Record<Channel, typeof IconPhone> = { phone: IconPhone, sms: IconMessage, email: IconMail, whatsapp: IconBrandWhatsapp }
 
 function Deal({ d }: { d: DealCard }) {
-  const Ch = CHANNEL_ICON[d.channel]
   return (
-    <article className="flex flex-col gap-1.5 rounded-xl border bg-card p-3 text-sm shadow-xs">
-      <div className="flex items-center gap-1.5 font-medium">
+    <article className="relative flex flex-col gap-1 rounded-xl border bg-card p-3 text-sm" data-vip={d.vip || undefined}>
+      <p className="flex items-center gap-1.5 font-medium">
         {d.vip && <IconCrownFilled className="size-3.5 shrink-0 text-vip" aria-label="VIP" />}
         <span className="truncate">{d.client}</span>
-      </div>
+      </p>
       <p className="truncate text-muted-foreground">{d.vehicle}</p>
-      {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
-      <div className="mt-1 flex items-center justify-between gap-2 text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <Ch className="size-3.5" aria-hidden="true" />
-          {d.owner}
-          {d.byOndra && (
-            <span className="flex items-center gap-1 text-ai" title="Ondra brought this lead in">
-              <OndraMark className="size-3.5" /> Ondra
-            </span>
-          )}
+      {d.note && <p className="truncate text-xs text-muted-foreground">{d.note}</p>}
+      <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          {d.byOndra && !d.vip && <OndraMark className="size-3.5 shrink-0 text-ai" />}
+          {d.byOndra && !d.vip && <span className="sr-only">Brought in by Ondra.</span>}
+          <span className="truncate">{d.owner}</span>
         </span>
         <span className="font-medium tabular-nums">{d.value ? usd.format(d.value) : "Warranty"}</span>
       </div>

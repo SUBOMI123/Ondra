@@ -1,7 +1,7 @@
 """Read endpoints for Step 1: the seeded contacts, vehicles and team, all tenant-scoped by RLS."""
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
@@ -43,12 +43,17 @@ async def list_contacts(
 @router.get("/vehicles", response_model=Page[VehicleOut])
 async def list_vehicles(
     ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.VEHICLES_READ)),
-    status: str | None = None, limit: int = Query(50, le=200), offset: int = 0,
+    status: str | None = None, q: str | None = None, limit: int = Query(50, le=200), offset: int = 0,
 ) -> Page[VehicleOut]:
     _, db = ctx
     stmt = select(Vehicle).order_by(Vehicle.year.desc(), Vehicle.make, Vehicle.model)
     if status:
         stmt = stmt.where(Vehicle.status == status)
+    for word in (q or "").split():
+        # Every word must match somewhere: "2022 silverado" finds the 2022 Silverados.
+        like = f"%{word}%"
+        stmt = stmt.where(or_(Vehicle.make.ilike(like), Vehicle.model.ilike(like), Vehicle.trim.ilike(like),
+                              Vehicle.stock_number.ilike(like), Vehicle.vin.ilike(like), cast(Vehicle.year, String).ilike(like)))
     rows, total = await _page(db, stmt, limit, offset)
     return Page(items=[VehicleOut.model_validate(v) for v in rows], total=total)
 

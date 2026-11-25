@@ -6,7 +6,6 @@ import { useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Contact, type Page } from "@/lib/api"
@@ -32,12 +31,12 @@ export default function ClientsPage() {
   return (
     <>
       <SiteHeader title="Clients" />
-      <div className="flex flex-col gap-4 p-4 lg:p-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 lg:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Input
             aria-label="Search clients"
             placeholder="Search by name"
-            className="max-w-xs"
+            className="max-w-sm"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -52,49 +51,34 @@ export default function ClientsPage() {
             {q ? `No clients match “${q}”.` : "No clients yet. They appear here as soon as someone calls, texts or emails."}
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="overflow-x-auto rounded-xl border">
             <Table>
-              <TableHeader className="bg-muted">
+              <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
+                  <TableHead>Best way to reach</TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead>Prefers</TableHead>
-                  <TableHead className="hidden lg:table-cell">Tags</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {query.data.items.map((c) => {
                   const ch = CHANNEL[c.preferred_channel as keyof typeof CHANNEL]
+                  const phone = formatPhone(c.identities.find((i) => i.kind === "phone")?.value)
                   return (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} data-vip={c.is_vip || undefined}>
                       <TableCell className="font-medium">
                         <span className="flex items-center gap-1.5">
                           {c.is_vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
                           {c.display_name}
                         </span>
                       </TableCell>
-                      <TableCell className="tabular-nums">{formatPhone(c.identities.find((i) => i.kind === "phone")?.value)}</TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
-                        {c.identities.find((i) => i.kind === "email")?.value}
-                      </TableCell>
                       <TableCell>
-                        {ch && (
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <ch.icon className="size-4" aria-hidden="true" />
-                            {ch.label}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1.5">
+                          {ch && <ch.icon className="size-4 shrink-0 text-muted-foreground" aria-label={ch.label} />}
+                          {c.preferred_channel === "email" ? c.identities.find((i) => i.kind === "email")?.value : <span className="tabular-nums">{phone}</span>}
+                        </span>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="flex gap-1">
-                          {c.tags.map((t) => (
-                            <Badge key={t} variant="outline" className="text-muted-foreground">
-                              {t}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{c.identities.find((i) => i.kind === "email")?.value}</TableCell>
                     </TableRow>
                   )
                 })}
