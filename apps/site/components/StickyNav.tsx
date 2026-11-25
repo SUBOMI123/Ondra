@@ -1,5 +1,7 @@
 "use client";
 
+import MobileMenu from "./MobileMenu";
+import { NAV_LINKS } from "./navLinks";
 import Wordmark from "./Wordmark";
 
 import { useEffect, useState } from "react";
@@ -29,21 +31,15 @@ export default function StickyNav() {
           <Wordmark className="h-[19px] w-auto" />
         </a>
         <nav aria-label="Sections" className="flex items-center gap-6 text-small">
-          {[
-            ["The floor", "#walkthrough"],
-            ["Inbox", "#how"],
-            ["Sales", "#sales"],
-            ["Service", "#service"],
-            ["VIPs", "#vip"],
-            ["FAQ", "#faq"],
-          ].map(([label, href]) => (
-            <a key={href} href={href} className="hidden text-white/75 no-underline hover:text-white lg:inline">
+          {NAV_LINKS.map(([label, href]) => (
+            <a key={href} href={href} className="hidden text-white/75 no-underline hover:text-white md:inline">
               {label}
             </a>
           ))}
           <a href="#demo" className="btn btn-primary min-h-10 px-4 text-sm">
             Book a demo
           </a>
+          <MobileMenu className="-mr-2 md:hidden" />
         </nav>
       </div>
     </div>

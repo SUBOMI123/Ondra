@@ -17,6 +17,8 @@ import ChannelFlow from "@/components/ChannelFlow";
 import FloorTour from "@/components/FloorTour";
 import HeroTitle from "@/components/HeroTitle";
 import Wordmark from "@/components/Wordmark";
+import MobileMenu from "@/components/MobileMenu";
+import { NAV_LINKS } from "@/components/navLinks";
 import { Briefing, PolicyCheck, SalesThread, ServiceCall, VipCall } from "@/components/stories";
 import StickyNav from "@/components/StickyNav";
 import { CONTACT_EMAIL } from "@/lib/config";
@@ -86,13 +88,7 @@ function Nav() {
       <Wrap className="flex items-center justify-between py-5 text-white">
         <Logo />
         <nav aria-label="Main" className="flex items-center gap-7 text-[15px]">
-          {[
-            ["How it works", "#how"],
-            ["Sales", "#sales"],
-            ["Service", "#service"],
-            ["VIPs", "#vip"],
-            ["FAQ", "#faq"],
-          ].map(([label, href]) => (
+          {NAV_LINKS.map(([label, href]) => (
             <a key={href} href={href} className="hidden text-white/80 no-underline hover:text-white md:inline">
               {label}
             </a>
@@ -100,6 +96,9 @@ function Nav() {
           <a href="#demo" className="btn btn-primary min-h-11 px-4">
             Book a demo
           </a>
+          <div data-menu="main" className="-mr-2 md:hidden">
+            <MobileMenu />
+          </div>
         </nav>
       </Wrap>
     </header>
