@@ -37,6 +37,8 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
+import { useAuth } from "@/components/providers"
+
 export function NavUser({
   user,
 }: {
@@ -46,6 +48,7 @@ export function NavUser({
     avatar: string
   }
 }) {
+  const { signOut } = useAuth()
   const { isMobile } = useSidebar()
 
   return (
@@ -106,7 +109,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => signOut()}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

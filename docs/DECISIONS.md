@@ -108,3 +108,17 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Decision:** `apps/web` starts from shadcn/ui's `dashboard-01` block (sidebar, metric cards, interactive area chart, sortable data table, row drawer) and its new-york-v4 components, on shadcn's neutral theme in light, dark and Device. Ondra's layer on top: the AI blue marks only Ondra's work (chart series, "Ondra" and "Draft for you" badges, briefs), red marks VIPs, and the speedometer wordmark sits in the sidebar. This replaces the custom design in `design/prototypes/system.html` (D0), which stays in the repo as a record.
 **Why:** The founder didn't like the custom dashboard and wants the techy shadcn look. It also matches the planned component stack, so the approved screens are production code from day one.
 **Alternatives:** Keep iterating on the custom system (rejected by the founder). Tremor or Mantine templates (off the planned stack).
+
+## 2026-11-25: Step 1 foundations: how tenant isolation, auth and the schema work
+
+**Tenant isolation.** Every tenant-scoped table has row-level security enabled and FORCED, with one policy: `tenant_id = app_current_tenant()`, which reads `app.tenant_id` set with `set_config(..., true)` (transaction-local) at the start of each request's transaction. With no tenant set, nothing is visible. The API connects as `ondra_app` (no superuser, no BYPASSRLS); migrations and the seed run as the owner. A test asserts every table with a `tenant_id` column has forced RLS, so a new table can't silently skip it. Removing RLS from one table makes 10 of 17 tests fail (checked).
+*Why:* isolation enforced by the database survives a forgotten `WHERE`. *Alternatives:* filtering in the ORM only (one bug leaks data); a schema or database per tenant (heavier migrations, harder analytics).
+
+**Signing in before the tenant is known.** One `SECURITY DEFINER` function, `auth_find_user(email)`, returns only what sign-in needs. User emails are unique across all tenants. Refresh tokens are `<tenant id>.<random>`, so refresh runs inside that tenant's RLS scope with no cross-tenant lookup.
+
+**Auth.** Argon2 password hashes; 15-minute HS256 access tokens held in memory by the dashboard; 7-day refresh sessions stored as SHA-256 hashes, rotated on every use, sent as an httpOnly SameSite=Lax cookie scoped to `/auth`. The role is read from the database on every request, so deactivating a user or changing a role applies immediately. Wrong password and unknown email give the same answer and take the same time.
+*Deferred:* MFA (BUILD_PLAN §10) lands with hardening in Step 10. Single sign-on later.
+
+**Schema conventions.** Status fields are text with CHECK constraints instead of Postgres enums (adding a value is a one-line migration). `knowledge_docs.embedding` is a `vector` with no fixed dimension until the embedding model is chosen in Step 2, when an index is added. `tenant_id` defaults to the transaction's tenant, so inserts can't forget it.
+
+**MinIO is opt-in for now.** Nothing in Step 1 stores files. Docker Hub's `minio/minio` repository no longer exists, so compose uses `quay.io/minio/minio` behind `--profile storage`. It becomes default when Step 2 starts storing attachments.

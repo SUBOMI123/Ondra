@@ -5,6 +5,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 
+import { Providers } from "@/components/providers"
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Light, dark, or follow the device (default). The choice is kept per browser for now; per user once auth exists. */}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider delayDuration={200}>
-            {children}
+            <Providers>{children}</Providers>
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>

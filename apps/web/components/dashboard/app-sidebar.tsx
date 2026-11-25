@@ -18,6 +18,7 @@ import {
   IconUsers,
 } from "@tabler/icons-react"
 
+import { useAuth } from "@/components/providers"
 import { NavDocuments } from "@/components/dashboard/nav-documents"
 import { NavMain } from "@/components/dashboard/nav-main"
 import { NavSecondary } from "@/components/dashboard/nav-secondary"
@@ -33,18 +34,17 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Example user and saved views for the UI prototype; real data arrives with Step 1 (auth) and Step 3 (inbox).
+// Screens that exist link to their page; the rest arrive with their build step (docs/ROADMAP.md).
 const data = {
-  user: { name: "Daniel Okafor", email: "daniel@prestigemotors.com", avatar: "" },
   navMain: [
-    { title: "Today", url: "#", icon: IconLayoutDashboard, active: true },
-    { title: "Inbox", url: "#", icon: IconMessages, badge: "12" },
-    { title: "Calls", url: "#", icon: IconPhone },
-    { title: "Calendar", url: "#", icon: IconCalendarEvent },
-    { title: "Clients", url: "#", icon: IconUsers },
-    { title: "Deals", url: "#", icon: IconLayoutKanban },
-    { title: "Tasks", url: "#", icon: IconChecklist, badge: "2" },
-    { title: "Inventory", url: "#", icon: IconCar },
+    { title: "Today", url: "/", icon: IconLayoutDashboard },
+    { title: "Inbox", url: "#", icon: IconMessages, soon: "Step 3" },
+    { title: "Calls", url: "#", icon: IconPhone, soon: "Step 5" },
+    { title: "Calendar", url: "#", icon: IconCalendarEvent, soon: "Step 4" },
+    { title: "Clients", url: "/clients", icon: IconUsers },
+    { title: "Deals", url: "#", icon: IconLayoutKanban, soon: "Step 3" },
+    { title: "Tasks", url: "#", icon: IconChecklist, soon: "Step 3" },
+    { title: "Inventory", url: "/inventory", icon: IconCar },
   ],
   navSecondary: [
     { title: "Settings", url: "#", icon: IconSettings },
@@ -59,6 +59,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { me } = useAuth()
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -67,7 +68,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <a href="#" aria-label="Ondra, Today">
                 <span className="flex h-5 items-center"><Wordmark className="h-[18px] w-auto" /></span>
-                <span className="ml-auto truncate text-xs font-normal text-muted-foreground">Prestige Motors</span>
+                <span className="ml-auto truncate text-xs font-normal text-muted-foreground">{me?.tenant_name}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -79,7 +80,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{ name: me?.name ?? "", email: me?.email ?? "", avatar: "" }} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -1,0 +1,28 @@
+# uv workspace for the Python services. `uv sync` at the repo root installs everything.
+[project]
+name = "ondra"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/core", "apps/api"]
+
+[tool.uv.sources]
+ondra-core = { workspace = true }
+ondra-api = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["apps/api/tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
