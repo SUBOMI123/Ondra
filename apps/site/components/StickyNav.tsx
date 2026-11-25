@@ -31,7 +31,8 @@ export default function StickyNav() {
           {[
             ["The floor", "#walkthrough"],
             ["Inbox", "#how"],
-            ["WhatsApp", "#whatsapp"],
+            ["Sales", "#sales"],
+            ["Service", "#service"],
             ["VIPs", "#vip"],
             ["FAQ", "#faq"],
           ].map(([label, href]) => (

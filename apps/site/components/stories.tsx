@@ -8,6 +8,7 @@
 
 import {
   IconBrandWhatsapp,
+  IconCalendarEvent,
   IconCheck,
   IconCrownFilled,
   IconPhone,
@@ -20,71 +21,74 @@ import { useStory } from "./useStory";
 
 const enter = { initial: { opacity: 0, y: 8, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 0 }, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const } };
 
-function Typing({ out = false }: { out?: boolean }) {
+/* ------------------------------------------------------------------ Sales: an after-hours text thread */
+
+function Bubble({ me = false, ai = false, time, children }: { me?: boolean; ai?: boolean; time: string; children: React.ReactNode }) {
   return (
-    <motion.div {...enter} className={`flex w-14 items-center justify-center gap-1 rounded-2xl px-3 py-3 ${out ? "ml-auto bg-wa-bubble" : "bg-wa-incoming"}`} aria-label="typing">
+    <motion.div {...enter} className={`max-w-[84%] ${me ? "ml-auto" : ""}`}>
+      <div className={`rounded-2xl px-3.5 py-2.5 ${me ? "rounded-br-md border border-ai/20 bg-ai-subtle text-fg" : "rounded-bl-md bg-muted text-fg"}`}>{children}</div>
+      <p className={`text-micro mt-1 flex items-center gap-1 font-mono ${me ? "justify-end text-ai" : "text-muted-foreground"}`}>
+        {ai && <IconSparkles size={11} stroke={2} aria-hidden="true" />}
+        {ai ? `Ondra ${time}` : time}
+      </p>
+    </motion.div>
+  );
+}
+
+function Dots() {
+  return (
+    <motion.div {...enter} className="ml-auto flex w-14 items-center justify-center gap-1 rounded-2xl border border-ai/20 bg-ai-subtle px-3 py-3" aria-label="typing">
       {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className="block size-1.5 rounded-full bg-white/70"
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-        />
+        <motion.span key={i} className="block size-1.5 rounded-full bg-ai" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }} />
       ))}
     </motion.div>
   );
 }
 
-/* ------------------------------------------------------------------ WhatsApp phone */
-
-export function WhatsAppPhone() {
-  // 1 buyer, 2 typing, 3 Ondra reply, 4 buyer, 5 typing, 6 Ondra reply
-  const { ref, step } = useStory([500, 900, 1500, 1300, 800, 1400]);
+export function SalesThread() {
+  // 1 buyer, 2 typing, 3 Ondra reply, 4 buyer, 5 typing, 6 Ondra reply, 7 booking card
+  const { ref, step } = useStory([500, 900, 1600, 1400, 800, 1400, 700]);
   return (
-    <div ref={ref} data-story="whatsapp" className="mx-auto w-full max-w-[340px]">
-      <div className="overflow-hidden rounded-[2.4rem] border border-line-strong bg-wa-wallpaper p-2 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)]">
-        <div className="rounded-[2rem] bg-wa-wallpaper">
-          <div className="flex items-center gap-3 rounded-t-[2rem] bg-wa-incoming px-4 pb-3 pt-5">
-            <span className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium">PM</span>
-            <div className="min-w-0">
-              <p className="text-[15px] font-medium leading-tight">Prestige Motors Dallas</p>
-              <p className="text-micro text-fg-2/70">{step === 2 || step === 5 ? "typing…" : "online"}</p>
-            </div>
-            <span className="text-micro ml-auto font-mono text-fg-2/60">9:14</span>
+    <div ref={ref} data-story="sales" className="mx-auto w-full max-w-[360px]">
+      <div className="overflow-hidden rounded-[2.4rem] border border-line-strong bg-bg p-2 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)]">
+        <div className="rounded-[2rem] bg-surface">
+          <div className="flex flex-col items-center gap-1 border-b border-line px-4 pb-3 pt-5">
+            <span className="flex size-10 items-center justify-center rounded-full bg-muted text-sm font-medium">PM</span>
+            <p className="text-[14px] font-medium leading-tight">Prestige Motors</p>
+            <p className="text-micro text-muted-foreground">Text message</p>
           </div>
-          <div className="flex min-h-[430px] flex-col gap-2.5 px-3 py-4 text-[14px] leading-snug">
-            <p className="text-micro mx-auto rounded-md bg-wa-incoming/80 px-2 py-0.5 text-fg-2/70">Today</p>
+          <div className="flex min-h-[470px] flex-col gap-3 px-3.5 py-4 text-[14px] leading-snug">
+            <p className="text-micro mx-auto text-muted-foreground">Tuesday 10:48 pm</p>
             <AnimatePresence initial={false}>
               {step >= 1 && (
-                <motion.div key="b1" {...enter} className="max-w-[82%] rounded-2xl rounded-tl-md bg-wa-incoming px-3 py-2">
-                  Good evening. Is the black 2023 G63 still available? Can you ship to Lagos?
-                  <span className="text-micro mt-1 block text-right font-mono text-fg-2/50">9:14</span>
-                </motion.div>
+                <Bubble key="b1" time="10:48 pm">
+                  Hi, is the white 2021 Highlander still there? Need a third row, budget around $35k.
+                </Bubble>
               )}
-              {step === 2 && <Typing key="t1" out />}
+              {step === 2 && <Dots key="t1" />}
               {step >= 3 && (
-                <motion.div key="r1" {...enter} className="ml-auto max-w-[86%] rounded-2xl rounded-tr-md bg-wa-bubble px-3 py-2">
-                  Yes, it&apos;s on the lot: black, 18k miles, and we ship to Lagos regularly. Would a live video walkaround with
-                  Daniel help? Thursday 5 pm your time works.
-                  <span className="text-micro mt-1 flex items-center justify-end gap-1 font-mono text-ai">
-                    <IconSparkles size={11} stroke={2} />
-                    Ondra 9:14
-                  </span>
-                </motion.div>
+                <Bubble key="r1" me ai time="10:48 pm">
+                  It is: 41k miles, listed at $33,900. We also have a 2022 Pilot with a third row listed at $34,500. Want to see both on
+                  Saturday?
+                </Bubble>
               )}
               {step >= 4 && (
-                <motion.div key="b2" {...enter} className="max-w-[70%] rounded-2xl rounded-tl-md bg-wa-incoming px-3 py-2">
-                  Thursday works. Please book it.
-                  <span className="text-micro mt-1 block text-right font-mono text-fg-2/50">9:16</span>
-                </motion.div>
+                <Bubble key="b2" time="10:51 pm">
+                  Saturday morning. I&apos;ve got a 2017 Civic to trade.
+                </Bubble>
               )}
-              {step === 5 && <Typing key="t2" out />}
+              {step === 5 && <Dots key="t2" />}
               {step >= 6 && (
-                <motion.div key="r2" {...enter} className="ml-auto max-w-[86%] rounded-2xl rounded-tr-md bg-wa-bubble px-3 py-2">
-                  Booked for Thursday, 5 pm Lagos time. Daniel will call you on WhatsApp video.
-                  <span className="text-micro mt-1 flex items-center justify-end gap-1 font-mono text-ai">
-                    <IconSparkles size={11} stroke={2} />
-                    Ondra 9:16
+                <Bubble key="r2" me ai time="10:51 pm">
+                  Booked for Saturday at 10 am with Daniel. Bring the Civic and we&apos;ll appraise it while you drive.
+                </Bubble>
+              )}
+              {step >= 7 && (
+                <motion.div key="card" {...enter} className="mt-1 flex items-center gap-2.5 rounded-card border border-line bg-bg px-3 py-2.5">
+                  <IconCalendarEvent size={16} stroke={1.75} className="text-ai" aria-hidden="true" />
+                  <span className="text-micro flex-1">
+                    <span className="block font-medium text-fg">Test drive, Sat 10:00 am</span>
+                    <span className="text-muted-foreground">Highlander and Pilot pulled up, trade appraisal</span>
                   </span>
                 </motion.div>
               )}
@@ -92,7 +96,83 @@ export function WhatsAppPhone() {
           </div>
         </div>
       </div>
-      <p className="text-small mt-4 text-center text-muted-foreground">The buyer&apos;s phone in Lagos. Dallas is asleep.</p>
+      <p className="text-small mt-4 text-center text-muted-foreground">Texted at 10:48 pm. The showroom closed at eight.</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Service: a call answered live */
+
+const CALL = [
+  { who: "caller", t: "Hi, my check engine light came on, and I think I'm due an oil change anyway." },
+  { who: "ondra", t: "I can get you in. Is this for the 2019 F-150 on your account?" },
+  { who: "caller", t: "That's the one." },
+  { who: "ondra", t: "Tomorrow at 7:30 am works. I'll ask your advisor to check the light while it's in. Do you need a loaner?" },
+  { who: "caller", t: "Yes, please." },
+];
+
+export function ServiceCall() {
+  // 1-5 transcript lines, 6 booking lands
+  const { ref, step } = useStory([500, 1300, 1500, 900, 1700, 900]);
+  const live = step >= 1 && step < 6;
+  return (
+    <div ref={ref} data-story="service" className="mx-auto w-full max-w-[460px] rounded-panel border border-line bg-surface">
+      <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+        <span className="flex size-10 items-center justify-center rounded-full bg-ai-subtle text-ai">
+          <IconPhone size={18} stroke={1.75} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">Service line</p>
+          <p className="text-micro text-muted-foreground">Answered by Ondra on the first ring</p>
+        </div>
+        <span className="flex h-6 items-center gap-[3px]" aria-hidden="true">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <motion.span
+              key={i}
+              className="block w-[3px] rounded-full bg-ai"
+              initial={false}
+              animate={live ? { height: [4, 6 + ((i * 5) % 14), 4] } : { height: 4 }}
+              transition={{ duration: 0.9, repeat: live ? Infinity : 0, delay: i * 0.06 }}
+              style={{ height: 4 }}
+            />
+          ))}
+        </span>
+        <span className="text-micro font-mono tabular-nums text-muted-foreground">{step >= 6 ? "1:12" : "0:41"}</span>
+      </div>
+      <ol className="grid min-h-[17rem] content-start gap-3 px-5 py-5 text-[14.5px] leading-snug">
+        {CALL.map((l, i) => (
+          <motion.li
+            key={i}
+            initial={false}
+            animate={{ opacity: step >= i + 1 ? 1 : 0, y: step >= i + 1 ? 0 : 6 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="grid grid-cols-[4.5rem_1fr] gap-3"
+          >
+            <span className={`text-micro pt-0.5 font-medium ${l.who === "ondra" ? "flex items-start gap-1 text-ai" : "text-muted-foreground"}`}>
+              {l.who === "ondra" && <IconSparkles size={11} stroke={2} className="mt-0.5" aria-hidden="true" />}
+              {l.who === "ondra" ? "Ondra" : "Caller"}
+            </span>
+            <span className={l.who === "ondra" ? "text-fg" : "text-fg-2"}>{l.t}</span>
+          </motion.li>
+        ))}
+      </ol>
+      <motion.div
+        initial={false}
+        animate={{ opacity: step >= 6 ? 1 : 0.25 }}
+        transition={{ duration: 0.4 }}
+        className="grid grid-cols-3 gap-px overflow-hidden rounded-b-panel border-t border-line bg-line text-micro"
+      >
+        {[
+          ["Booked", "Wed 7:30 am, Bay 3"],
+          ["Advisor", "Maria, brief sent"],
+          ["Loaner", "Requested"],
+        ].map(([k, v]) => (
+          <div key={k} className="bg-surface px-4 py-3">
+            <p className="text-muted-foreground">{k}</p>
+            <p className="mt-0.5 font-medium text-fg">{v}</p>
+          </div>
+        ))}
+      </motion.div>
     </div>
   );
 }
@@ -100,8 +180,8 @@ export function WhatsAppPhone() {
 /* ------------------------------------------------------------------ VIP call */
 
 const VIP_STEPS = [
-  { t: "Incoming call from Alhaji M.", d: "+234 803 ••• 4471", Icon: IconPhone },
-  { t: "Recognised as a VIP", d: "Marked by you in March", Icon: IconCrownFilled, vip: true },
+  { t: "Incoming call from Robert Hale", d: "+1 (214) ••• 4471", Icon: IconPhone },
+  { t: "Recognised as a VIP", d: "Marked by you in 2023", Icon: IconCrownFilled, vip: true },
   { t: "Ondra stays off this call", d: "No AI answer, no AI draft", Icon: IconSparkles, off: true },
   { t: "Ringing your mobile", d: "Then your office line, then a text", Icon: IconPhoneCall, ring: true },
 ];
@@ -121,8 +201,8 @@ export function VipCall() {
           )}
         </div>
         <div>
-          <p className="text-lg font-medium">Alhaji M.</p>
-          <p className="text-small text-muted-foreground">VIP since March</p>
+          <p className="text-lg font-medium">Robert Hale</p>
+          <p className="text-small text-muted-foreground">Bought six cars from you</p>
         </div>
         <span className="text-micro ml-auto rounded-pill bg-vip-subtle px-2.5 py-1 font-medium text-vip">VIP</span>
       </div>
@@ -164,9 +244,9 @@ export function VipCall() {
 
 const BRIEF = [
   ["2", "VIPs waiting for you"],
-  ["5", "hot leads overnight, 3 from Nigeria"],
+  ["5", "hot leads overnight, 2 after midnight"],
   ["4", "follow-ups ready to approve"],
-  ["10", "bookings today: 3 test drives, 1 walkaround, 6 service"],
+  ["10", "bookings today: 4 test drives, 6 service"],
 ];
 
 export function Briefing() {
@@ -227,7 +307,7 @@ export function Briefing() {
         )}
         {step >= 7 && (
           <motion.div key="done" {...enter} className="mt-2.5 max-w-[88%] rounded-2xl rounded-tl-md bg-wa-incoming px-4 py-3 text-[14px]">
-            Done. Task for Daniel: send Chidi the shipping quote by 3 pm. Chidi&apos;s profile is updated.
+            Done. Task for Daniel: call Jordan about the Civic trade-in by noon. Jordan&apos;s profile is updated.
             <span className="text-micro mt-1 flex items-center gap-1 font-mono text-ai">
               <IconSparkles size={11} stroke={2} />
               Ondra 7:34
@@ -251,7 +331,7 @@ export function PolicyCheck() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-small flex items-center gap-1.5 text-ai">
           <IconSparkles size={14} stroke={1.75} aria-hidden="true" />
-          Draft by Ondra, reply to Chidi O.
+          Draft by Ondra, reply to Jordan P.
         </p>
         <motion.span
           initial={false}
@@ -267,14 +347,14 @@ export function PolicyCheck() {
           {step < 3 ? (
             <motion.p key="draft" {...enter} className="text-lead leading-relaxed text-fg">
               Great news! I can do{" "}
-              <span className={`rounded px-1 transition-colors duration-300 ${flaggedPrice ? "bg-dusk/20 text-dusk line-through decoration-dusk" : ""}`}>$172,000 cash</span>{" "}
+              <span className={`rounded px-1 transition-colors duration-300 ${flaggedPrice ? "bg-dusk/20 text-dusk line-through decoration-dusk" : ""}`}>$31,500 out the door</span>{" "}
               and have it{" "}
-              <span className={`rounded px-1 transition-colors duration-300 ${flaggedDate ? "bg-dusk/20 text-dusk line-through decoration-dusk" : ""}`}>delivered to Lagos by Friday</span>.
+              <span className={`rounded px-1 transition-colors duration-300 ${flaggedDate ? "bg-dusk/20 text-dusk line-through decoration-dusk" : ""}`}>ready for you by Friday</span>.
             </motion.p>
           ) : (
             <motion.p key="rewrite" {...enter} className="text-lead leading-relaxed text-fg">
-              It&apos;s on the lot and we ship to Lagos regularly. Daniel will confirm the final price and a delivery window with you
-              on Thursday&apos;s call.
+              It&apos;s on the lot and it&apos;s yours to drive on Saturday. Daniel will go through the final price, your trade-in and
+              timing with you then.
             </motion.p>
           )}
         </AnimatePresence>

@@ -45,13 +45,13 @@ const SCENES: Scene[] = [
   {
     src: "/floor/desks-1",
     alt: "A robot in a headset taking a phone call at a walnut desk, and a second robot replying to messages on two monitors, with a black SUV and a silver coupe behind them",
-    title: "Reception and WhatsApp",
+    title: "Reception and messages",
     line: "Calls picked up on the first ring. Messages answered in seconds, at any hour.",
     focus: [0.5, 0.4],
     pan: [0.12, 0.84],
     labels: [
-      { u: 0.166, v: 0.24, role: "Voice agent", name: "Reception", doing: "Answering a call about a black G63" },
-      { u: 0.8, v: 0.28, role: "Messaging agent", name: "WhatsApp and email", doing: "Replying to a buyer in Lagos with photos" },
+      { u: 0.166, v: 0.24, role: "Voice agent", name: "Reception", doing: "Answering a call about a Silverado" },
+      { u: 0.8, v: 0.28, role: "Messaging agent", name: "Texts and email", doing: "Sending a buyer photos of the Highlander" },
     ],
   },
   {
@@ -62,7 +62,7 @@ const SCENES: Scene[] = [
     focus: [0.45, 0.45],
     pan: [0.1, 0.86],
     labels: [
-      { u: 0.14, v: 0.27, role: "Booking agent", name: "Test drives and visits", doing: "Booking a video walkaround for Thursday" },
+      { u: 0.14, v: 0.27, role: "Booking agent", name: "Test drives and visits", doing: "Booking a test drive for Saturday" },
       { u: 0.83, v: 0.33, role: "Service agent", name: "Service desk", doing: "Fitting an oil change into Bay 2" },
     ],
   },
@@ -173,7 +173,7 @@ const N_FRAMES = 180;
 // Frame windows come from the camera path: a label shows while its desk is ahead of the camera, within about 8 m and on screen, and only during its own caption so the two never disagree.
 const WALK_LABELS: WalkLabel[] = [
   { key: "Reception", win: [36, 72], label: SCENES[1].labels[0] },
-  { key: "WhatsApp", win: [38, 72], label: SCENES[1].labels[1] },
+  { key: "Messages", win: [38, 72], label: SCENES[1].labels[1] },
   { key: "Bookings", win: [72, 100], label: SCENES[2].labels[0] },
   { key: "Service", win: [72, 106], label: SCENES[2].labels[1] },
   { key: "Handoffs", win: [106, 130], label: SCENES[3].labels[0] },

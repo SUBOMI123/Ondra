@@ -11,14 +11,14 @@ const H = 470;
 const pct = (x: number, y: number) => ({ left: `${(x / W) * 100}%`, top: `${(y / H) * 100}%` });
 
 const IN = [
-  { y: 70, label: "WhatsApp", Icon: IconBrandWhatsapp },
-  { y: 165, label: "Texts", Icon: IconMessage },
-  { y: 260, label: "Email", Icon: IconMail },
+  { y: 70, label: "Texts", Icon: IconMessage },
+  { y: 165, label: "Email", Icon: IconMail },
+  { y: 260, label: "WhatsApp", Icon: IconBrandWhatsapp },
   { y: 355, label: "Calls", Icon: IconPhone },
 ];
 const OUT = [
   { y: 70, title: "Daniel, Sales", detail: "Qualified buyer, brief attached", Icon: IconUser },
-  { y: 165, title: "Calendar", detail: "Walkaround booked, Thu 10:00", Icon: IconCalendarEvent },
+  { y: 165, title: "Calendar", detail: "Test drive booked, Thu 6:00 pm", Icon: IconCalendarEvent },
   { y: 260, title: "Service desk", detail: "Oil change, Bay 2", Icon: IconTool },
 ];
 const CX = 550;
@@ -34,7 +34,7 @@ export default function ChannelFlow() {
         <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
           <h2 className="font-display text-h2 max-w-[15ch]">Every channel in. The right person out.</h2>
           <p className="text-lead max-w-(--container-prose) text-fg-2">
-            Ondra picks up every call, WhatsApp, text and email, works out what the buyer wants, and hands it to the right
+            Ondra picks up every call, text, email and WhatsApp message, works out what the buyer wants, and hands it to the right
             person with a brief. VIP calls skip it entirely.
           </p>
         </div>

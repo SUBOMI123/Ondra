@@ -23,7 +23,7 @@ export default function DemoForm() {
       phone: String(fd.get("phone") ?? ""),
       city: String(fd.get("city") ?? ""),
       channels: fd.getAll("channels").map(String),
-      exports: String(fd.get("exports") ?? ""),
+      dms: String(fd.get("dms") ?? ""),
       notes: String(fd.get("notes") ?? ""),
       source: "landing",
     };
@@ -86,7 +86,7 @@ export default function DemoForm() {
           <input name="email" type="email" required autoComplete="email" className={input} />
         </label>
         <label className={label}>
-          Phone or WhatsApp
+          Phone
           <input name="phone" type="tel" autoComplete="tel" className={input} />
         </label>
         <label className={`${label} sm:col-span-2`}>
@@ -111,14 +111,14 @@ export default function DemoForm() {
       </fieldset>
 
       <fieldset className="mt-6">
-        <legend className={label}>Do you sell to buyers outside the US?</legend>
+        <legend className={label}>Do you use a DMS or CRM?</legend>
         <div className="mt-2 flex flex-wrap gap-2">
-          {["Yes, regularly", "Sometimes", "No"].map((c) => (
+          {["Yes", "No", "Not sure"].map((c) => (
             <label
               key={c}
               className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-white"
             >
-              <input type="radio" name="exports" value={c} className="sr-only" />
+              <input type="radio" name="dms" value={c} className="sr-only" />
               {c}
             </label>
           ))}
@@ -130,7 +130,7 @@ export default function DemoForm() {
         <textarea
           name="notes"
           rows={3}
-          placeholder="e.g. We miss calls after 7pm and most of our buyers message us on WhatsApp."
+          placeholder="e.g. We miss calls after 7pm and web leads sit until morning."
           className={input}
         />
       </label>

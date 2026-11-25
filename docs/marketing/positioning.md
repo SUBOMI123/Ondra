@@ -4,22 +4,27 @@ The landing page copy (`apps/site`) is written from this document. Change the po
 
 ## One line
 
-AI agents that answer every call, WhatsApp, text and email a dealership gets, book the visit, and hand the right buyer to the right person. VIPs always reach the owner directly.
+AI agents that answer every call, text, email and WhatsApp message a dealership gets, book the appointment, and hand the right buyer to the right person. VIPs always reach the owner directly.
 
-## Who we sell to first (in order)
+## Who the public site speaks to
 
-1. **US exporters selling to Africa and the Middle East.** Buyers are on WhatsApp, in other time zones, asking about shipping and payment. Most dealer AI tools don't serve them. This is where we win first, and where the pilot dealer sits.
-2. **Dealers serving immigrant communities.** Same WhatsApp behaviour, domestic buyers.
-3. **Independent dealers generally**, especially those with no DMS.
-4. **Franchised dealers.** Listed on the page, but this is where Numa and Flai are strongest. Don't lead with them.
+**US dealers, independent and franchised, sales and service.** The site sells by department and outcome (every lead answered, the service line picked up, VIPs to you, the owner's morning, guardrails), the way Numa and Flai do. No country, city or export story on the public page, and WhatsApp is one channel among four, not the headline.
+
+**Who we still sell to first in outreach** (the founder's call, 2026-11-25: the site goes general, the wedge stays in sales):
+
+1. US exporters selling to Africa and the Middle East. Buyers on WhatsApp, in other time zones. The pilot dealer sits here and competitors don't serve it. Reach them by founder-led outreach and, later, a dedicated page (e.g. `/exporters`), not the homepage.
+2. Dealers serving immigrant communities.
+3. Independent dealers generally, especially those with no DMS.
+4. Franchised dealers, where Numa and Flai are strongest.
 
 The buyer is the **owner or GM**. They feel the missed calls and the leads stuck on a salesperson's phone, and they decide.
 
 ## The problem, in the dealer's words
 
 - "We miss calls after hours, and when everyone's on the floor."
-- "Our WhatsApp is on Daniel's phone. When he's off, nobody answers."
-- "Nigeria buyers message at 2am our time. By morning they've asked three other dealers."
+- "Web leads come in at 9pm and sit in a shared inbox until morning."
+- "Texts and WhatsApp land on Daniel's phone. When he's off, nobody answers."
+- "The service line rings off the hook at 7:30 and half the calls go to voicemail."
 - "I don't want a bot talking to my best clients."
 
 ## Message pillars
@@ -27,15 +32,16 @@ The buyer is the **owner or GM**. They feel the missed calls and the leads stuck
 | Pillar | Claim | Backed by (BUILD_PLAN.md) |
 |---|---|---|
 | Every channel, 24/7 | Phone, WhatsApp, SMS, email answered in seconds | §1, §4 |
-| WhatsApp-first, cross-border | Official API on your existing number, both time zones, export qualification | §4.5, §1 |
+| Sales: every lead answered | Knows your inventory, captures budget/trade/financing, books the test drive | §1, §4.1 |
+| Service: first ring | Books bays and advisors against real capacity, reminders, handoff with a brief | §1, §4.2 |
 | VIPs never reach the AI | Calls ring the owner, messages wait for a personal reply | CLAUDE.md product rules, §6.3 |
 | You stay in charge | Draft mode first week, no price/discount/date promises, handoffs, STOP honoured everywhere | §6.3, §10 |
 | No DMS needed | Ondra is the CRM if you have none | §1 |
-| Owner runs the day from WhatsApp | Morning briefing, voice notes to tasks, one-tap approvals | §4.4 |
+| Owner runs the day from their phone (WhatsApp briefing) | Morning briefing, voice notes to tasks, one-tap approvals | §4.4 |
 
 ## Against competitors
 
-Numa, Flai and similar tools focus on US franchised dealers over phone, text and email. Our differences: WhatsApp-first, cross-border buyers and time zones, works with no DMS, VIP handling built in. **Don't name competitors on the public page.** Use this in sales calls only.
+Numa, Flai and similar tools focus on US franchised dealers over phone, text and email. Our differences on the public page: VIP handling built in, guardrails you can see, works with no DMS, WhatsApp as well as calls, texts and email. Cross-border and time zones stay in outreach. **Don't name competitors on the public page.** Use this in sales calls only.
 
 ## Claims we must not make yet
 
