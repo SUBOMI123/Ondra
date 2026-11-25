@@ -4,8 +4,8 @@ These are the product rules from `CLAUDE.md` made visible. Get them wrong and th
 
 ## Anything the AI did
 
-- **Colour:** `bg-ai-subtle text-ai border-ai-border`. Nothing else in the product uses blue.
-- **Label:** always name the actor in words, next to the content: "Drafted by Ondra", "Sent by Ondra", "Booked by Ondra", "Summary by Ondra". Icon `IconSparkles` at 16px before the word. Colour is never the only signal.
+- **Colour:** `bg-ai-subtle text-ai` (border `border-ai/…`). Nothing else in the product uses blue, and blue is spent sparingly: Ondra's messages, drafts, its summary and its mark. When everything on a screen is blue, it stops meaning "Ondra did this".
+- **Label:** always name the actor in words, next to the content: "Drafted by Ondra", "Sent by Ondra", "Booked by Ondra", "Summary by Ondra". Mark: `OndraMark` (the speedometer from the logo, `components/ondra-mark.tsx`) before the word. Never the sparkles icon: the founder rejected it as the generic AI-product look. Colour is never the only signal.
 - **Lifecycle of an AI message** (one component, `data-slot="ai-bubble"`, `data-state` drives the look):
 
 | State | Look | Actions |

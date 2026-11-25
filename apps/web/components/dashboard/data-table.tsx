@@ -189,34 +189,6 @@ function DragHandle({ id }: { id: number }) {
 }
 
 const columns = columnHelper.columns([
-  columnHelper.display({
-    id: "drag",
-    header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original.id} />,
-  }),
-  columnHelper.display({
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label={`Select ${row.original.client}`}
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  }),
   columnHelper.accessor("client", {
     header: "Client",
     cell: ({ row }) => <TableCellViewer item={row.original} />,

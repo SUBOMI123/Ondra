@@ -15,7 +15,10 @@ export function SiteHeader({ title = "Today", note }: { title?: string; note?: s
         <h1 className="text-base font-medium">{title}</h1>
         {note && <span className="hidden text-sm text-muted-foreground lg:inline">{note}</span>}
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden w-72 justify-start gap-2 text-muted-foreground md:flex">
+          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Search clients, cars and messages">
+            <IconSearch />
+          </Button>
+          <Button variant="outline" size="sm" className="hidden w-72 justify-start gap-2 text-muted-foreground lg:flex">
             <IconSearch />
             <span className="truncate">Search clients, cars, messages</span>
             <Kbd className="ml-auto">⌘K</Kbd>

@@ -8,6 +8,16 @@ Applies to `apps/web`, which is built on shadcn/ui's `dashboard-01` block and ne
 - The brand lends type, palette and one signature move. It never supplies the layout, navigation model or controls; those follow established patterns (sidebar plus top bar, tables, sheets).
 - **Signature move: the who-did-it column.** Every thread event has an actor gutter: the customer by name, **Ondra** in AI blue with the sparkles icon, or a person's initials. Everything Ondra did is blue and labelled, and nothing else is blue. See `ai-and-vip.md`.
 
+## Lessons from the first screens (apply to every page)
+
+- **Lead with what needs a person.** Ondra handles most work end to end, so a list's default view is "Needs you", each row saying why in plain words ("VIP called. Waiting 2 h", "Draft to approve"). What Ondra handled sits one tab away. Never present a booked test drive and a waiting VIP as equals.
+- **One signal per meaning.** A crown means VIP; don't add a red avatar, a red pill and red text to the same row. Red is the waiting time or the overdue date, nothing else.
+- **Text before pills.** A list where every row has a coloured badge has no hierarchy. Prefer a short line of plain text; keep pills for the one status that must stand out.
+- **The work gets the room.** On work screens (Inbox), collapse the app sidebar to icons and keep secondary detail (contact, consent) behind a disclosure.
+- **One primary action per item.** A draft has "Approve and send" plus a quiet "Edit". A call has one "Play". Everything else goes in a menu.
+- **Remove template leftovers.** Drag handles, checkboxes and actions with no real job (no bulk actions, no manual order) are noise.
+- **Run the gate:** `npm run review:ui` in `apps/web` (every page, 4 widths, both themes, product-rule and source checks) plus a screenshot read against `review.md` section 5 before calling a page done.
+
 ## Themes
 
 Light, dark and "Device" (follows the OS, the default). The user picks in their menu and the choice is saved per user. Tokens are defined once on `:root` (light). Dark redefines them under `[data-theme="dark"]` and under `prefers-color-scheme: dark` when no theme is set. Components only ever use tokens.

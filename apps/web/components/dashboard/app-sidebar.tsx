@@ -23,6 +23,7 @@ import { NavDocuments } from "@/components/dashboard/nav-documents"
 import { NavMain } from "@/components/dashboard/nav-main"
 import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
+import { OndraMark } from "@/components/ondra-mark"
 import Wordmark from "@/components/wordmark"
 import {
   Sidebar,
@@ -61,14 +62,15 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { me } = useAuth()
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <a href="#" aria-label="Ondra, Today">
-                <span className="flex h-5 items-center"><Wordmark className="h-[18px] w-auto" /></span>
-                <span className="ml-auto truncate text-xs font-normal text-muted-foreground">{me?.tenant_name}</span>
+                <span className="flex h-5 items-center group-data-[collapsible=icon]:hidden"><Wordmark className="h-[18px] w-auto" /></span>
+                <OndraMark className="hidden size-5! text-foreground group-data-[collapsible=icon]:block" />
+                <span className="ml-auto truncate text-xs font-normal text-muted-foreground group-data-[collapsible=icon]:hidden">{me?.tenant_name}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

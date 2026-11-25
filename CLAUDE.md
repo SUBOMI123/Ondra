@@ -13,6 +13,7 @@ This repo builds **Ondra**, a multi-tenant AI platform for car dealerships. The 
 - Never commit secrets. Use `.env` (gitignored) and keep `.env.example` complete and documented.
 - Ask before adding infrastructure that isn't in the plan.
 - When building `apps/web`, use `design/README.md` and the prototypes in `design/mockups/` as the reference for screens, layout, copy and colours.
+- Every `apps/web` page passes `npm run review:ui` (in `apps/web`, with the app running) and the cognitive-load check in `.claude/skills/ondra-ui/references/review.md` before it's called done. New pages get added to the script's page list.
 - For any UI work, the `frontend-design` skill (`.claude/skills/frontend-design/`, from anthropics/skills) sets the design direction and craft bar. The `ondra-ui` skill (`.claude/skills/ondra-ui/`) holds Ondra's tokens, component stack and product rules (how AI-made and VIP content must look). Where they disagree on taste, frontend-design and the founder's words win; ondra-ui's product rules always apply.
 
 ## Product rules that must never break

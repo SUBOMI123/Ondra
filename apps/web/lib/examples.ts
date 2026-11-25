@@ -14,6 +14,10 @@ export type ThreadEvent =
 
 export type Conversation = {
   id: string
+  /** Which inbox view it lives in: needs a person now, handled end to end by Ondra, or with the team. */
+  bucket: "needs" | "ondra" | "team"
+  /** Why it needs you, in plain words (only for bucket "needs"). */
+  reason?: string
   client: string
   initials: string
   vip?: boolean
@@ -36,6 +40,8 @@ export type Conversation = {
 export const CONVERSATIONS: Conversation[] = [
   {
     id: "kevin",
+    bucket: "needs",
+    reason: "Draft to approve",
     client: "Kevin Lee",
     initials: "KL",
     channel: "email",
@@ -67,6 +73,8 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "robert",
+    bucket: "needs",
+    reason: "VIP called. Waiting 2 h",
     client: "Robert Hale",
     initials: "RH",
     vip: true,
@@ -92,6 +100,8 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "sarah",
+    bucket: "needs",
+    reason: "Draft to approve: trade-in",
     client: "Sarah King",
     initials: "SK",
     channel: "sms",
@@ -110,6 +120,7 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "marcus",
+    bucket: "ondra",
     client: "Marcus Taylor",
     initials: "MT",
     channel: "phone",
@@ -132,6 +143,7 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "elena",
+    bucket: "team",
     client: "Elena Ruiz",
     initials: "ER",
     channel: "whatsapp",
@@ -153,6 +165,7 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "jordan",
+    bucket: "team",
     client: "Jordan Price",
     initials: "JP",
     channel: "sms",
@@ -167,6 +180,52 @@ export const CONVERSATIONS: Conversation[] = [
     ],
     contact: { phone: "(214) 555-1004" },
     consent: [{ channel: "All channels", status: "Opted out, Nov 25" }],
+  },
+  {
+    id: "priya",
+    bucket: "ondra",
+    client: "Priya Shah",
+    initials: "PS",
+    channel: "email",
+    time: "4:48 pm",
+    snippet: "Booked a RAV4 Hybrid test drive for Saturday.",
+    status: { kind: "ai", text: "Booked by Ondra" },
+    handledBy: "ondra",
+    assignee: "Daniel Okafor",
+    brief: "First car, pre-approved with her credit union. Booked a test drive Saturday 10 am.",
+    events: [
+      { kind: "message", author: "customer", body: "Hi, could I test drive the RAV4 Hybrid this weekend? I'm pre-approved with my credit union.", time: "4:41 pm", channel: "email" },
+      { kind: "message", author: "ondra", body: "Of course. Saturday at 10 am or 1 pm work. Which suits you? Bring your pre-approval letter and Daniel can go through the numbers.", time: "4:41 pm" },
+      { kind: "message", author: "customer", body: "10 am please.", time: "4:46 pm", channel: "email" },
+      { kind: "event", text: "Test drive booked for Saturday, 10:00 am, with Daniel", time: "4:46 pm", ai: true },
+    ],
+    contact: { phone: "(214) 555-1007", email: "priya.shah@example.com" },
+    deal: { vehicle: "2024 Toyota RAV4 Hybrid", financing: "Pre-approved", timeline: "This weekend", stage: "Appointment" },
+    consent: [{ channel: "Email", status: "Replies allowed" }],
+    upcoming: [{ title: "Test drive with Daniel", when: "Sat, 10:00 am" }],
+  },
+  {
+    id: "luis",
+    bucket: "ondra",
+    client: "Luis Romero",
+    initials: "LR",
+    channel: "sms",
+    time: "3:15 pm",
+    snippet: "60k-mile service booked for Thursday.",
+    status: { kind: "ai", text: "Booked by Ondra" },
+    handledBy: "ondra",
+    assignee: "Maria Lopez",
+    brief: "60,000-mile service on his 2020 Tacoma. Booked Thursday 8 am, Bay 1. He'll wait in the lounge.",
+    events: [
+      { kind: "message", author: "customer", body: "Need my 60k service on the Tacoma. Thursday morning?", time: "3:12 pm", channel: "sms" },
+      { kind: "message", author: "ondra", body: "Thursday at 8 am is open. It takes about 2 hours. Will you wait with us or need a ride?", time: "3:12 pm" },
+      { kind: "message", author: "customer", body: "I'll wait.", time: "3:14 pm", channel: "sms" },
+      { kind: "event", text: "Service booked for Thu 8:00 am, Bay 1, with Maria", time: "3:15 pm", ai: true },
+    ],
+    contact: { phone: "(214) 555-1008" },
+    deal: { vehicle: "Service: 60k-mile, 2020 Tacoma", stage: "Booked" },
+    consent: [{ channel: "Text", status: "Opted in" }],
+    upcoming: [{ title: "Service, Bay 1", when: "Thu, 8:00 am" }],
   },
 ]
 
