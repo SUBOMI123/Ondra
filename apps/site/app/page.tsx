@@ -12,7 +12,10 @@ import {
   IconSparkles,
 } from "@tabler/icons-react";
 import DemoForm from "@/components/DemoForm";
+import Appear from "@/components/Appear";
+import ChannelFlow from "@/components/ChannelFlow";
 import FloorTour from "@/components/FloorTour";
+import HeroTitle from "@/components/HeroTitle";
 import StickyNav from "@/components/StickyNav";
 import { CONTACT_EMAIL } from "@/lib/config";
 
@@ -28,6 +31,7 @@ export default function Home() {
           <FloorTour />
         </div>
         <Night />
+        <ChannelFlow />
         <Inbox />
         <WhatsApp />
         <Vip />
@@ -103,8 +107,8 @@ function Nav() {
 
 function Hero() {
   return (
-    <section id="top" className="on-dark relative isolate flex min-h-[min(920px,100svh)] flex-col overflow-hidden bg-night text-white">
-      {/* The first frame of the 3D walk, so the hero flows straight into the floor tour below. */}
+    <section id="top" className="relative isolate flex min-h-[min(940px,100svh)] flex-col overflow-hidden bg-night text-fg">
+      {/* The first frame of the 3D walk under a night sky, so the hero flows straight into the floor tour below. */}
       <picture>
         <source media="(max-aspect-ratio: 6/5)" srcSet="/walk-portrait/frame_0001.jpg" />
         <img
@@ -113,42 +117,41 @@ function Hero() {
           height={900}
           alt=""
           fetchPriority="high"
-          className="absolute inset-0 -z-20 size-full object-cover opacity-70 motion-safe:animate-settle"
+          className="absolute inset-0 -z-20 size-full object-cover object-bottom opacity-55 motion-safe:animate-settle"
         />
       </picture>
-      {/* Night scrim: dark where the words are, letting the lit floor show through */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-linear-to-r from-night via-night/75 to-night/5 max-lg:bg-linear-to-t max-lg:via-night/70 max-lg:to-night/20"
-      />
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-linear-to-t from-night to-transparent" />
+      {/* Twilight: deep navy at the top fading into the lit floor, then night at the foot */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-linear-to-b from-twilight via-twilight/60 to-night" />
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-2/3 bg-linear-to-b from-dusk/25 to-transparent" />
 
-      <Wrap className="flex flex-1 flex-col justify-end pb-10 pt-36 sm:pb-14">
-        <h1 className="font-display text-display max-w-[11ch]">Your dealership, fully staffed.</h1>
-        <p className="text-lead mt-6 max-w-[44ch] text-white/80">
-          Ondra answers every call, WhatsApp, text and email in seconds, day or night. It qualifies the buyer, books
-          the visit and hands the deal to the right person on your team.
+      <Wrap className="flex flex-1 flex-col items-center justify-center pb-12 pt-40 text-center sm:pb-16">
+        <HeroTitle text="Your dealership, fully staffed." className="font-display text-display max-w-[14ch] text-balance" />
+        <p className="text-lead mt-7 max-w-[46ch] text-fg-2 motion-safe:animate-rise [animation-delay:600ms]">
+          Ondra answers every call, WhatsApp, text and email in seconds, day or night, then hands the deal to the right
+          person on your team.
         </p>
-        <div className="mt-9 flex flex-wrap gap-3">
+        <div className="mt-10 flex flex-wrap justify-center gap-3 motion-safe:animate-rise [animation-delay:750ms]">
           <a href="#demo" className="btn btn-primary">
             Book a demo
           </a>
-          <a href="#tour" className="btn btn-quiet text-white">
+          <a href="#tour" className="btn btn-quiet">
             Walk the floor
           </a>
         </div>
+      </Wrap>
 
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-x-10 gap-y-4 border-t border-white/15 pt-6">
-          <p className="text-small text-white/65">Keeps your number, WhatsApp and email. Customers never see a new one.</p>
-          <ul aria-label="Channels" className="flex flex-wrap gap-x-7 gap-y-3 text-[15px] text-white/85">
+      <Wrap className="pb-8">
+        <div className="flex flex-col items-center gap-4 border-t border-line pt-6 sm:flex-row sm:justify-between">
+          <p className="text-small text-muted-foreground">Keeps your number, WhatsApp and email.</p>
+          <ul aria-label="Channels" className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-small text-fg-2">
             {CHANNELS.map(({ name, Icon }) => (
               <li key={name} className="flex items-center gap-2">
-                <Icon size={18} stroke={1.5} aria-hidden="true" />
+                <Icon size={16} stroke={1.5} aria-hidden="true" />
                 {name}
               </li>
             ))}
-            <li className="flex items-center gap-2 text-white/50">
-              <IconBrandInstagram size={18} stroke={1.5} aria-hidden="true" />
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <IconBrandInstagram size={16} stroke={1.5} aria-hidden="true" />
               Instagram, later
             </li>
           </ul>
@@ -311,15 +314,27 @@ function Inbox() {
                 </div>
 
                 <div className="text-small flex flex-1 flex-col gap-4 bg-canvas px-5 py-6 sm:px-7">
-                  <BuyerMessage meta="2:14 am">Good evening. Is the black 2023 G63 still available? Can you ship to Lagos?</BuyerMessage>
-                  <AiMessage meta="2:14 am">
+                  <Appear delay={0}>
+                    <BuyerMessage meta="2:14 am">Good evening. Is the black 2023 G63 still available? Can you ship to Lagos?</BuyerMessage>
+                  </Appear>
+
+                  <Appear delay={0.5}>
+                    <AiMessage meta="2:14 am">
                     Yes, it&apos;s on the lot: black, 18k miles, and we ship to Lagos regularly. Daniel can show it to you on a
                     live video walkaround. Would Thursday at 10 am Dallas time work? That&apos;s 5 pm for you.
                   </AiMessage>
-                  <BuyerMessage meta="2:16 am">Thursday works. Please book it.</BuyerMessage>
-                  <AiMessage meta="2:16 am">Booked. Daniel will call you on WhatsApp video on Thursday. Shipping costs are next on his list.</AiMessage>
+                  </Appear>
 
-                  <div className="flex items-center gap-3 text-ai">
+                  <Appear delay={1.1}>
+                    <BuyerMessage meta="2:16 am">Thursday works. Please book it.</BuyerMessage>
+                  </Appear>
+
+                  <Appear delay={1.6}>
+                    <AiMessage meta="2:16 am">Booked. Daniel will call you on WhatsApp video on Thursday. Shipping costs are next on his list.</AiMessage>
+                  </Appear>
+
+                  <Appear delay={2.1}>
+                    <div className="flex items-center gap-3 text-ai">
                     <span className="h-px flex-1 bg-ai/15" />
                     <span className="text-micro flex items-center gap-1.5 font-medium">
                       <IconCalendarEvent size={14} stroke={1.75} />
@@ -327,7 +342,9 @@ function Inbox() {
                     </span>
                     <span className="h-px flex-1 bg-ai/15" />
                   </div>
+                  </Appear>
 
+                  <Appear delay={2.6}>
                   <div className="rounded-card border border-line bg-surface p-4">
                     <p className="flex items-center gap-2 font-semibold">
                       <IconArrowForwardUp size={16} stroke={1.75} className="text-muted-foreground" />
@@ -342,6 +359,7 @@ function Inbox() {
                       <span className="rounded-pill bg-muted px-2.5 py-1">Daniel accepted</span>
                     </div>
                   </div>
+                  </Appear>
                 </div>
 
                 <div className="flex items-center gap-3 border-t border-line px-5 py-3.5 sm:px-7">

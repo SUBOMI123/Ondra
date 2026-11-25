@@ -2,27 +2,21 @@
 
 Tailwind v4, CSS-first. Tokens live in one `@theme` block. Until `packages/ui` exists, `apps/site/app/globals.css` is the source of truth; when `apps/web` starts, move the block to `packages/ui/styles/tokens.css` and import it from both apps (`@source "../../../packages/ui"`).
 
-## Colour: Night Shift (dark, the marketing site and the default theme)
+## Colour: night sky (the marketing site and the default theme)
 
-| Token | Value | Role | Contrast that matters |
-|---|---|---|---|
-| `night` | `#06080B` | Deepest ground: hero, key bands, footer, sticky nav | |
-| `bg` | `#0A0D12` | Page | |
-| `bg-2` | `#0E131A` | Alternating bands | |
-| `surface` | `#121822` | Cards, inputs, floating labels | |
-| `muted` | `#1A2230` | Quiet chips, skeletons, tracks. A surface, never text | |
-| `line` / `line-strong` | `#222C3A` / `#34425A` | Borders, dividers / stronger outlines | |
-| `fg` | `#EAF0F7` | Text | 16:1 on bg |
-| `fg-2` | `#C3CDDA` | Secondary text | 11:1 |
-| `muted-foreground` | `#8E9CB0` | Captions, meta | 6.6:1 on bg |
-| `brand` | `#2F6CF6` | Ondra blue fill: marketing CTAs, the logo dot | White on it 4.6:1 |
-| `brand-hi` / `brand-lo` | `#4C86FF` / `#2457D6` | Hover / pressed; `brand-hi` is the focus ring | |
-| `brand-text` | `#7FA9FF` | Ondra blue as text or icons on dark | 7.4:1 |
-| `ai` / `ai-subtle` / `ai-mark` | `#9DBCFF` / `#13203A` / `#4C86FF` | Anything the AI did: text, tinted surface, dots | 8.6:1 |
-| `vip` / `vip-subtle` | `#FF7A7A` / `#3A1517` | VIP and overdue only | 6.9:1 |
-| `ok` | `#3DD68C` | Positive deltas, connected states, Answer buttons | |
-| `wa`, `wa-wallpaper`, `wa-bubble`, `wa-incoming` | `#25D366`, `#0B141A`, `#005C4B`, `#202C33` | WhatsApp mark and dark-mode chat mocks only | |
-| `accent` | `#15233D` | Selected list row | |
+| Token | Value | Role |
+|---|---|---|
+| `night` | `#04060B` | Hero, key bands, footer |
+| `bg` / `bg-2` | `#070A12` / `#0A0E19` | Page / alternating bands |
+| `surface` / `muted` | `#0F1422` / `#161D2E` | Cards, inputs, labels / quiet chips and tracks |
+| `line` / `line-strong` | white 8% / white 16% | Hairlines, ghost-pill outlines |
+| `twilight` / `dusk` | `#0D1838` / `#24306A` | The night-sky atmosphere (hero gradient only) |
+| `fg` / `fg-2` / `muted-foreground` | `#F3F4F8` / `#C9CEDB` / `#9AA3B8` | Text levels |
+| `frost` / `on-frost` | white 88% / `#070A14` | Primary pill buttons |
+| `brand` / `ai` / `ai-subtle` | `#8AA6FF` / `#B3C5FF` / `#121B36` | Ondra and anything the AI did |
+| `vip` / `vip-subtle` | `#FF8A80` / `#34161A` | VIPs and overdue only |
+| `ok` | `#4ADE9A` | Positive deltas, Answer buttons |
+| `wa*` | WhatsApp dark-mode colours | Chat mocks only |
 
 **Light theme (the dashboard, later):** keep the same roles with these values: `bg #F4F7FA`, `surface #FFFFFF`, `line #E1E6EE`, `fg #0C1220`, `muted-foreground #4E5A6B`, `brand #2F6CF6`, `ai #1F4FD1` on `#E8EEFF`, `vip #B4122B` on `#FDE8EB`. Dealers stare at the dashboard all day, and light is kinder for a 10-hour shift. Compose it; don't invert the dark theme.
 
@@ -36,11 +30,10 @@ Rules:
 ## Type
 
 ```css
---font-sans: "Funnel Sans Variable", "Funnel Sans", ui-sans-serif, system-ui, sans-serif;
---font-display: "Funnel Display Variable", "Funnel Display", ui-sans-serif, system-ui, sans-serif;
---font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+--font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;  /* body: font-feature-settings "cv01","ss03" */
+--font-display: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+--font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
 ```
-Self-host with `@fontsource-variable/funnel-display`, `@fontsource-variable/funnel-sans` and `@fontsource-variable/jetbrains-mono` (imported in the root layout). There's no third-party font request and no layout shift.
 
 Scale (each step carries its own line height, tracking and weight):
 
@@ -52,9 +45,9 @@ Scale (each step carries its own line height, tracking and weight):
 | `text-lead` | 18-21px fluid | Section ledes on marketing |
 | `text-h4` | 20px / 1.35, 600 | Card titles |
 | `text-h3` | 22-28px fluid, 650 | Sub-sections |
-| `text-h2` | 30-52px fluid, 600, -0.025em | Section headings |
+| `text-h2` | 30-52px fluid, 400, -0.035em | Section headings |
 | `text-h1` | 36-64px fluid, 600, -0.03em | Page titles |
-| `text-display` | 44-96px fluid, 600, -0.035em | Marketing hero only |
+| `text-display` | 44-84px fluid, 400, -0.045em | Marketing hero only |
 
 Fluid sizes belong on marketing. The dashboard uses fixed rem steps (ratio about 1.2): 12, 14, 16, 20, 24, 30.
 

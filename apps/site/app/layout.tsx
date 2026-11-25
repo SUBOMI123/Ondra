@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/config";
-import "@fontsource-variable/funnel-display";
-import "@fontsource-variable/funnel-sans";
+import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
