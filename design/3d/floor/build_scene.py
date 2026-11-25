@@ -220,7 +220,7 @@ def group(objs, name, loc, rot_z=0.0, scale=1.0):
 
 # ---------------------------------------------------------------- materials
 M = {
-    "floor": pbr_material("Floor concrete", "concrete_floor_02", scale=0.32, tint=(0.62, 0.62, 0.62), rough_range=(0.12, 0.28), coat=0.55, coat_rough=0.04, normal_strength=0.25, flatten=0.6, flatten_to=(0.2, 0.2, 0.205)),
+    "floor": pbr_material("Floor concrete", "concrete_floor_02", scale=0.32, tint=(0.62, 0.62, 0.62), rough_range=(0.12, 0.28), coat=0.55, coat_rough=0.04, normal_strength=0.25, flatten=0.4, flatten_to=(0.12, 0.12, 0.125)),
     "walnut": pbr_material("Walnut", "black_walnut_veneer_01", scale=0.9, tint=(0.36, 0.25, 0.18), rough_range=(0.32, 0.55), normal_strength=0.4),
     "walnut_desk": pbr_material("Walnut desk", "black_walnut_veneer_01", scale=0.7, tint=(0.3, 0.2, 0.145), rough_range=(0.18, 0.35), coat=0.35, coat_rough=0.12, normal_strength=0.3),
     "leather": pbr_material("Leather black", "fabric_leather_02", scale=4.0, tint=(0.12, 0.11, 0.1), rough_range=(0.35, 0.6), normal_strength=0.6, flatten=0.85, flatten_to=(0.022, 0.02, 0.019)),
@@ -537,7 +537,7 @@ dparts = [
     box("Owner laptop", (0.34, 0.24, 0.012), (-0.15, 0.05, 0.776), M["metal_brushed"], bevel=0.004),
     box("Owner phone", (0.2, 0.16, 0.05), (0.62, 0.08, 0.795), M["plastic_black"], bevel=0.01),
 ]
-led = box("Owner phone LED", (0.018, 0.018, 0.01), (0.58, 0.155, 0.82), M["led_red"])
+led = box("Owner phone LED", (0.026, 0.026, 0.012), (0.58, 0.155, 0.822), M["led_red"])
 dparts.append(led)
 parent_to(dparts, exec_desk)
 office_chair("Owner chair", (0, OY - 1.2, 0), 0.0, seat_z=0.5)
@@ -548,22 +548,22 @@ for o in lamp:
         for slot in o.material_slots:
             slot.material = M["metal_black"]
 lamp_light = bpy.data.lights.new("Owner lamp light", "POINT")
-lamp_light.energy = 60
+lamp_light.energy = 35
 lamp_light.color = (1.0, 0.7, 0.4)
 lamp_light.shadow_soft_size = 0.05
 llo = bpy.data.objects.new("Owner lamp light", lamp_light)
 llo.location = (-0.62, OY - 0.35, 1.18)
 link(llo)
-pendant(0, OY, z=3.4 - 0.4)
+pendant(0, OY + 0.6, z=3.0, light=False)
 office_fill = bpy.data.lights.new("Office fill", "AREA")
-office_fill.energy = 70
+office_fill.energy = 18
 office_fill.color = (1.0, 0.86, 0.72)
 office_fill.size = 2.5
 ofo = bpy.data.objects.new("Office fill", office_fill)
 ofo.location = (0, OY, 2.95)
 link(ofo)
 red_glow = bpy.data.lights.new("VIP LED glow", "POINT")
-red_glow.energy = 0.6
+red_glow.energy = 1.5
 red_glow.color = (1.0, 0.1, 0.1)
 red_glow.shadow_soft_size = 0.01
 rgo = bpy.data.objects.new("VIP LED glow", red_glow)
@@ -600,6 +600,7 @@ scene.camera = bpy.data.objects["CAM establishing"]
 for o in bpy.data.objects:
     if o.type == "LIGHT":
         o.visible_camera = False
+        o.visible_glossy = False  # no hot dots reflected in the glass walls
 
 # ---------------------------------------------------------------- render settings
 scene.render.engine = "CYCLES"
