@@ -15,6 +15,9 @@ import sys
 import time
 
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cycles_device  # noqa: E402
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 
@@ -29,6 +32,7 @@ ap.add_argument("--end", type=int, default=None)
 ap.add_argument("--step", type=int, default=1)
 ap.add_argument("--portrait", action="store_true", help="9:16 framing for phones")
 ap.add_argument("--anchors-only", action="store_true")
+ap.add_argument("--device", choices=["gpu", "cpu"], default="gpu", help="Cycles device; gpu falls back to CPU when none is found")
 a = ap.parse_args(argv)
 
 bpy.ops.wm.open_mainfile(filepath=a.blend)
@@ -36,6 +40,10 @@ s = bpy.context.scene
 cam = bpy.data.objects["CAM walk"]
 s.camera = cam
 s.cycles.samples = a.samples
+if a.device == "gpu":
+    cycles_device.use_gpu(s)
+else:
+    s.cycles.device = "CPU"
 if a.portrait:
     s.render.resolution_x = round(a.width * 9 / 16)
     s.render.resolution_y = a.width

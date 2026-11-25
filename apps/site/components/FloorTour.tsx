@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * The walk through the dealership, told in five photographs.
+ * The walk through the dealership.
  *
- * Cinematic mode (default): a sticky stage. Each scene dollies in slowly as you scroll and the
- * next one crossfades over it. On phones the camera pans across each scene so both desks get
- * their moment instead of being cropped away. Labels are pinned to points in the photograph and
- * follow the zoom and pan.
+ * Cinematic mode (default): a sticky stage that plays a rendered camera walk down the aisle,
+ * scrubbed by scroll (never timed). The walk is a 180-frame image sequence (public/walk for
+ * landscape, public/walk-portrait for phones) drawn on a canvas. Each desk's label is pinned to
+ * its screen position in every frame, from the anchors.json written by design/3d/floor/render_walk.py.
  *
- * Static mode (reduced motion, or before JS runs): the same scenes as a plain sequence of
+ * Static mode (reduced motion, or before JS runs): five photographs as a plain sequence of
  * figures with the labels listed under each one. Nothing is hidden.
  *
- * Images are generated (see docs/DECISIONS.md). No badges, plates or people.
+ * The walk is rendered in Blender (design/3d/README.md); the static photographs are generated
+ * (docs/DECISIONS.md). No badges, plates or people.
  */
 
 type Label = { u: number; v: number; role: string; name: string; doing: string; vip?: boolean };
@@ -164,20 +165,103 @@ function StaticTour() {
 
 /* ------------------------------------------------------------------ cinematic */
 
+type Anchors = { width: number; height: number; frames: { frame: number; anchors: Record<string, [number, number, boolean]> }[] };
+type WalkLabel = { key: string; win: [number, number]; label: Label };
+type WalkCaption = { title: string; line: string; win: [number, number]; vip?: boolean };
+
+const N_FRAMES = 180;
+// Frame windows come from the camera path: a label shows while its desk is ahead of the camera, within about 8 m and on screen, and only during its own caption so the two never disagree.
+const WALK_LABELS: WalkLabel[] = [
+  { key: "Reception", win: [36, 72], label: SCENES[1].labels[0] },
+  { key: "WhatsApp", win: [38, 72], label: SCENES[1].labels[1] },
+  { key: "Bookings", win: [72, 100], label: SCENES[2].labels[0] },
+  { key: "Service", win: [72, 106], label: SCENES[2].labels[1] },
+  { key: "Handoffs", win: [106, 130], label: SCENES[3].labels[0] },
+  { key: "Follow-ups", win: [106, 144], label: SCENES[3].labels[1] },
+  { key: "Your office", win: [150, 174], label: SCENES[4].labels[0] },
+];
+const WALK_CAPTIONS: WalkCaption[] = [
+  { title: SCENES[1].title!, line: SCENES[1].line!, win: [38, 72] },
+  { title: SCENES[2].title!, line: SCENES[2].line!, win: [72, 106] },
+  { title: SCENES[3].title!, line: SCENES[3].line!, win: [106, 148] },
+  { title: SCENES[4].title!, line: SCENES[4].line!, win: [150, 172], vip: true },
+];
+const OUTRO_FROM = 170;
+
+const frameUrl = (set: string, f: number) => `/${set}/frame_${String(f).padStart(4, "0")}.jpg`;
+/** 0 outside the window, 1 inside, easing over `ramp` frames at each end */
+const windowed = (f: number, [a, b]: [number, number], ramp = 6) => smooth(clamp((f - a) / ramp)) * (1 - smooth(clamp((f - (b - ramp)) / ramp)));
+
 function Cinematic() {
   const sectionRef = useRef<HTMLElement>(null);
-  const sceneRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const capRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const labelRefs = useRef<(HTMLDivElement | null)[][]>(SCENES.map(() => []));
+  const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const introRef = useRef<HTMLDivElement>(null);
   const outroRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const [portrait, setPortrait] = useState(false);
+
+  // Phones get the 9:16 render and every second frame, to keep the download and memory small.
+  useEffect(() => {
+    const check = () => setPortrait(window.innerWidth / window.innerHeight < 1.2);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current!;
-    const N = SCENES.length;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    const set = portrait ? "walk-portrait" : "walk";
+    const stride = portrait ? 2 : 1;
+    const imgs: (HTMLImageElement | undefined)[] = new Array(N_FRAMES + 1);
+    let anchors: Anchors | null = null;
     let raf = 0;
+    let started = false;
+    let alive = true;
+
+    // Frame 1 first, then a coarse pass so scrubbing works early, then the rest, a few requests at a time.
+    const order: number[] = [1];
+    for (let f = 1; f <= N_FRAMES; f += 10) if (f !== 1) order.push(f);
+    for (let f = 1; f <= N_FRAMES; f += stride) if (!order.includes(f)) order.push(f);
+    const load = () => {
+      if (started) return;
+      started = true;
+      fetch(`/${set}/anchors.json`)
+        .then((r) => r.json())
+        .then((a: Anchors) => {
+          anchors = a;
+          schedule();
+        })
+        .catch(() => {});
+      let next = 0;
+      const pump = () => {
+        if (!alive || next >= order.length) return;
+        const f = order[next++];
+        const im = new Image();
+        im.decoding = "async";
+        im.onload = () => {
+          imgs[f] = im;
+          schedule();
+          pump();
+        };
+        im.onerror = pump;
+        im.src = frameUrl(set, f);
+      };
+      for (let k = 0; k < 6; k++) pump();
+    };
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && load(), { rootMargin: "1200px 0px" });
+    io.observe(section);
+
+    const nearest = (f: number) => {
+      for (let d = 0; d < N_FRAMES; d++) {
+        if (imgs[f - d]) return imgs[f - d]!;
+        if (imgs[f + d]) return imgs[f + d]!;
+      }
+      return undefined;
+    };
 
     const render = () => {
       raf = 0;
@@ -186,79 +270,57 @@ function Cinematic() {
       const r = section.getBoundingClientRect();
       if (r.bottom < 0 || r.top > H) return;
       const p = clamp(-r.top / (section.offsetHeight - H));
-      const narrow = W / H < 1.2; // portrait-ish: pan across the scene
+      const f = 1 + p * (N_FRAMES - 1);
       if (progressRef.current) progressRef.current.style.transform = `scaleX(${p})`;
 
-      const outro = smooth(clamp((p * N - (N - 1) - 0.55) / 0.25));
-      for (let i = 0; i < N; i++) {
-        const s = SCENES[i];
-        const seg = p * N - i; // <0 before, 0..1 during, >1 after
-        const t = clamp(seg, -0.2, 1.2);
-        const el = sceneRefs.current[i];
-        const img = imgRefs.current[i];
-        if (!el || !img) continue;
+      // Draw the frame with object-fit: cover geometry.
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+      }
+      const im = nearest(Math.round(f));
+      const iw = anchors?.width ?? im?.naturalWidth ?? 1600;
+      const ih = anchors?.height ?? im?.naturalHeight ?? 900;
+      const sc = Math.max(W / iw, H / ih);
+      const dw = iw * sc;
+      const dh = ih * sc;
+      const ox = (W - dw) / 2;
+      const oy = (H - dh) / 2;
+      if (im) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.drawImage(im, ox, oy, dw, dh);
+      }
 
-        // Crossfade: each later scene fades in over the start of its segment.
-        const fade = i === 0 ? 1 : smooth(clamp((seg + 0.18) / 0.3));
-        el.style.opacity = String(fade);
-        el.style.visibility = fade === 0 || seg > 1.6 ? "hidden" : "visible";
+      const outro = smooth(clamp((f - OUTRO_FROM) / 7));
+      WALK_CAPTIONS.forEach((c, i) => {
+        const el = capRefs.current[i];
+        if (!el) return;
+        const v = windowed(f, c.win, 6) * (1 - outro);
+        el.style.opacity = String(v);
+        el.style.transform = `translateY(${(1 - v) * 10}px)`;
+      });
 
-        // Camera: slow dolly towards the focus point, and a pan on narrow screens.
-        const k = 1 + 0.1 * smooth(clamp((t + 0.2) / 1.4));
-        // object-fit: cover geometry, so labels can follow points in the photo
-        const sc = Math.max(W / IMG_W, H / IMG_H);
-        const dw = IMG_W * sc;
-        const dh = IMG_H * sc;
-        // On narrow screens pan from one desk to the other: hold, move, hold.
-        let px = 0.5;
-        if (narrow && dw > W) {
-          const aim = (u: number) => clamp((u * dw - W / 2) / (dw - W));
-          const [a, b] =
-            s.labels.length >= 2
-              ? [aim(s.labels[0].u), aim(s.labels[s.labels.length - 1].u)]
-              : s.labels.length === 1
-                ? [aim(s.labels[0].u), aim(s.labels[0].u)]
-                : s.pan;
-          px = a + (b - a) * smooth(clamp((t - 0.38) / 0.27));
-        }
-        img.style.objectPosition = `${px * 100}% 50%`;
-        const ox = (W - dw) * px;
-        const oy = (H - dh) * 0.5;
-        const fx = ox + s.focus[0] * dw;
-        const fy = oy + s.focus[1] * dh;
-        img.style.transformOrigin = `${fx}px ${fy}px`;
-        img.style.transform = `scale(${k})`;
-
-        // Caption
-        const cap = capRefs.current[i];
-        if (cap) {
-          const c = smooth(clamp((seg - 0.08) / 0.15)) * (1 - smooth(clamp((seg - 0.9) / 0.15))) * (1 - outro);
-          cap.style.opacity = String(c);
-          cap.style.transform = `translateY(${(1 - c) * 10}px)`;
-        }
-
-        // Labels, staggered, pinned to their point in the photo
-        s.labels.forEach((l, j) => {
-          const lab = labelRefs.current[i][j];
-          if (!lab) return;
-          const x0 = ox + l.u * dw;
-          const y0 = oy + l.v * dh;
-          const x = fx + (x0 - fx) * k;
-          const y = fy + (y0 - fy) * k;
-          const start = narrow ? 0.1 : 0.12 + j * 0.14;
-          let vis = smooth(clamp((seg - start) / 0.12)) * (1 - smooth(clamp((seg - 0.92) / 0.1))) * (1 - outro);
-          // Fade at the screen edges so a label leaves with its desk during a pan.
+      const fa = anchors?.frames[Math.min(N_FRAMES, Math.max(1, Math.round(f))) - 1]?.anchors;
+      WALK_LABELS.forEach((l, j) => {
+        const lab = labelRefs.current[j];
+        if (!lab) return;
+        const a = fa?.[l.key];
+        let vis = a && a[2] ? windowed(f, l.win, 6) * (1 - outro) : 0;
+        if (a) {
+          const x = ox + a[0] * dw;
+          const y = oy + a[1] * dh;
+          // Fade at the screen edges so a label leaves with its desk.
           vis *= smooth(clamp((x - W * 0.04) / (W * 0.14))) * smooth(clamp((W * 0.96 - x) / (W * 0.14)));
-          lab.style.opacity = String(vis);
           const lw = lab.offsetWidth;
           const lx = clamp(x - lw / 2, 12, W - lw - 12);
           const ly = Math.max(72, y - lab.offsetHeight - 26);
           lab.style.transform = `translate(${lx}px, ${ly}px)`;
-        });
-      }
+        }
+        lab.style.opacity = String(vis);
+      });
 
-      // Intro over the entrance, outro over the office
-      if (introRef.current) introRef.current.style.opacity = String(1 - smooth(clamp((p * N - 0.35) / 0.35)));
+      if (introRef.current) introRef.current.style.opacity = String(1 - smooth(clamp((f - 8) / 26)));
       if (outroRef.current) {
         outroRef.current.style.opacity = String(outro);
         outroRef.current.style.pointerEvents = outro > 0.5 ? "auto" : "none";
@@ -270,14 +332,15 @@ function Cinematic() {
     };
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
-    // Images change label geometry only via natural size, which is fixed; render once now.
     render();
     return () => {
+      alive = false;
+      io.disconnect();
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [portrait]);
 
   return (
     <section
@@ -285,60 +348,44 @@ function Cinematic() {
       id="walkthrough"
       aria-label="Walk the dealership floor"
       className="on-dark relative bg-ink text-white"
-      style={{ height: `${SCENES.length * 120 + 40}svh` }}
+      style={{ height: "560svh" }}
     >
       <div className="sticky top-0 h-svh overflow-hidden">
-        {SCENES.map((s, i) => (
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="A walk down the aisle of a dealership showroom at night: cars on both sides, an AI agent at every desk, and the owner's empty glass office at the end"
+          className="absolute inset-0 size-full"
+        />
+        {/* Scrim for legibility of captions, strongest at the bottom */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-t from-ink/85 via-ink/10 to-ink/30" />
+
+        {WALK_CAPTIONS.map((c, i) => (
           <div
-            key={s.src}
+            key={c.title}
             ref={(el) => {
-              sceneRefs.current[i] = el;
+              capRefs.current[i] = el;
             }}
-            className="absolute inset-0"
-            style={{ opacity: i === 0 ? 1 : 0 }}
+            className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-(--container-page) px-4 pb-12 opacity-0 sm:px-7 sm:pb-16"
           >
-            <img
-              ref={(el) => {
-                imgRefs.current[i] = el;
-              }}
-              src={`${s.src}.jpg`}
-              srcSet={srcSet(s.src)}
-              sizes="100vw"
-              width={IMG_W}
-              height={IMG_H}
-              alt={s.alt}
-              loading={i < 2 ? "eager" : "lazy"}
-              decoding="async"
-              className="absolute inset-0 size-full object-cover will-change-transform"
-            />
-            {/* Scrim for legibility of captions, strongest at the bottom-left */}
-            <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-ink/85 via-ink/10 to-ink/30" />
-            {s.title && (
-              <div
-                ref={(el) => {
-                  capRefs.current[i] = el;
-                }}
-                className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-(--container-page) px-4 pb-12 opacity-0 sm:px-7 sm:pb-16"
-              >
-                <p className={`font-display text-h2 max-w-[16ch] ${s.vip ? "text-vip-on-dark" : ""}`}>{s.title}</p>
-                <p className="text-lead mt-3 max-w-[40ch] text-white/80">{s.line}</p>
-              </div>
-            )}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-              {s.labels.map((l, j) => (
-                <div
-                  key={l.name}
-                  ref={(el) => {
-                    labelRefs.current[i][j] = el;
-                  }}
-                  className="absolute left-0 top-0"
-                >
-                  <LabelCard l={l} />
-                </div>
-              ))}
-            </div>
+            <p className={`font-display text-h2 max-w-[16ch] ${c.vip ? "text-vip-on-dark" : ""}`}>{c.title}</p>
+            <p className="text-lead mt-3 max-w-[40ch] text-white/80">{c.line}</p>
           </div>
         ))}
+
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          {WALK_LABELS.map((l, j) => (
+            <div
+              key={l.key}
+              ref={(el) => {
+                labelRefs.current[j] = el;
+              }}
+              className="absolute left-0 top-0 opacity-0"
+            >
+              <LabelCard l={l.label} />
+            </div>
+          ))}
+        </div>
 
         <div ref={introRef} className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto w-full max-w-(--container-page) px-4 pb-14 sm:px-7 sm:pb-20">
           <h2 className="font-display max-w-[13ch] text-[clamp(2.25rem,1.4rem+3.6vw,4.5rem)] font-extrabold leading-[0.98] tracking-[-0.02em]">Walk in. Every desk is staffed.</h2>

@@ -22,6 +22,7 @@ from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import agent as agent_mod  # noqa: E402
+import cars as cars_mod  # noqa: E402
 
 # ---------------------------------------------------------------- args
 argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else sys.argv[1:]
@@ -30,6 +31,8 @@ ap.add_argument("--assets", required=True)
 ap.add_argument("--save", required=True)
 ap.add_argument("--screen", default=None, help="Image for the monitor screens (the Ondra inbox)")
 ap.add_argument("--human", default=None, help="MakeHuman base.obj (defaults to <assets>/human/base.obj)")
+ap.add_argument("--cars", default=None, help="Folder of production car .blend files (see cars.py); omit to use the CarConcept stand-in")
+ap.add_argument("--car-models", default="urus:black,bmw:silver,mustang:bronze,audi:silver", help="model:paint for each showroom slot, in order")
 args = ap.parse_args(argv)
 A = os.path.abspath(args.assets)
 
@@ -500,11 +503,23 @@ for (x, y, rz) in [(-5.75, -17.6, 90), (5.75, -18.1, -90), (-5.75, -22.6, 90), (
     furniture("modern_coffee_table_01", f"Table {x} {y}", (x + (0.95 if x < 0 else -0.95), y, 0), 0.0)
 
 # Showroom pendants over the cars
-for (x, y) in [(-4.3, -5.2), (4.4, -3.8), (4.1, -10.2)]:
+CAR_SLOTS = [((-4.3, -5.2), math.radians(-150)), ((4.4, -3.8), math.radians(148)), ((4.1, -10.2), math.radians(-158)), ((-4.0, -10.8), math.radians(-28))]
+N_CARS = len(args.car_models.split(",")) if args.cars else 3
+for ((x, y), _) in CAR_SLOTS[:N_CARS]:
     pendant(x, y, z=3.0)
 
-# ---------------------------------------------------------------- the cars (stand-ins; see README)
+# ---------------------------------------------------------------- the cars (stand-ins unless --cars; see README)
 PAINTS = {"black": (0.008, 0.008, 0.009), "silver": (0.55, 0.56, 0.58), "bronze": (0.16, 0.085, 0.045)}
+
+
+def production_car(name, loc, rot_z, paint, model):
+    root, objs = cars_mod.load(model, name, args.cars, paint)
+    root.location = (*loc[:2], 0)
+    root.rotation_euler = (0, 0, rot_z)
+    bpy.context.view_layer.update()
+    # Ground on the tyres: lowest real tyre vertex sits on the floor.
+    root.location.z -= cars_mod.tyre_zmin(objs, cars_mod.SPECS[model]["tyres"])
+    return root
 
 
 def car(name, loc, rot_z, paint):
@@ -540,9 +555,15 @@ def car(name, loc, rot_z, paint):
     return root
 
 
-car("Car black", (-4.3, -5.2, 0), math.radians(-150), "black")
-car("Car silver", (4.4, -3.8, 0), math.radians(148), "silver")
-car("Car bronze", (4.1, -10.2, 0), math.radians(-158), "bronze")
+if args.cars:
+    for i, entry in enumerate(args.car_models.split(",")):
+        model, paint = entry.split(":")
+        (x, y), rz = CAR_SLOTS[i]
+        production_car(f"Car {i} {model}", (x, y, 0), rz, paint, model)
+else:
+    car("Car black", (-4.3, -5.2, 0), math.radians(-150), "black")
+    car("Car silver", (4.4, -3.8, 0), math.radians(148), "silver")
+    car("Car bronze", (4.1, -10.2, 0), math.radians(-158), "bronze")
 
 # ---------------------------------------------------------------- plants
 for i, (mid, x, y, sc) in enumerate(
