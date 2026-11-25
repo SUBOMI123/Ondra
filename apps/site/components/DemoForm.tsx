@@ -6,7 +6,7 @@ import { CONTACT_EMAIL, DEMO_FORM_ENDPOINT } from "@/lib/config";
 type Status = "idle" | "sending" | "sent" | "error";
 type FieldErrors = Record<string, string>;
 
-const CHANNELS = ["Phone", "WhatsApp", "SMS", "Email", "Instagram"];
+const CHANNELS = ["Phone", "Text", "Email", "WhatsApp", "Instagram"];
 
 export default function DemoForm() {
   const [status, setStatus] = useState<Status>("idle");
@@ -120,7 +120,7 @@ export default function DemoForm() {
           {CHANNELS.map((c) => (
             <label
               key={c}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-white"
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm transition-colors hover:border-line-strong has-[:checked]:border-frost has-[:checked]:bg-frost has-[:checked]:text-on-frost has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-frost/60"
             >
               <input type="checkbox" name="channels" value={c} className="sr-only" />
               {c}
@@ -135,7 +135,7 @@ export default function DemoForm() {
           {["Yes", "No", "Not sure"].map((c) => (
             <label
               key={c}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-white"
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm transition-colors hover:border-line-strong has-[:checked]:border-frost has-[:checked]:bg-frost has-[:checked]:text-on-frost has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-frost/60"
             >
               <input type="radio" name="dms" value={c} className="sr-only" />
               {c}
@@ -150,7 +150,7 @@ export default function DemoForm() {
           name="notes"
           rows={3}
           placeholder="e.g. We miss calls after 7pm and web leads sit until morning."
-          className={input}
+          className={input.replace("rounded-control", "rounded-card")}
         />
       </label>
 
@@ -166,7 +166,7 @@ export default function DemoForm() {
         <p className="text-sm text-muted-foreground">30 minutes. No sales script, just your calls and messages.</p>
       </div>
       {status === "error" && (
-        <p role="alert" className="mt-4 text-sm text-vip">
+        <p role="alert" className="mt-4 rounded-card border border-line bg-bg px-4 py-3 text-sm text-fg-2">
           {Object.keys(fieldErrors).length > 0 && (
             <span className="mb-1 block">
               {Object.entries(fieldErrors)
