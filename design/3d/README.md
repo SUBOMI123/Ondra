@@ -35,5 +35,5 @@ python design/3d/floor/render.py --blend design/3d/floor/floor.blend --camera "C
 
 ## Before launch
 
-- **Cars:** replace the stand-in with two or three licensed production-quality models of generic luxury cars (no badges). Budget roughly $50-300 each (CGTrader, TurboSquid) or BlenderKit.
+- **Cars:** four Blend Swap models are in use and shipped (see `docs/DECISIONS.md`, 2026-11-25, for the licence risk the founder accepted). If an author objects, swap in the Mustang or a licensed model (CGTrader, TurboSquid, BlenderKit) and re-render.
 - **Final renders** are much faster on a GPU. CPU here takes about 3 minutes per 1280px frame at 96 samples. See `LAPTOP.md` for rendering on your own machine.

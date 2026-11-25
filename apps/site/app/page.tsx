@@ -682,6 +682,10 @@ function Footer() {
           </a>
           <p className="mt-1">© {new Date().getFullYear()} Ondra (working name)</p>
         </div>
+        <p className="text-micro w-full border-t border-white/10 pt-5 text-white/45">
+          3D car models from Blend Swap: Audi A8 by 50Groszy (CC BY-SA 3.0), BMW M4 F82 (#81957, CC BY 3.0), Lamborghini Urus
+          2019 (#92440, CC BY-NC 3.0), 1968 Mustang GT Fastback (#82339, CC0). Badges and logos removed, paint changed.
+        </p>
       </Wrap>
     </footer>
   );

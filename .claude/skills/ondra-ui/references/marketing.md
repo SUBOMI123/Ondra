@@ -15,7 +15,7 @@ The signature moves are the 3D floor and working product UI. Everything around t
 
 ## 3D art direction
 
-Source and rules are in `design/3d/README.md`. In short: polished concrete, walnut slat walls, amber-lit pendants, a glass wall onto the night city; agents are faceless frosted-glass human forms with a faint blue rim (not robots, not people); cars carry no badges, plates or logos and must be licensed for commercial use before the frames ship (see `docs/DECISIONS.md`). Frames ship compressed (WebP or JPEG around 60-80KB each), never the raw renders.
+Source and rules are in `design/3d/README.md`. In short: polished concrete, walnut slat walls, amber-lit pendants, a glass wall onto the night city; agents are faceless frosted-glass human forms with a faint blue rim (not robots, not people); cars carry no badges, plates or logos, and the footer credits each model (licence status in `docs/DECISIONS.md`). Frames ship compressed (WebP or JPEG around 60-80KB each), never the raw renders.
 
 ## Rules
 

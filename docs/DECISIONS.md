@@ -40,7 +40,7 @@
 
 **Decision:** The 3D floor loads four Blend Swap models from the founder's Desktop (`build_scene.py --cars`, loader in `design/3d/floor/cars.py`): 1968 Mustang GT Fastback (CC0), Audi A8 2010 by 50Groszy (CC-BY-SA 3.0), BMW M4 F82 (CC-BY 3.0, marked Fan Art) and Lamborghini Urus 2019 (CC-BY-NC 3.0). Badges, logos, plates and lettering are removed; the grille shapes of the BMW, Audi and Urus remain. Paint is recoloured black, silver and bronze.
 **Why:** The founder confirmed all four after being told which licences were a problem. This gives four recognisable cars now, without the $50-300 per model for licensed production assets.
-**Risk (open):** Only the Mustang is clearly cleared for commercial use. The BMW's page says Fan Art may not be used commercially "under any circumstance", and the Urus is NonCommercial. The Audi's licence file allows commercial use with credit but the author's readme asks for none, and share-alike may reach our modified model. A marketing page is commercial use. The renders are local and unpublished; do not ship frames containing the BMW, Urus or Audi to `apps/site` until each has permission from its author or is replaced with a licensed model. Credit if shipped: Audi A8 by 50Groszy, BMW M4 and Lamborghini Urus by their Blend Swap authors (#81957, #92440), 1968 Mustang GT Fastback (#82339, no credit required).
+**Risk (open):** Only the Mustang is clearly cleared for commercial use. The BMW's page says Fan Art may not be used commercially "under any circumstance", and the Urus is NonCommercial. The Audi's licence file allows commercial use with credit but the author's readme asks for none, and share-alike may reach our modified model. A marketing page is commercial use. (Superseded 2026-11-25: the founder decided to ship them, see below.) Credit if shipped: Audi A8 by 50Groszy, BMW M4 and Lamborghini Urus by their Blend Swap authors (#81957, #92440), 1968 Mustang GT Fastback (#82339, no credit required).
 **Alternatives:** Mustang only in three colours (clean licence, one car shape). Licensed models from CGTrader, TurboSquid or BlenderKit.
 
 ## 2026-11-25: Rebrand to "Night Shift": dark, Ondra blue, Funnel type
@@ -72,3 +72,9 @@
 **Decision:** "ondra" in Inter 500 outlines, with the o drawn as an open speedometer: its ends rest on the baseline, its top overshoots like a round letter, and its needle is the AI blue. One version everywhere. A thicker-dial version is used for the favicon. Files are in `design/brand/`.
 **Why:** The founder chose the speedometer. It reads as automotive at a glance and stays readable as an o when it is drawn to the letters' metrics.
 **Alternatives:** Handoff o (two halves passing), Always-on ring, Open door, Aisle, plain wordmark. A detailed gauge with ticks and numbers was rejected as too busy; the numbers can't be read below about 120 px.
+
+## 2026-11-25: Ship the walk with all four cars
+
+**Decision:** The walk frames ship with the BMW, Urus and Audi as well as the Mustang. The site footer credits all four models and their licences.
+**Why:** The founder's call, made knowing the licence terms. The cars make the floor feel real, and swapping them means a full re-render.
+**Risk (accepted):** The Urus (CC BY-NC) and BMW (author forbids commercial use) are used commercially against their licences, and the Audi's share-alike terms may reach our modified model. The likely consequence is a takedown request to the host, and then the frames have to be swapped quickly. Mitigation: ask both authors for permission. If either refuses, re-render with the Mustang or a licensed model (keep `cars.py` able to do that).
