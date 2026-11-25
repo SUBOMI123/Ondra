@@ -41,7 +41,7 @@ export function WhatsAppPhone() {
   // 1 buyer, 2 typing, 3 Ondra reply, 4 buyer, 5 typing, 6 Ondra reply
   const { ref, step } = useStory([500, 900, 1500, 1300, 800, 1400]);
   return (
-    <div ref={ref} className="mx-auto w-full max-w-[340px]">
+    <div ref={ref} data-story="whatsapp" className="mx-auto w-full max-w-[340px]">
       <div className="overflow-hidden rounded-[2.4rem] border border-line-strong bg-wa-wallpaper p-2 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)]">
         <div className="rounded-[2rem] bg-wa-wallpaper">
           <div className="flex items-center gap-3 rounded-t-[2rem] bg-wa-incoming px-4 pb-3 pt-5">
@@ -109,7 +109,7 @@ const VIP_STEPS = [
 export function VipCall() {
   const { ref, step } = useStory([500, 800, 800, 800]);
   return (
-    <div ref={ref} className="mx-auto w-full max-w-[440px] rounded-card border border-line bg-surface p-5 sm:p-6">
+    <div ref={ref} data-story="vip" className="mx-auto w-full max-w-[440px] rounded-card border border-line bg-surface p-5 sm:p-6">
       <div className="flex items-center gap-4">
         <div className="relative flex size-14 items-center justify-center rounded-full bg-vip-subtle text-vip">
           <IconCrownFilled size={22} aria-hidden="true" />
@@ -173,7 +173,7 @@ export function Briefing() {
   // 1-4 lines, 5 approve pressed, 6 voice note, 7 Ondra reply
   const { ref, step } = useStory([400, 450, 450, 450, 1300, 1100, 1400]);
   return (
-    <div ref={ref} className="mx-auto w-full max-w-[420px] rounded-panel bg-wa-wallpaper p-4">
+    <div ref={ref} data-story="briefing" className="mx-auto w-full max-w-[420px] rounded-panel bg-wa-wallpaper p-4">
       <p className="text-micro pb-3 text-center font-mono text-fg-2/60">Today 7:30 am</p>
       <div className="max-w-[94%] rounded-2xl rounded-tl-md bg-wa-incoming px-4 py-3.5 text-[14.5px] leading-relaxed">
         <p className="flex items-center gap-1.5 font-medium">
@@ -247,7 +247,7 @@ export function PolicyCheck() {
   const flaggedPrice = step >= 1 && step < 3;
   const flaggedDate = step >= 2 && step < 3;
   return (
-    <div ref={ref} className="rounded-panel border border-line bg-surface p-5 sm:p-7">
+    <div ref={ref} data-story="policy" className="rounded-panel border border-line bg-surface p-5 sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-small flex items-center gap-1.5 text-ai">
           <IconSparkles size={14} stroke={1.75} aria-hidden="true" />

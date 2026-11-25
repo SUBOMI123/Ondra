@@ -7,9 +7,9 @@ description: Ondra's design system and UI rules for anything visual in this repo
 
 Design direction and craft come from the `frontend-design` skill; this skill holds Ondra's tokens and the product rules. Read both for UI work.
 
-Ondra is staff for a car dealership: AI agents at every desk, people where a person is needed, and the owner's office that VIPs reach directly. The brand is a luxury showroom at night ("champagne night"): warm espresso grounds, a sodium-amber glow off the floor, quiet light-weight Inter type, champagne pill buttons, a soft periwinkle that marks anything the AI did, coral for VIPs only. Product UI that moves (the inbox, the channel diagram, the stories in `components/stories.tsx`) and the 3D floor carry the personality; the chrome stays quiet. Reference points the founder chose: Numa (numa.com) and Linear.
+Ondra is staff for a car dealership: AI agents at every desk, people where a person is needed, and the owner's office that VIPs reach directly. The brand is a luxury showroom at night ("champagne night"): warm espresso grounds, a sodium-amber glow off the floor, quiet light-weight Inter type, champagne pill buttons, a soft periwinkle that marks anything the AI did, red for VIPs only. Product UI that moves (the inbox, the channel diagram, the stories in `components/stories.tsx`) and the 3D floor carry the personality; the chrome stays quiet. Reference points the founder chose: Numa (numa.com) and Linear.
 
-Visual authority, in order: the user's words, this skill, `design/README.md`, the prototypes in `design/mockups/` (`landing.html`, `app.html`). The prototypes predate the Night Shift rebrand (they use paper, ink and amber); keep their layouts and content, take colour and type from this skill.
+Visual authority, in order: the user's words, this skill, `design/README.md`, the prototypes in `design/mockups/` (`landing.html`, `app.html`). The prototypes predate the champagne-night palette (they use paper, ink and amber); keep their layouts and content, take colour and type from this skill.
 
 ## 1. Pick the mode from the surface, then read one file
 
@@ -23,16 +23,16 @@ A landing page for the product is still Persuade. A settings screen is still Ope
 ## 2. Named rules (these are product rules, not taste)
 
 <!-- rule:blue-is-the-ai -->
-**Blue is the AI.** Periwinkle (`ai` `#B3C5FF` text, `ai-subtle` `#121B36` surface, `brand` `#8AA6FF` dots and rings) marks anything Ondra said, drafted, booked, summarised or suggested, always with a label naming it ("Sent by Ondra"). Blue is atmosphere and provenance, never a loud fill. Actions are champagne pills (`btn-primary`: `#EAD9B5` with near-black text) and ghost pills (`btn-quiet`). No saturated blue buttons anywhere.
+**Blue is the AI.** Periwinkle (`ai` `#B3C5FF` text, `ai-subtle` `#161A2C` surface, `brand` `#8AA6FF` dots and rings) marks anything Ondra said, drafted, booked, summarised or suggested, always with a label naming it ("Sent by Ondra"). Blue is atmosphere and provenance, never a loud fill. Actions are champagne pills (`btn-primary`: `#EAD9B5` with near-black text) and ghost pills (`btn-quiet`). No saturated blue buttons anywhere.
 
 <!-- rule:red-is-rare -->
-**Red is rare.** VIP coral (`vip` `#FF8A80` on `vip-subtle` `#34161A`) is for VIP contacts and overdue items only. Errors use Ink with a clear message, destructive buttons use an outline and an explicit verb, bad deltas are muted grey with a down arrow.
+**Red is rare.** VIP red (`vip` `#FF6B6B` on `vip-subtle` `#321416`) is for VIP contacts and overdue items only. Errors use Ink with a clear message, destructive buttons use an outline and an explicit verb, bad deltas are muted grey with a down arrow.
 
 <!-- rule:vip-has-no-ai -->
 **VIPs never meet the AI.** A VIP surface shows no AI-blue draft, suggestion, summary or "let Ondra reply" affordance. Calls read "Rings you directly". This mirrors the product rule in `CLAUDE.md`, so a VIP component that renders anything AI-blue is a bug.
 
 <!-- rule:not-the-ai-template -->
-**Earn the category look.** Inter on a dark navy sky is the category's language (Numa, Linear); Ondra speaks it on purpose. What keeps it from being a template: the 3D floor, real product UI that moves, drawings that explain (the channel-flow diagram), precise type (light weights, tight tracking, `cv01`/`ss03`), and no decoration that isn't information: no glowing orbs, no gradient text, no sparkle confetti.
+**Earn the category look.** Inter on a dark ground is the category's language (Numa, Linear); Ondra speaks it, but in warm champagne, not Numa's navy or Flai's oxblood. What keeps it from being a template: the 3D floor, real product UI that moves, drawings that explain (the channel-flow diagram), precise type (light weights, tight tracking, `cv01`/`ss03`), and no decoration that isn't information: no glowing orbs, no gradient text, no sparkle confetti.
 
 <!-- rule:no-fake-proof -->
 **Label illustrative values honestly.** Sample conversations, KPI numbers and names on marketing pages are examples, never claims. No invented stats, logos or testimonials. See `docs/marketing/positioning.md` for the claims we cannot make yet.
