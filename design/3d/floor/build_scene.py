@@ -504,7 +504,8 @@ def car(name, loc, rot_z, paint):
     bpy.context.view_layer.update()
     # Ground on the tyres only: the model also carries a shadow plane below the wheels.
     tyres = [o for o in objs if o.type == "MESH" and any(sl.material and sl.material.name.startswith("Tire") for sl in o.material_slots)]
-    zmin = min((o.matrix_world @ Vector(c)).z for o in tyres for c in o.bound_box)
+    # Use real vertices: bounding-box corners of round, rotated tyres sit below the rubber.
+    zmin = min((o.matrix_world @ v.co).z for o in tyres for v in o.data.vertices)
     root.location.z -= zmin
     return root
 
