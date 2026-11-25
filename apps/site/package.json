@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@tabler/icons-react": "3.50.0",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",

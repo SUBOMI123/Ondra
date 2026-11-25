@@ -36,3 +36,8 @@ Open either file directly in a browser. `landing.html` embeds three.js (r150), s
 - The exterior photo is linked from Unsplash. The artifact viewer and some hosts block external images; embed or self-host it for production.
 - The 3D figures are built from primitives. Realistic people would need licensed 3D models.
 - On phones the labels can crowd the scene; the mobile layout needs a pass before launch.
+
+## Since the mockups
+
+- The marketing site now lives in `apps/site`. The UI rules for everything (tokens, components, copy, review) are in the `ondra-ui` skill at `.claude/skills/ondra-ui/`; where these mockups disagree with it, the skill wins.
+- The hero uses a generated dusk showroom image (`apps/site/public/hero-showroom.jpg`) until we have the pilot dealer's photo.

@@ -57,8 +57,8 @@ export default function DemoForm() {
 
   if (status === "sent") {
     return (
-      <div role="status" className="rounded-xl border border-line bg-white p-8">
-        <p className="x text-2xl font-bold">Thanks. We&apos;ll be in touch within one business day.</p>
+      <div role="status" className="rounded-card border border-line bg-white p-8">
+        <p className="font-display text-2xl font-bold">Thanks. We&apos;ll be in touch within one business day.</p>
         <p className="mt-3 text-ink-2">
           We&apos;ll set up a call to look at how your calls and messages come in today, then show Ondra answering them.
         </p>
@@ -67,11 +67,11 @@ export default function DemoForm() {
   }
 
   const input =
-    "mt-1.5 block w-full rounded-md border border-line bg-white px-3.5 py-3 text-[15px] text-ink placeholder:text-muted/70 focus:border-ink focus:outline-none";
+    "mt-1.5 block w-full rounded-control border border-line bg-white px-3.5 py-3 text-[15px] text-ink placeholder:text-muted-foreground/70 focus:border-ink focus:outline-none";
   const label = "block text-sm font-semibold text-ink";
 
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-line bg-white p-6 sm:p-8" noValidate={false}>
+    <form onSubmit={onSubmit} className="rounded-card border border-line bg-white p-6 sm:p-8" noValidate={false}>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className={label}>
           Your name
@@ -126,7 +126,7 @@ export default function DemoForm() {
       </fieldset>
 
       <label className={`${label} mt-6`}>
-        Anything we should know? <span className="font-normal text-muted">(optional)</span>
+        Anything we should know? <span className="font-normal text-muted-foreground">(optional)</span>
         <textarea
           name="notes"
           rows={3}
@@ -144,7 +144,7 @@ export default function DemoForm() {
         <button type="submit" className="btn btn-primary" disabled={status === "sending"}>
           {status === "sending" ? "Sending…" : "Book a demo"}
         </button>
-        <p className="text-sm text-muted">30 minutes. No sales script, just your calls and messages.</p>
+        <p className="text-sm text-muted-foreground">30 minutes. No sales script, just your calls and messages.</p>
       </div>
       {status === "error" && (
         <p role="alert" className="mt-4 text-sm text-vip">

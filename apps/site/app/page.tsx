@@ -1,3 +1,14 @@
+import {
+  IconBrandInstagram,
+  IconBrandWhatsapp,
+  IconCheck,
+  IconCrownFilled,
+  IconMail,
+  IconMessage,
+  IconPhone,
+  IconPlus,
+  IconSparkles,
+} from "@tabler/icons-react";
 import DemoForm from "@/components/DemoForm";
 import Walkthrough from "@/components/Walkthrough";
 import { CONTACT_EMAIL } from "@/lib/config";
@@ -13,9 +24,8 @@ export default function Home() {
         <div id="tour">
           <Walkthrough />
         </div>
-        <Channels />
-        <Agents />
-        <Problem />
+        <Roster />
+        <Night />
         <WhatsApp />
         <Vip />
         <OwnerBriefing />
@@ -30,46 +40,55 @@ export default function Home() {
   );
 }
 
+/* ---------------------------------------------------------------- primitives */
+
 function Wrap({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`mx-auto w-full max-w-[1200px] px-4 sm:px-7 ${className}`}>{children}</div>;
+  return <div className={`mx-auto w-full max-w-(--container-page) px-4 sm:px-7 ${className}`}>{children}</div>;
 }
 
 function H2({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <h2 className={`x text-[clamp(30px,4vw,52px)] font-bold leading-[1.04] tracking-[-0.01em] ${className}`}>{children}</h2>
-  );
+  return <h2 className={`font-display text-h2 ${className}`}>{children}</h2>;
+}
+
+function Lead({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <p className={`text-lead max-w-(--container-prose) ${className}`}>{children}</p>;
 }
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <a href="#top" className={`x flex items-center gap-2.5 text-xl font-bold no-underline ${className}`}>
+    <a href="#top" className={`font-display flex items-center gap-2.5 text-xl font-bold no-underline ${className}`}>
       <i aria-hidden="true" className="block size-[11px] rounded-full bg-sodium" />
       Ondra
     </a>
   );
 }
 
+const CHANNELS = [
+  { name: "Phone", Icon: IconPhone },
+  { name: "WhatsApp", Icon: IconBrandWhatsapp },
+  { name: "SMS", Icon: IconMessage },
+  { name: "Email", Icon: IconMail },
+] as const;
+
 /* ---------------------------------------------------------------- nav */
 
 function Nav() {
   return (
-    <header className="absolute inset-x-0 top-0 z-30">
+    <header className="on-dark absolute inset-x-0 top-0 z-30">
       <Wrap className="flex items-center justify-between py-5 text-white">
         <Logo />
-        <nav aria-label="Main" className="flex items-center gap-6 text-[15px]">
-          <a href="#how" className="hidden no-underline opacity-85 hover:opacity-100 md:inline">
-            How it works
-          </a>
-          <a href="#whatsapp" className="hidden no-underline opacity-85 hover:opacity-100 md:inline">
-            WhatsApp
-          </a>
-          <a href="#vip" className="hidden no-underline opacity-85 hover:opacity-100 md:inline">
-            VIPs
-          </a>
-          <a href="#faq" className="hidden no-underline opacity-85 hover:opacity-100 md:inline">
-            FAQ
-          </a>
-          <a href="#demo" className="btn btn-primary !min-h-[42px] !px-4">
+        <nav aria-label="Main" className="flex items-center gap-7 text-[15px]">
+          {[
+            ["How it works", "#how"],
+            ["WhatsApp", "#whatsapp"],
+            ["VIPs", "#vip"],
+            ["FAQ", "#faq"],
+          ].map(([label, href]) => (
+            <a key={href} href={href} className="hidden text-white/80 no-underline hover:text-white md:inline">
+              {label}
+            </a>
+          ))}
+          <a href="#demo" className="btn btn-primary min-h-11 px-4">
             Book a demo
           </a>
         </nav>
@@ -82,205 +101,204 @@ function Nav() {
 
 function Hero() {
   return (
-    <section
-      id="top"
-      className="relative overflow-hidden bg-ink text-white"
-      style={{
-        // Photo is optional: drop the pilot dealer's showroom (with permission) at public/exterior.jpg.
-        // Until then the gradient alone carries the hero.
-        backgroundImage:
-          "linear-gradient(0deg, rgba(10,10,12,.92) 0%, rgba(10,10,12,.55) 55%, rgba(10,10,12,.75) 100%), radial-gradient(120% 80% at 80% 0%, rgba(242,163,58,.22), transparent 60%), url(/exterior.jpg)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <Wrap className="grid items-end gap-12 pb-16 pt-32 sm:pb-24 sm:pt-40 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
-        <div>
-          <p className="eyebrow text-sodium">AI staff for car dealerships</p>
-          <h1 className="x mt-4 max-w-[12ch] text-[clamp(44px,7vw,96px)] font-bold leading-[0.95] tracking-[-0.02em]">
-            Your dealership, fully staffed.
-          </h1>
-          <p className="mt-6 max-w-[46ch] text-[19px] leading-relaxed text-[#E4E5EA]">
-            Ondra answers every call, WhatsApp, text and email in seconds, day or night. It qualifies the buyer, books
-            the visit and hands the deal to the right person on your team.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#demo" className="btn btn-primary">
-              Book a demo
-            </a>
-            <a href="#tour" className="btn btn-line">
-              See how it works
-            </a>
-          </div>
-          <p className="mt-6 text-sm text-[#B9BBC2]">
-            Keep your phone number, WhatsApp and email. Your customers never see a new one.
-          </p>
-        </div>
-        <HeroThread />
-      </Wrap>
-    </section>
-  );
-}
+    <section id="top" className="on-dark relative isolate flex min-h-[min(920px,100svh)] flex-col overflow-hidden bg-ink text-white">
+      {/* The showroom at dusk. Generated image, no badges or people. Replace with the pilot dealer's
+          showroom once we have written permission. */}
+      <img
+        src="/hero-showroom.jpg"
+        srcSet="/hero-showroom-960.jpg 960w, /hero-showroom.jpg 1536w"
+        sizes="100vw"
+        width={1536}
+        height={864}
+        alt=""
+        fetchPriority="high"
+        className="absolute inset-0 -z-20 size-full object-cover object-[68%_center] opacity-60 max-lg:object-[86%_center] max-lg:opacity-75 motion-safe:animate-settle"
+      />
+      {/* Ink scrim: dark where the words are, letting the lit showroom show on the right */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-linear-to-r from-ink via-ink/80 to-ink/10 max-lg:bg-linear-to-t max-lg:via-ink/75 max-lg:to-ink/25"
+      />
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-linear-to-t from-ink to-transparent" />
 
-function HeroThread() {
-  return (
-    <figure
-      aria-label="Example: Ondra replying to a buyer on WhatsApp at night"
-      className="mx-auto w-full max-w-[440px] rounded-2xl bg-[#ECE5DD] p-4 text-ink shadow-[0_30px_60px_-20px_rgba(0,0,0,.6)]"
-    >
-      <div className="flex items-center justify-between border-b border-black/10 pb-3">
-        <div>
-          <p className="text-[15px] font-semibold">Chidi O. · Lagos</p>
-          <p className="text-xs text-muted">WhatsApp · 2:14 am in Dallas</p>
-        </div>
-        <span className="rounded-full bg-wa px-2.5 py-1 text-[11px] font-semibold text-white">WhatsApp</span>
+      {/* Two desk labels over the lit cars, the same language as the walk-through */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
+        <HeroLabel at={["63%", "31%"]} delay={500} role="Voice agent" name="Reception" doing="Answering a call about a black G63" />
+        <HeroLabel at={["80%", "41%"]} delay={800} role="Messaging agent" name="WhatsApp" doing="Replying to a buyer in Lagos" />
       </div>
-      <div className="space-y-2.5 pt-3 text-[14.5px] leading-snug">
-        <p className="max-w-[85%] rounded-lg rounded-tl-none bg-white px-3 py-2">
-          Good evening. Is the black 2023 G63 still available? Can you ship to Lagos?
-        </p>
-        <p className="ml-auto max-w-[88%] rounded-lg rounded-tr-none bg-[#D9FDD3] px-3 py-2">
-          Yes, it&apos;s on the lot: black, 18k miles. We ship to Lagos regularly. Would a live video walkaround help?
-          Daniel can do Thursday at 10am Dallas time, that&apos;s 4pm for you.
-        </p>
-        <p className="max-w-[60%] rounded-lg rounded-tl-none bg-white px-3 py-2">Thursday works. Please book it.</p>
-        <p className="ml-auto max-w-[70%] rounded-lg rounded-tr-none bg-[#D9FDD3] px-3 py-2">
-          Booked. Daniel will call you on WhatsApp video. 👍
-        </p>
-      </div>
-      <figcaption className="mt-3 rounded-lg bg-ai-bg px-3 py-2.5 text-[12.5px] text-ai">
-        <b className="font-semibold">Ondra</b> · Lead qualified: G63, budget ~$180k, wire transfer, ships to Lagos ·
-        Video walkaround booked · Brief sent to Daniel (Sales)
-      </figcaption>
-    </figure>
-  );
-}
 
-function Channels() {
-  const items = [
-    { name: "Phone", note: "Voice agent" },
-    { name: "WhatsApp", note: "Official Business API" },
-    { name: "SMS", note: "Texts" },
-    { name: "Email", note: "Your own inbox" },
-    { name: "Instagram", note: "Coming later" },
-  ];
-  return (
-    <section aria-label="Channels" className="border-b border-line bg-paper">
-      <Wrap className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-7">
-        <p className="text-sm font-semibold text-muted">Every channel, one inbox:</p>
-        <ul className="flex flex-wrap gap-x-8 gap-y-3">
-          {items.map((i) => (
-            <li key={i.name} className="flex items-baseline gap-2">
-              <span className="x text-lg font-bold">{i.name}</span>
-              <span className="text-[13px] text-muted">{i.note}</span>
+      <Wrap className="flex flex-1 flex-col justify-end pb-10 pt-36 sm:pb-14">
+        <h1 className="font-display text-display max-w-[11ch]">Your dealership, fully staffed.</h1>
+        <p className="text-lead mt-6 max-w-[44ch] text-white/80">
+          Ondra answers every call, WhatsApp, text and email in seconds, day or night. It qualifies the buyer, books
+          the visit and hands the deal to the right person on your team.
+        </p>
+        <div className="mt-9 flex flex-wrap gap-3">
+          <a href="#demo" className="btn btn-primary">
+            Book a demo
+          </a>
+          <a href="#tour" className="btn btn-quiet text-white">
+            Walk the floor
+          </a>
+        </div>
+
+        <div className="mt-16 flex flex-wrap items-center justify-between gap-x-10 gap-y-4 border-t border-white/15 pt-6">
+          <p className="text-small text-white/65">Keeps your number, WhatsApp and email. Customers never see a new one.</p>
+          <ul aria-label="Channels" className="flex flex-wrap gap-x-7 gap-y-3 text-[15px] text-white/85">
+            {CHANNELS.map(({ name, Icon }) => (
+              <li key={name} className="flex items-center gap-2">
+                <Icon size={18} stroke={1.5} aria-hidden="true" />
+                {name}
+              </li>
+            ))}
+            <li className="flex items-center gap-2 text-white/50">
+              <IconBrandInstagram size={18} stroke={1.5} aria-hidden="true" />
+              Instagram, later
             </li>
-          ))}
-        </ul>
+          </ul>
+        </div>
       </Wrap>
     </section>
   );
 }
 
-/* ---------------------------------------------------------------- problem */
+function HeroLabel({ at, delay, role, name, doing }: { at: [string, string]; delay: number; role: string; name: string; doing: string }) {
+  // Positioned inline: the shared .floor-label rule pins left/top for the 3D scene.
+  return (
+    <div className="floor-label is-static motion-safe:animate-rise" style={{ left: at[0], top: at[1], animationDelay: `${delay}ms` }}>
+      <span className="role">
+        <i />
+        {role}
+      </span>
+      <b>{name}</b>
+      <span className="doing">{doing}</span>
+    </div>
+  );
+}
 
-function Problem() {
-  const items = [
+/* ---------------------------------------------------------------- roster */
+
+function Roster() {
+  const desks = [
     {
-      t: "The phone rings at 7:40pm.",
-      p: "The showroom is closed, so the buyer calls the next dealer on the list. You never know the call happened.",
+      desk: "Reception",
+      role: "Voice agent",
+      does: "Picks up every call, after hours or when your team is busy. Answers from your stock and your own answers. Every call is recorded and transcribed.",
+      channels: [IconPhone],
     },
     {
-      t: "The WhatsApp lives on someone's phone.",
-      p: "Leads sit in a salesperson's personal chat. Nobody else can see them, follow up or pick them up when that person is off.",
+      desk: "WhatsApp and email",
+      role: "Messaging agent",
+      does: "Replies in seconds with photos, specs and availability, and asks the questions your salespeople would ask.",
+      channels: [IconBrandWhatsapp, IconMessage, IconMail],
     },
     {
-      t: "Your best buyer is in another time zone.",
-      p: "Buyers in Lagos, Accra and Dubai message while Dallas sleeps. By the time you reply, they've asked three other dealers.",
+      desk: "Test drives and visits",
+      role: "Booking agent",
+      does: "Books showroom visits, test drives and video walkarounds against your team's real calendars. One calendar, no double-booking.",
+      channels: [IconPhone, IconBrandWhatsapp],
+    },
+    {
+      desk: "Service desk",
+      role: "Service agent",
+      does: "Fits service into real bay capacity, using the appointment types you set up.",
+      channels: [IconPhone, IconMessage],
+    },
+    {
+      desk: "Handoffs",
+      role: "Routing agent",
+      does: "Sends each conversation to the right person in sales, service or logistics, or to you, with a short brief and a deadline.",
+      channels: [],
+    },
+    {
+      desk: "Follow-ups",
+      role: "Follow-up agent",
+      does: "Drafts reminders for buyers who went quiet, and waits for your approval before anything goes out.",
+      channels: [IconBrandWhatsapp, IconMail],
     },
   ];
   return (
-    <section className="bg-paper py-24 sm:py-32">
+    <section id="how" className="scroll-mt-4 bg-paper py-24 sm:py-32">
       <Wrap>
-        <H2 className="max-w-[20ch]">Buyers don&apos;t wait. Most dealerships make them.</H2>
-        <ol className="mt-12 grid gap-10 md:grid-cols-3">
-          {items.map((i) => (
-            <li key={i.t} className="border-t-2 border-ink pt-5">
-              <b className="x block text-[21px] leading-tight">{i.t}</b>
-              <p className="mt-3 text-[16px] leading-relaxed text-ink-2">{i.p}</p>
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-end">
+          <H2 className="max-w-[16ch]">Six agents. One calendar. Your rules.</H2>
+          <Lead className="text-ink-2">
+            Every conversation becomes a client profile with the vehicle, budget, destination, timeline and payment
+            method filled in. Your team works from one inbox with every recording, transcript and message.
+          </Lead>
+        </div>
+
+        <ol className="mt-14 border-b border-line">
+          {desks.map((d) => (
+            <li key={d.desk} className="grid gap-x-8 gap-y-2 border-t border-line py-6 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_7rem] md:items-baseline">
+              <div>
+                <p className="font-display text-h4">{d.desk}</p>
+                <p className="text-small mt-1 flex items-center gap-1.5 text-ai">
+                  <IconSparkles size={14} stroke={1.75} aria-hidden="true" />
+                  {d.role}
+                </p>
+              </div>
+              <p className="max-w-[60ch] text-ink-2">{d.does}</p>
+              <p className="flex gap-2 text-muted-foreground md:justify-end" aria-label={d.channels.length ? "Channels" : undefined}>
+                {d.channels.map((Icon, i) => (
+                  <Icon key={i} size={18} stroke={1.5} aria-hidden="true" />
+                ))}
+              </p>
             </li>
           ))}
+          <li className="grid gap-x-8 gap-y-2 border-t-2 border-vip/40 bg-vip-subtle/60 px-4 py-6 md:-mx-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_7rem] md:items-baseline">
+            <div>
+              <p className="font-display text-h4 text-vip">Your office</p>
+              <p className="text-small mt-1 flex items-center gap-1.5 text-vip">
+                <IconCrownFilled size={14} aria-hidden="true" />
+                Not an agent
+              </p>
+            </div>
+            <p className="max-w-[60ch] text-ink-2">VIP clients skip the agents completely. Their calls ring you and their messages wait for you.</p>
+          </li>
         </ol>
       </Wrap>
     </section>
   );
 }
 
-/* ---------------------------------------------------------------- agents */
+/* ---------------------------------------------------------------- the night */
 
-function Agents() {
-  const agents = [
+function Night() {
+  const hours = [
     {
-      role: "Voice agent",
-      name: "Reception",
-      p: "Picks up every call, after hours or as backup when your team is busy. Answers from your inventory and your own answers, and records and transcribes every call.",
+      t: "7:40 pm",
+      p: "A buyer calls about the black G63. The showroom closed at seven, so he calls the next dealer on his list.",
     },
     {
-      role: "Messaging agent",
-      name: "WhatsApp, SMS and email",
-      p: "Replies in seconds with photos, specs and availability, and asks the questions your salespeople would ask.",
+      t: "11:15 pm",
+      p: "Three WhatsApp messages land on Daniel's personal phone. He's asleep, and nobody else can see them.",
     },
     {
-      role: "Booking agent",
-      name: "Test drives and visits",
-      p: "Books showroom visits, test drives and video walkarounds against your team's real calendars. One calendar, no double-booking.",
+      t: "2:14 am",
+      p: "A buyer in Lagos, where it's 9:14 in the morning, asks about shipping. By the time you open, she has asked three other dealers.",
     },
     {
-      role: "Service agent",
-      name: "Service desk",
-      p: "Books service into real bay capacity, using the appointment types you set up.",
-    },
-    {
-      role: "Routing agent",
-      name: "Handoffs",
-      p: "Sends each conversation to the right person in sales, service, logistics or to you, with a short brief and a deadline.",
-    },
-    {
-      role: "Follow-up agent",
-      name: "Follow-ups",
-      p: "Drafts reminders and nudges for buyers who went quiet, and waits for your approval before sending.",
+      t: "9:00 am",
+      p: "You open up. Nothing tells you what you missed.",
     },
   ];
   return (
-    <section id="how" className="scroll-mt-4 bg-paper py-24 sm:py-32">
-      <Wrap>
-        <p className="eyebrow text-muted">How it works</p>
-        <H2 className="mt-3 max-w-[18ch]">Six agents. One calendar. Your rules.</H2>
-        <p className="mt-5 max-w-[60ch] text-[18px] leading-relaxed text-ink-2">
-          Every conversation becomes a client profile with the vehicle, budget, destination, timeline and payment
-          method filled in. Your team works from one inbox with every call recording, transcript and message.
-        </p>
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {agents.map((a) => (
-            <li key={a.name} className="rounded-xl border border-line bg-white p-6">
-              <span className="flex items-center gap-2 text-[13px] text-muted">
-                <i aria-hidden="true" className="block size-2 rounded-full bg-[#3B7BF0]" />
-                {a.role}
-              </span>
-              <b className="x mt-1.5 block text-[20px] leading-tight">{a.name}</b>
-              <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">{a.p}</p>
+    <section className="border-t border-line bg-paper-2 py-24 sm:py-32">
+      <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.4fr]">
+        <div>
+          <H2 className="max-w-[14ch]">One night with nobody on the phones.</H2>
+          <Lead className="mt-5 text-ink-2">Buyers don&apos;t wait for opening hours. Most dealerships make them.</Lead>
+        </div>
+        <ol className="border-l border-ink/20">
+          {hours.map((h, i) => (
+            <li key={h.t} className="relative grid gap-1 pb-10 pl-8 last:pb-0 sm:grid-cols-[9.5rem_1fr] sm:gap-6">
+              <span aria-hidden="true" className={`absolute -left-[5px] top-2.5 size-[9px] rounded-full ${i === hours.length - 1 ? "bg-ink" : "bg-paper-2 ring-2 ring-ink/40"}`} />
+              <p className="font-display text-h3 whitespace-nowrap tabular-nums">{h.t}</p>
+              <p className="max-w-[46ch] pt-1 text-ink-2">{h.p}</p>
             </li>
           ))}
-          <li className="rounded-xl border border-vip/25 bg-vip-bg p-6 sm:col-span-2 lg:col-span-3">
-            <span className="flex items-center gap-2 text-[13px] text-vip">
-              <i aria-hidden="true" className="block size-2 rounded-full bg-vip" />
-              Not an agent
-            </span>
-            <b className="x mt-1.5 block text-[20px] leading-tight text-vip">Your office</b>
-            <p className="mt-3 max-w-[70ch] text-[15.5px] leading-relaxed text-ink-2">
-              VIP clients skip the agents completely. Their calls ring you and their messages wait for you.
-            </p>
-          </li>
-        </ul>
+        </ol>
       </Wrap>
     </section>
   );
@@ -295,10 +313,6 @@ function WhatsApp() {
       p: "Ondra connects your existing WhatsApp Business number through Meta's official API. No grey-market tools that get numbers banned.",
     },
     {
-      t: "Their time zone, your calendar",
-      p: "Buyers are answered at their 2am, and bookings land in your working hours. Every time is shown in both zones.",
-    },
-    {
       t: "Export questions, captured",
       p: "Destination, payment method, timeline and budget go straight into the client profile, so your team starts the call already knowing the deal.",
     },
@@ -308,19 +322,41 @@ function WhatsApp() {
     },
   ];
   return (
-    <section id="whatsapp" className="scroll-mt-4 bg-ink py-24 text-white sm:py-32">
+    <section id="whatsapp" className="on-dark scroll-mt-4 bg-ink py-24 text-white sm:py-32">
       <Wrap>
-        <p className="eyebrow text-sodium">WhatsApp-first</p>
-        <H2 className="mt-3 max-w-[20ch]">Built for buyers who live on WhatsApp.</H2>
-        <p className="mt-5 max-w-[60ch] text-[18px] leading-relaxed text-[#C9CBD1]">
-          Most dealer AI tools are built for US buyers on phone and text. Ondra is built for dealers whose buyers are in
-          Lagos, Accra, Dubai or down the road, and who would rather message than call.
-        </p>
-        <ul className="mt-12 grid gap-x-10 gap-y-10 md:grid-cols-2">
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+          <div>
+            <H2 className="max-w-[16ch]">Built for buyers who live on WhatsApp.</H2>
+            <Lead className="mt-5 text-white/70">
+              Most dealer AI tools are built for US buyers on phone and text. Ondra is built for dealers whose buyers are
+              in Lagos, Accra, Dubai or down the road, and would rather message than call.
+            </Lead>
+          </div>
+          {/* Dual clock: the detail only a cross-border dealer cares about */}
+          <figure className="rounded-panel border border-white/12 p-6 sm:p-8">
+            <div className="grid grid-cols-2 divide-x divide-white/12">
+              <div className="pr-6">
+                <p className="text-small text-white/55">Your showroom, Dallas</p>
+                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none tabular-nums">2:14</p>
+                <p className="text-small mt-1 text-white/55">am, closed</p>
+              </div>
+              <div className="pl-6">
+                <p className="text-small text-white/55">Your buyer, Lagos</p>
+                <p className="font-display mt-2 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-none text-sodium tabular-nums">9:14</p>
+                <p className="text-small mt-1 text-white/55">am, ready to buy</p>
+              </div>
+            </div>
+            <figcaption className="text-small mt-6 flex items-start gap-2 border-t border-white/12 pt-5 text-white/75">
+              <IconBrandWhatsapp size={18} stroke={1.5} className="mt-0.5 shrink-0 text-[#5fd08f]" aria-hidden="true" />
+              Answered in her morning. Booked into yours: a video walkaround with Daniel at 10 am Dallas time.
+            </figcaption>
+          </figure>
+        </div>
+        <ul className="mt-16 grid gap-x-10 gap-y-10 md:grid-cols-3">
           {points.map((i) => (
-            <li key={i.t} className="border-t border-white/25 pt-5">
-              <b className="x block text-[20px]">{i.t}</b>
-              <p className="mt-2.5 text-[16px] leading-relaxed text-[#C9CBD1]">{i.p}</p>
+            <li key={i.t} className="border-t border-white/20 pt-5">
+              <p className="font-display text-h4">{i.t}</p>
+              <p className="mt-2.5 text-white/70">{i.p}</p>
             </li>
           ))}
         </ul>
@@ -336,36 +372,35 @@ function Vip() {
     <section id="vip" className="scroll-mt-4 bg-paper py-24 sm:py-32">
       <Wrap className="grid items-center gap-12 lg:grid-cols-2">
         <div>
-          <p className="eyebrow text-vip">VIPs</p>
-          <H2 className="mt-3 max-w-[16ch]">Some clients should never talk to a bot.</H2>
-          <p className="mt-5 max-w-[50ch] text-[18px] leading-relaxed text-ink-2">
-            Mark a client, or the people who buy for them, as VIP. Their calls ring you directly. Their messages wait
-            for your personal reply. No AI answer, no AI draft, no voice agent, ever.
-          </p>
-          <p className="mt-4 max-w-[50ch] text-[16px] leading-relaxed text-muted">
-            If you miss the call, you get an alert straight away, not a summary at the end of the day.
-          </p>
+          <H2 className="max-w-[15ch]">Some clients should only ever hear from you.</H2>
+          <Lead className="mt-5 text-ink-2">
+            Mark a client, or the people who buy for them, as VIP. Their calls ring you directly. Their messages wait for
+            your personal reply. No AI answer, no AI draft, no voice agent, ever.
+          </Lead>
+          <p className="mt-4 max-w-[50ch] text-muted-foreground">If you miss the call, you get an alert straight away, not a summary at the end of the day.</p>
         </div>
         <div aria-hidden="true" className="mx-auto w-full max-w-[420px] space-y-3">
-          <div className="rounded-xl border border-vip/25 bg-white p-5 shadow-[0_20px_40px_-24px_rgba(0,0,0,.35)]">
+          <div className="rounded-card bg-white p-5 shadow-float">
             <div className="flex items-center justify-between">
-              <span className="rounded-full bg-vip-bg px-2.5 py-1 text-[12px] font-semibold text-vip">VIP</span>
-              <span className="text-[12px] text-muted">Incoming call</span>
+              <span className="text-small flex items-center gap-1.5 rounded-pill bg-vip-subtle px-2.5 py-1 font-semibold text-vip">
+                <IconCrownFilled size={14} />
+                VIP
+              </span>
+              <span className="text-small text-muted-foreground">Incoming call</span>
             </div>
-            <p className="x mt-3 text-[22px] font-bold">Alhaji M.</p>
-            <p className="text-[14px] text-muted">Ringing your mobile, skipping the voice agent</p>
-            <div className="mt-4 flex gap-2">
-              <span className="flex-1 rounded-md bg-[#1F7A4D] py-2.5 text-center text-sm font-semibold text-white">
-                Answer
-              </span>
-              <span className="flex-1 rounded-md border border-line py-2.5 text-center text-sm font-semibold">
-                Text back
-              </span>
+            <p className="font-display mt-3 text-[22px] font-bold">Alhaji M.</p>
+            <p className="text-small text-muted-foreground">Ringing your mobile. The voice agent stays off.</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <span className="rounded-control bg-ok py-2.5 text-center text-sm font-semibold text-white">Answer</span>
+              <span className="rounded-control border border-line py-2.5 text-center text-sm font-semibold">Text back</span>
             </div>
           </div>
-          <div className="rounded-xl border border-line bg-white p-4 text-[14px]">
+          <div className="rounded-card border border-line bg-white p-4 text-[14px]">
             <p className="font-semibold">WhatsApp from Alhaji M.&apos;s manager</p>
-            <p className="mt-1 text-muted">Waiting for you · AI replies off for this contact</p>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+              <span>Waiting for you</span>
+              <span>AI replies off</span>
+            </div>
           </div>
         </div>
       </Wrap>
@@ -376,43 +411,49 @@ function Vip() {
 /* ---------------------------------------------------------------- owner on WhatsApp */
 
 function OwnerBriefing() {
+  const lines = [
+    ["2", "VIPs waiting for you"],
+    ["5", "hot leads overnight, 3 from Nigeria"],
+    ["4", "follow-ups ready to approve"],
+    ["10", "bookings today: 3 test drives, 1 video walkaround, 6 service"],
+  ];
   return (
     <section className="border-y border-line bg-paper-2 py-24 sm:py-32">
       <Wrap className="grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
-        <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-2xl bg-[#ECE5DD] p-4 lg:order-1">
-          <p className="pb-2 text-center text-[12px] text-muted">Today 7:30 am</p>
-          <div className="max-w-[92%] rounded-lg rounded-tl-none bg-white px-3.5 py-3 text-[14.5px] leading-relaxed">
-            <p className="font-semibold">Good morning. Here&apos;s today:</p>
-            <ul className="mt-1.5 space-y-0.5">
-              <li>🔴 2 VIPs waiting for you</li>
-              <li>🔥 5 hot leads overnight, 3 from Nigeria</li>
-              <li>✍️ 4 follow-ups ready to approve</li>
-              <li>📅 3 test drives, 1 video walkaround, 6 service bookings</li>
+        <div aria-hidden="true" className="order-2 mx-auto w-full max-w-[420px] rounded-panel bg-[#E9E2D8] p-4 lg:order-1">
+          <p className="text-micro pb-2 text-center text-muted-foreground">Today 7:30 am</p>
+          <div className="max-w-[94%] rounded-card rounded-tl-none bg-white px-4 py-3.5 text-[14.5px] leading-relaxed">
+            <p className="font-semibold">Good morning. Here&apos;s today.</p>
+            <ul className="mt-2 space-y-1">
+              {lines.map(([n, t]) => (
+                <li key={t} className="flex gap-2.5">
+                  <b className="w-5 shrink-0 text-right tabular-nums">{n}</b>
+                  <span>{t}</span>
+                </li>
+              ))}
             </ul>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-black/10 pt-2.5 text-center text-[14px] font-semibold text-[#027EB5]">
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-black/10 pt-2.5 text-center text-[14px] font-semibold text-ai">
               <span>Approve all 4</span>
               <span>Review</span>
             </div>
           </div>
-          <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-lg rounded-tr-none bg-[#D9FDD3] px-3 py-2.5 text-[13px]">
-            <span>▶︎</span>
+          <div className="ml-auto mt-2.5 flex max-w-[70%] items-center gap-2 rounded-card rounded-tr-none bg-[#D9FDD3] px-3 py-2.5 text-[13px]">
+            <span className="size-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-ink" />
             <span className="h-1 flex-1 rounded bg-black/20" />
-            <span className="text-muted">0:14</span>
+            <span className="text-muted-foreground tabular-nums">0:14</span>
           </div>
-          <div className="mt-2.5 max-w-[85%] rounded-lg rounded-tl-none bg-white px-3.5 py-2.5 text-[14px]">
-            Got it. Task for Daniel: send Chidi the shipping quote by 3pm. Chidi&apos;s profile is updated.
+          <div className="mt-2.5 max-w-[85%] rounded-card rounded-tl-none bg-white px-4 py-3 text-[14px]">
+            Done. Task for Daniel: send Chidi the shipping quote by 3 pm. Chidi&apos;s profile is updated.
           </div>
         </div>
         <div className="order-1 lg:order-2">
-          <p className="eyebrow text-muted">For the owner</p>
-          <H2 className="mt-3 max-w-[16ch]">Run your morning from WhatsApp.</H2>
-          <p className="mt-5 max-w-[50ch] text-[18px] leading-relaxed text-ink-2">
+          <H2 className="max-w-[15ch]">Run your morning from WhatsApp.</H2>
+          <Lead className="mt-5 text-ink-2">
             A briefing before you get to the lot: who&apos;s waiting, what came in overnight, what&apos;s booked. Approve
             follow-ups with one tap. Send a voice note and Ondra turns it into tasks for your team.
-          </p>
-          <p className="mt-4 max-w-[50ch] text-[16px] leading-relaxed text-muted">
-            When you want the full picture, the web dashboard has revenue, the inbox, the calendar, client profiles and
-            the task board.
+          </Lead>
+          <p className="mt-4 max-w-[50ch] text-muted-foreground">
+            The web dashboard has the full picture: revenue, the inbox, the calendar, client profiles and the task board.
           </p>
         </div>
       </Wrap>
@@ -424,44 +465,25 @@ function OwnerBriefing() {
 
 function Guardrails() {
   const items = [
-    {
-      t: "Approve first",
-      p: "For the first week, every reply the AI writes waits for your approval. Switch on automatic replies when you trust them.",
-    },
-    {
-      t: "No promises you didn't make",
-      p: "It won't commit to a final price, a discount or a delivery date unless your policy says it can.",
-    },
-    {
-      t: "Hands off when it should",
-      p: "If it isn't sure, or a buyer is upset, it passes the conversation to a person with a brief and alerts a manager if needed.",
-    },
-    {
-      t: "STOP means stop",
-      p: "When a customer opts out, Ondra stops messaging them on every channel, straight away.",
-    },
-    {
-      t: "Learns your answers",
-      p: "Questions it couldn't answer land in one list. Answer once and it uses your answer from then on.",
-    },
-    {
-      t: "Your data stays yours",
-      p: "Each dealer's data is kept separate and encrypted, and is never used to train AI models.",
-    },
+    ["Approve first", "For the first week, every reply the AI writes waits for your approval. Switch on automatic replies when you trust them."],
+    ["No promises you didn't make", "It won't commit to a final price, a discount or a delivery date unless your policy says it can."],
+    ["Hands off when it should", "If it isn't sure, or a buyer is upset, it passes the conversation to a person with a brief, and alerts a manager if needed."],
+    ["STOP means stop", "When a customer opts out, Ondra stops messaging them on every channel, straight away."],
+    ["Learns your answers", "Questions it couldn't answer land in one list. Answer once and it uses your answer from then on."],
+    ["Your data stays yours", "Each dealer's data is kept separate and encrypted, and is never used to train AI models."],
   ];
   return (
     <section className="bg-paper py-24 sm:py-32">
       <Wrap>
-        <p className="eyebrow text-muted">Control</p>
-        <H2 className="mt-3 max-w-[18ch]">The AI works for you. You stay in charge.</H2>
-        <ul className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((i) => (
-            <li key={i.t} className="border-t-2 border-ink pt-5">
-              <b className="x block text-[20px]">{i.t}</b>
-              <p className="mt-2.5 text-[16px] leading-relaxed text-ink-2">{i.p}</p>
-            </li>
+        <H2 className="max-w-[18ch]">The AI works for you. You stay in charge.</H2>
+        <dl className="mt-14 grid gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map(([t, p]) => (
+            <div key={t} className="border-t-2 border-ink pt-5">
+              <dt className="font-display text-h4">{t}</dt>
+              <dd className="mt-2.5 text-ink-2">{p}</dd>
+            </div>
           ))}
-        </ul>
+        </dl>
       </Wrap>
     </section>
   );
@@ -471,34 +493,24 @@ function Guardrails() {
 
 function Setup() {
   const steps = [
-    {
-      t: "Connect your channels",
-      p: "Forward your phone line and your sales and service email. Connect your WhatsApp Business number through Meta. Customers keep using the details they already have.",
-    },
-    {
-      t: "Show the agents how you work",
-      p: "Your hours, your inventory, what can be booked, who handles what, and which clients are VIPs who always reach you.",
-    },
-    {
-      t: "Approve, then let go",
-      p: "Watch the first week in draft mode and correct anything that's off. Turn on automatic replies channel by channel.",
-    },
+    ["Connect your channels", "Forward your phone line and your sales and service email. Connect your WhatsApp Business number through Meta. Customers keep the details they already have."],
+    ["Show the agents how you work", "Your hours, your stock, what can be booked, who handles what, and which clients are VIPs who always reach you."],
+    ["Approve, then let go", "Watch the first week in draft mode and correct anything that's off. Turn on automatic replies channel by channel."],
   ];
   return (
-    <section className="bg-ink py-24 text-white sm:py-32">
+    <section className="on-dark bg-ink py-24 text-white sm:py-32">
       <Wrap>
-        <p className="eyebrow text-sodium">Getting started</p>
-        <H2 className="mt-3 max-w-[18ch]">Staff the desks without hiring.</H2>
-        <p className="mt-5 max-w-[60ch] text-[18px] leading-relaxed text-[#C9CBD1]">
-          Phone and email can be answered within days. WhatsApp goes live once Meta approves your business account,
-          and we walk you through that.
-        </p>
-        <ol className="mt-12 grid gap-10 md:grid-cols-3">
-          {steps.map((s, i) => (
-            <li key={s.t} className="border-t border-white/25 pt-5">
-              <span className="x text-[15px] font-bold text-sodium">0{i + 1}</span>
-              <b className="x mt-1 block text-[21px]">{s.t}</b>
-              <p className="mt-2.5 text-[16px] leading-relaxed text-[#C9CBD1]">{s.p}</p>
+        <H2 className="max-w-[18ch]">Staff the desks without hiring.</H2>
+        <Lead className="mt-5 text-white/70">
+          Phone and email can be answered within days. WhatsApp goes live once Meta approves your business account, and
+          we walk you through that.
+        </Lead>
+        <ol className="mt-14 grid gap-10 md:grid-cols-3">
+          {steps.map(([t, p], i) => (
+            <li key={t} className="border-t border-white/20 pt-5">
+              <span className="font-display text-h3 text-sodium tabular-nums">{i + 1}</span>
+              <p className="font-display text-h4 mt-2">{t}</p>
+              <p className="mt-2.5 text-white/70">{p}</p>
             </li>
           ))}
         </ol>
@@ -511,26 +523,27 @@ function Setup() {
 
 function Fit() {
   const fits = [
-    { t: "Independent and franchised dealers", p: "Across the US, with or without a DMS." },
-    { t: "Exporters", p: "Selling to buyers in Africa and the Middle East, mostly over WhatsApp." },
-    { t: "Community dealers", p: "Serving immigrant communities whose buyers would rather message than call." },
+    ["Exporters", "selling to buyers in Africa and the Middle East, mostly over WhatsApp."],
+    ["Community dealers", "serving immigrant communities whose buyers would rather message than call."],
+    ["Independent and franchised dealers", "across the US, with or without a DMS."],
   ];
   return (
     <section className="bg-paper py-24 sm:py-32">
-      <Wrap>
-        <H2 className="max-w-[20ch]">Made for dealers whose buyers won&apos;t wait for Monday.</H2>
-        <ul className="mt-12 grid gap-4 md:grid-cols-3">
-          {fits.map((f) => (
-            <li key={f.t} className="rounded-xl border border-line bg-white p-6">
-              <b className="x block text-[20px] leading-tight">{f.t}</b>
-              <p className="mt-2.5 text-[15.5px] leading-relaxed text-ink-2">{f.p}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-8 max-w-[64ch] text-[16px] leading-relaxed text-muted">
-          We&apos;re building Ondra with an independent luxury dealer in Dallas who exports to Nigeria, and taking on a
-          small number of pilot dealers alongside them.
-        </p>
+      <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.3fr]">
+        <H2 className="max-w-[15ch]">Made for dealers whose buyers won&apos;t wait for Monday.</H2>
+        <div>
+          <ul className="divide-y divide-line border-y border-line">
+            {fits.map(([t, p]) => (
+              <li key={t} className="py-5 text-lead">
+                <b className="font-semibold">{t}</b> <span className="text-ink-2">{p}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-6 max-w-[60ch] text-muted-foreground">
+            We&apos;re building Ondra with an independent luxury dealer in Dallas who exports to Nigeria, and taking on a
+            small number of pilot dealers alongside them.
+          </p>
+        </div>
       </Wrap>
     </section>
   );
@@ -543,19 +556,18 @@ function Demo() {
     <section id="demo" className="scroll-mt-4 border-t border-line bg-paper-2 py-24 sm:py-32">
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_1.25fr]">
         <div>
-          <p className="eyebrow text-muted">Book a demo</p>
-          <H2 className="mt-3 max-w-[14ch]">See it answer your buyers.</H2>
-          <p className="mt-5 max-w-[44ch] text-[18px] leading-relaxed text-ink-2">
+          <H2 className="max-w-[12ch]">See it answer your buyers.</H2>
+          <Lead className="mt-5 text-ink-2">
             Tell us how buyers reach you today. On the call we&apos;ll look at where leads slip through, then show Ondra
             answering the kinds of questions you get, on WhatsApp and on the phone.
-          </p>
-          <ul className="mt-8 space-y-3 text-[16px] text-ink-2">
-            <li className="flex gap-3">
-              <span className="text-sodium">●</span> Pilot places are limited while we onboard dealers one by one.
-            </li>
-            <li className="flex gap-3">
-              <span className="text-sodium">●</span> Prefer WhatsApp? Leave your number and we&apos;ll message you there.
-            </li>
+          </Lead>
+          <ul className="mt-8 space-y-3 text-ink-2">
+            {["Pilot places are limited while we onboard dealers one by one.", "Prefer WhatsApp? Leave your number and we'll message you there."].map((t) => (
+              <li key={t} className="flex gap-3">
+                <IconCheck size={20} stroke={1.75} className="mt-0.5 shrink-0 text-ok" aria-hidden="true" />
+                {t}
+              </li>
+            ))}
           </ul>
         </div>
         <DemoForm />
@@ -568,49 +580,26 @@ function Demo() {
 
 function Faq() {
   const qs = [
-    {
-      q: "Do my customers get a new phone number or WhatsApp?",
-      a: "No. You keep your number, WhatsApp and email. Calls reach Ondra through call forwarding, either for every call or only when your team doesn't pick up. WhatsApp connects through Meta's official API, and email through forwarding or by connecting Gmail or Microsoft 365.",
-    },
-    {
-      q: "What happens when the AI doesn't know the answer?",
-      a: "It tells the customer someone will follow up, hands the conversation to the right person with a short brief, and adds the question to your unanswered list. Answer it once and the AI knows it from then on.",
-    },
-    {
-      q: "Can it give prices or discounts?",
-      a: "Only what your policy allows. By default it won't commit to a final price, a discount or a delivery date. It passes those to your team.",
-    },
-    {
-      q: "We don't use a DMS. Will it work?",
-      a: "Yes. Ondra keeps client profiles, deals, tasks and the calendar itself. If you do use a DMS or CRM, tell us which one and we'll talk about connecting it.",
-    },
-    {
-      q: "Can my staff keep using the WhatsApp Business app?",
-      a: "In most cases, yes. Where Meta supports it, your team keeps using the app on the same number while Ondra works alongside it. We'll confirm this for your number during setup.",
-    },
-    {
-      q: "Are calls recorded?",
-      a: "Calls are recorded and transcribed so your team can review them. Ondra plays a recording notice at the start of the call in states that require it.",
-    },
-    {
-      q: "How much does it cost?",
-      a: "Pricing is being set with our pilot dealers. We'll go through it on the demo call, based on your size and channels.",
-    },
+    ["Do my customers get a new phone number or WhatsApp?", "No. You keep your number, WhatsApp and email. Calls reach Ondra through call forwarding, either for every call or only when your team doesn't pick up. WhatsApp connects through Meta's official API, and email through forwarding or by connecting Gmail or Microsoft 365."],
+    ["What happens when the AI doesn't know the answer?", "It tells the customer someone will follow up, hands the conversation to the right person with a short brief, and adds the question to your unanswered list. Answer it once and the AI knows it from then on."],
+    ["Can it give prices or discounts?", "Only what your policy allows. By default it won't commit to a final price, a discount or a delivery date. It passes those to your team."],
+    ["We don't use a DMS. Will it work?", "Yes. Ondra keeps client profiles, deals, tasks and the calendar itself. If you do use a DMS or CRM, tell us which one and we'll talk about connecting it."],
+    ["Can my staff keep using the WhatsApp Business app?", "In most cases, yes. Where Meta supports it, your team keeps using the app on the same number while Ondra works alongside it. We'll confirm this for your number during setup."],
+    ["Are calls recorded?", "Calls are recorded and transcribed so your team can review them. Ondra plays a recording notice at the start of the call in states that require it."],
+    ["How much does it cost?", "Pricing is being set with our pilot dealers. We'll go through it on the demo call, based on your size and channels."],
   ];
   return (
     <section id="faq" className="scroll-mt-4 bg-paper py-24 sm:py-32">
       <Wrap className="grid gap-12 lg:grid-cols-[1fr_2fr]">
         <H2>Questions dealers ask.</H2>
         <div className="divide-y divide-line border-y border-line">
-          {qs.map((i) => (
-            <details key={i.q} className="group py-5">
+          {qs.map(([q, a]) => (
+            <details key={q} className="group py-5">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-6 text-[18px] font-semibold [&::-webkit-details-marker]:hidden">
-                {i.q}
-                <span aria-hidden="true" className="mt-0.5 text-2xl leading-none text-muted transition group-open:rotate-45">
-                  +
-                </span>
+                {q}
+                <IconPlus size={22} stroke={1.5} aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45" />
               </summary>
-              <p className="mt-3 max-w-[65ch] text-[16px] leading-relaxed text-ink-2">{i.a}</p>
+              <p className="mt-3 max-w-[65ch] text-ink-2">{a}</p>
             </details>
           ))}
         </div>
@@ -623,14 +612,14 @@ function Faq() {
 
 function Footer() {
   return (
-    <footer className="bg-ink py-12 text-[#B9BBC2]">
+    <footer className="on-dark bg-ink py-12 text-white/65">
       <Wrap className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <Logo className="text-white" />
-          <p className="mt-3 max-w-[40ch] text-sm">AI agents that answer, book and route for car dealerships.</p>
+          <p className="text-small mt-3 max-w-[40ch]">AI agents that answer, book and route for car dealerships.</p>
         </div>
-        <div className="text-sm">
-          <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
+        <div className="text-small">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white hover:underline">
             {CONTACT_EMAIL}
           </a>
           <p className="mt-1">© {new Date().getFullYear()} Ondra (working name)</p>

@@ -13,6 +13,7 @@ This repo builds **Ondra**, a multi-tenant AI platform for car dealerships. The 
 - Never commit secrets. Use `.env` (gitignored) and keep `.env.example` complete and documented.
 - Ask before adding infrastructure that isn't in the plan.
 - When building `apps/web`, use `design/README.md` and the prototypes in `design/mockups/` as the reference for screens, layout, copy and colours.
+- For any UI work (apps/site, apps/web, components, charts, copy, reviews), use the `ondra-ui` skill in `.claude/skills/ondra-ui/`. It holds the tokens, component stack and design rules.
 
 ## Product rules that must never break
 
