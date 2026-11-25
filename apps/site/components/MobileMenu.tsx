@@ -4,6 +4,7 @@ import { IconMenu2, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { SIGN_IN_URL } from "@/lib/config";
 import { NAV_LINKS } from "./navLinks";
 import Wordmark from "./Wordmark";
 
@@ -77,7 +78,7 @@ export default function MobileMenu({ className = "" }: { className?: string }) {
                 </div>
                 <nav
                   aria-label="Menu"
-                  className="flex-1 overflow-y-auto px-4 pt-6 sm:px-7"
+                  className="flex-1 overflow-y-auto px-4 pt-2 sm:px-7"
                 >
                   <ul>
                     {items.map(([label, href], i) => (
@@ -95,7 +96,7 @@ export default function MobileMenu({ className = "" }: { className?: string }) {
                         <a
                           href={href}
                           onClick={() => setOpen(false)}
-                          className="font-display block py-4 text-[28px] tracking-[-0.03em] no-underline"
+                          className="font-display block py-3 text-[24px] tracking-[-0.03em] no-underline"
                         >
                           {label}
                         </a>
@@ -103,13 +104,16 @@ export default function MobileMenu({ className = "" }: { className?: string }) {
                     ))}
                   </ul>
                 </nav>
-                <div className="px-4 pb-8 pt-4 sm:px-7">
+                <div className="grid gap-3 px-4 pb-8 pt-4 sm:px-7">
                   <a
                     href="#demo"
                     onClick={() => setOpen(false)}
                     className="btn btn-primary w-full"
                   >
                     Book a demo
+                  </a>
+                  <a href={SIGN_IN_URL} className="btn btn-quiet w-full">
+                    Sign in
                   </a>
                 </div>
               </motion.div>

@@ -21,7 +21,7 @@ import MobileMenu from "@/components/MobileMenu";
 import { NAV_LINKS } from "@/components/navLinks";
 import { Briefing, PolicyCheck, SalesThread, ServiceCall, VipCall } from "@/components/stories";
 import StickyNav from "@/components/StickyNav";
-import { CONTACT_EMAIL } from "@/lib/config";
+import { CONTACT_EMAIL, SIGN_IN_URL } from "@/lib/config";
 
 export default function Home() {
   return (
@@ -93,6 +93,9 @@ function Nav() {
               {label}
             </a>
           ))}
+          <a href={SIGN_IN_URL} className="hidden text-white/80 no-underline hover:text-white sm:inline md:border-l md:border-white/15 md:pl-7">
+            Sign in
+          </a>
           <a href="#demo" className="btn btn-primary min-h-11 px-4">
             Book a demo
           </a>

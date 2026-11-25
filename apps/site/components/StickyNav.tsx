@@ -1,5 +1,6 @@
 "use client";
 
+import { SIGN_IN_URL } from "@/lib/config";
 import MobileMenu from "./MobileMenu";
 import { NAV_LINKS } from "./navLinks";
 import Wordmark from "./Wordmark";
@@ -36,6 +37,9 @@ export default function StickyNav() {
               {label}
             </a>
           ))}
+          <a href={SIGN_IN_URL} className="hidden text-white/75 no-underline hover:text-white sm:inline md:border-l md:border-white/15 md:pl-6">
+            Sign in
+          </a>
           <a href="#demo" className="btn btn-primary min-h-10 px-4 text-sm">
             Book a demo
           </a>
