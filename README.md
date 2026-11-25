@@ -56,7 +56,10 @@ packages/core  shared models, tools, policies, adapter interfaces and mocks
 evals/         golden conversations and the eval runner
 infra/         docker compose, later terraform
 docs/          DECISIONS.md, security docs, runbooks
+design/        UI concepts: landing page and dashboard prototypes (see design/README.md)
 ```
+
+The UI direction is in [design/README.md](design/README.md). Open `design/mockups/landing.html` and `design/mockups/app.html` in a browser to see the landing page concept and the dashboard screens.
 
 ## Before you write code
 

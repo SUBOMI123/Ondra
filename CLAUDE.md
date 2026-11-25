@@ -12,6 +12,7 @@ This repo builds **Ondra**, a multi-tenant AI platform for car dealerships. The 
 - Record non-obvious decisions in `docs/DECISIONS.md` (date, decision, why, alternatives).
 - Never commit secrets. Use `.env` (gitignored) and keep `.env.example` complete and documented.
 - Ask before adding infrastructure that isn't in the plan.
+- When building `apps/web`, use `design/README.md` and the prototypes in `design/mockups/` as the reference for screens, layout, copy and colours.
 
 ## Product rules that must never break
 
