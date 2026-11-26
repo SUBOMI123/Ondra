@@ -174,3 +174,25 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Why:** It's the founder's choice, and Anthropic points people to Voyage for embeddings. Word matching missed paraphrases and other languages. Measured on the seed answers: "¿abren los domingos?" matches Opening hours at 0.46, which keyword search can't do. Relevant matches scored 0.42 to 0.53, unrelated questions 0.10 to 0.33, hence 0.38. Re-measure when real dealer answers arrive.
 **Operational:** without a payment method, a Voyage account is limited to 3 requests a minute (seen as 429s during setup), so production needs billing enabled. The seed survives an embedding failure, and `python -m ondra_api.services.knowledge` backfills later.
 **Alternatives:** OpenAI or Cohere embeddings (another vendor with no advantage here); full-text only (fails on Spanish and paraphrase).
+
+## 2026-11-26: Settings are real, and owners and admins manage the team
+
+**Decision:** Settings now read from and save to the API. That covers:
+- business name, time zone and opening hours, which the agent uses for "open now";
+- the reply rules: draft mode, price sharing, handoff topics and AI disclosure;
+- the dealer's channel addresses: connect, switch off, disconnect.
+
+Anyone signed in can read Settings; only owners and admins (`settings:manage`) can change them, and other roles see a read-only page. Every change writes an `audit_log` row with before and after.
+
+Team management (`users:manage`): invite, change role, deactivate or reactivate. The rules:
+- Only an owner can create, change or deactivate an owner.
+- Nobody changes their own role or access.
+- A dealership keeps at least one active owner.
+- Deactivating someone revokes their sessions at once.
+- People are deactivated, never deleted, so the audit trail keeps pointing at them.
+
+**Invites:** a one-time link (`<tenant>.<random>`, stored as a SHA-256 hash, valid 7 days) lets the new teammate set a password of 12 or more characters. Until outbound transactional email is set up, the link is shown once to the person who created the invite, to send themselves. The Settings page says so plainly.
+
+**Channels are honest about their state.** A channel says "Test mode" when its provider isn't live (messages are simulated), "Live" when it is. Phone forwarding arrives with voice (Step 5). Real provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.
+
+**Why now, not Step 6:** the founder rejected a settings page that didn't save. A settings screen that looks editable but isn't is worse than none. Routing rules, quiet hours and the knowledge base answers stay in Step 6.

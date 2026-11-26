@@ -15,7 +15,12 @@ export class ApiError extends Error {
 
 async function readError(r: Response): Promise<ApiError> {
   const body = await r.json().catch(() => null)
-  return new ApiError(r.status, body?.detail ?? `Request failed (${r.status})`)
+  const detail = body?.detail
+  // Validation errors come back as a list; show the first one as a plain sentence.
+  const message = Array.isArray(detail)
+    ? String(detail[0]?.msg ?? "Check the form.").replace(/^Value error, /, "")
+    : (detail ?? `Request failed (${r.status})`)
+  return new ApiError(r.status, message)
 }
 
 export async function login(email: string, password: string): Promise<void> {
@@ -49,6 +54,33 @@ export async function api<T>(path: string): Promise<T> {
   if (r.status === 401 && (await refresh())) r = await go()
   if (!r.ok) throw await readError(r)
   return r.json()
+}
+
+/** Writes (POST, PUT, PATCH, DELETE) with the same sign-in refresh as `api`. */
+export async function send<T = unknown>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
+  const go = () =>
+    fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+  let r = await go()
+  if (r.status === 401 && (await refresh())) r = await go()
+  if (!r.ok) throw await readError(r)
+  return (r.status === 204 ? undefined : await r.json()) as T
+}
+
+/** For the invite page: set a password from an invite link (no sign-in). */
+export async function acceptInvite(token: string, password: string): Promise<void> {
+  const r = await fetch(`${API_URL}/auth/accept-invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!r.ok) throw await readError(r)
 }
 
 export type Me = { id: string; email: string; name: string; role: string; tenant_id: string; tenant_name: string }

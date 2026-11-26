@@ -2,7 +2,10 @@
 
 import * as React from "react"
 import { type Icon } from "@tabler/icons-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
+import { ACTIVE_ITEM, isActivePath } from "@/lib/nav"
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -21,17 +24,18 @@ export function NavSecondary({
     icon: Icon
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  const pathname = usePathname()
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <a href={item.url}>
+              <SidebarMenuButton asChild isActive={item.url !== "#" && isActivePath(pathname, item.url)} className={ACTIVE_ITEM}>
+                <Link href={item.url} aria-current={item.url !== "#" && isActivePath(pathname, item.url) ? "page" : undefined}>
                   <item.icon />
                   <span>{item.title}</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

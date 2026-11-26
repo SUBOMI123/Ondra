@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { ACTIVE_ITEM, isActivePath } from "@/lib/nav"
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -57,8 +58,8 @@ export function NavMain({
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               ) : (
-                <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
-                  <Link href={item.url}>
+                <SidebarMenuButton asChild tooltip={item.title} isActive={isActivePath(pathname, item.url)} className={ACTIVE_ITEM}>
+                  <Link href={item.url} aria-current={isActivePath(pathname, item.url) ? "page" : undefined}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </Link>

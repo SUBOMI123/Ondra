@@ -108,6 +108,33 @@ async def logout(response: Response, ondra_refresh: str | None = Cookie(default=
     return response
 
 
+class AcceptInviteIn(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/accept-invite", status_code=204)
+async def accept_invite(body: AcceptInviteIn, request: Request) -> None:
+    """A new teammate sets their password from their invite link. The link works once."""
+    from ondra_api.security import hash_password
+
+    if len(body.password) < 12:
+        raise HTTPException(422, "Use at least 12 characters.")
+    tenant_id = tenant_of_refresh_token(body.token)
+    bad = HTTPException(400, "This invite link has expired or was already used. Ask for a new one.")
+    if tenant_id is None:
+        raise bad
+    async with tenant_session(tenant_id) as db:
+        u = (await db.execute(select(User).where(User.invite_token_hash == hash_token(body.token)))).scalar_one_or_none()
+        if u is None or not u.active or u.invite_expires_at is None or u.invite_expires_at < datetime.now(UTC):
+            raise bad
+        u.password_hash = hash_password(body.password)
+        u.invite_token_hash = None
+        u.invite_expires_at = None
+        db.add(AuditLog(actor_type="user", actor_user_id=u.id, action="auth.accept_invite", resource=f"user:{u.id}",
+                        ip=request.client.host if request.client else None))
+
+
 me_router = APIRouter(tags=["auth"])
 
 

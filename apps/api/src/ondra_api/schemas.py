@@ -53,6 +53,7 @@ class UserOut(_Out):
     name: str
     role: str
     active: bool
+    invited: bool = False  # hasn't set a password yet
 
 
 class Page[T](BaseModel):

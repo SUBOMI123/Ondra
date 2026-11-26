@@ -79,6 +79,8 @@ class User(Base, TenantScoped):
     password_hash: Mapped[str | None] = mapped_column(Text)
     notification_prefs: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    invite_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Session(Base, TenantScoped):

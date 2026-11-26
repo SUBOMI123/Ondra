@@ -28,6 +28,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [show, setShow] = useState(false)
+  const [welcome, setWelcome] = useState(false)
+  useEffect(() => setWelcome(new URLSearchParams(window.location.search).has("welcome")), [])
 
   useEffect(() => {
     if (status === "signed-in") router.replace("/")
@@ -62,7 +64,9 @@ export default function LoginPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-[22rem]">
             <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">Use the email your dealership added you with.</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {welcome ? "You're set up. Sign in with your email and the password you just chose." : "Use the email your dealership added you with."}
+            </p>
 
             <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-5">
               <div className="grid gap-2">
