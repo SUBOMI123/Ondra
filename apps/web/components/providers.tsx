@@ -1,12 +1,24 @@
 "use client"
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 
-import { api, logout as apiLogout, refresh, type Me } from "@/lib/api"
+import { api, CLERK, logout as apiLogout, refresh, type Me } from "@/lib/api"
 
-type AuthState = { status: "loading" | "signed-in" | "signed-out"; me: Me | null; signOut: () => Promise<void>; reload: () => Promise<void> }
+import type { ClerkState } from "./clerk-bridge"
+
+// Loaded only when Clerk is the sign-in provider, so local development never loads Clerk.
+const ClerkSync = CLERK ? dynamic(() => import("./clerk-bridge").then((m) => m.ClerkSync), { ssr: false }) : null
+
+type AuthState = {
+  // "no-team": signed in with Clerk but not a member of any dealership.
+  status: "loading" | "signed-in" | "signed-out" | "no-team"
+  me: Me | null
+  signOut: () => Promise<void>
+  reload: () => Promise<void>
+}
 const AuthContext = createContext<AuthState | null>(null)
 
 export function useAuth(): AuthState {
@@ -32,11 +44,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Restore a session from the refresh cookie on first load.
-    refresh().then((ok) => (ok ? reload() : setStatus("signed-out")))
+    // Local sign-in: restore a session from the refresh cookie on first load. (Clerk reports through ClerkSync.)
+    if (!CLERK) refresh().then((ok) => (ok ? reload() : setStatus("signed-out")))
+  }, [reload])
+
+  const onClerk = useCallback((c: ClerkState) => {
+    if (c.status === "ready") reload()
+    else setStatus(c.status === "loading" ? "loading" : c.status)
+    if (c.status !== "ready") setMe(null)
   }, [reload])
 
   const signOut = useCallback(async () => {
+    if (CLERK) {
+      queryClient.clear()
+      const { clerkSignOut } = await import("./clerk-bridge")
+      await clerkSignOut()
+      return
+    }
     await apiLogout()
     queryClient.clear()
     setMe(null)
@@ -46,6 +70,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {ClerkSync && <ClerkSync onChange={onClerk} />}
       <AuthContext.Provider value={{ status, me, signOut, reload }}>{children}</AuthContext.Provider>
     </QueryClientProvider>
   )

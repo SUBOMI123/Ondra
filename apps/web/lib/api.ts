@@ -7,6 +7,20 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000
 
 let accessToken: string | null = null
 
+/** Sign-in provider: "local" (Ondra's own, for development and tests) or "clerk". */
+export const CLERK = process.env.NEXT_PUBLIC_AUTH_PROVIDER === "clerk"
+
+// With Clerk, tokens come from Clerk's session (short-lived, refreshed by Clerk); set by the Clerk bridge.
+let tokenSource: (() => Promise<string | null>) | null = null
+export function setTokenSource(fn: (() => Promise<string | null>) | null) {
+  tokenSource = fn
+}
+
+/** The token to send now, whichever provider is in use. */
+export async function authToken(): Promise<string | null> {
+  return tokenSource ? tokenSource() : accessToken
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message)
@@ -41,6 +55,7 @@ export function currentToken(): string | null {
 }
 
 export async function refresh(): Promise<boolean> {
+  if (tokenSource) return (await tokenSource()) !== null
   const r = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null)
   if (!r || !r.ok) return false
   accessToken = (await r.json()).access_token
@@ -53,8 +68,10 @@ export async function logout(): Promise<void> {
 }
 
 export async function api<T>(path: string): Promise<T> {
-  const go = () =>
-    fetch(`${API_URL}${path}`, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} })
+  const go = async () => {
+    const token = await authToken()
+    return fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  }
   let r = await go()
   if (r.status === 401 && (await refresh())) r = await go()
   if (!r.ok) throw await readError(r)
@@ -63,15 +80,17 @@ export async function api<T>(path: string): Promise<T> {
 
 /** Writes (POST, PUT, PATCH, DELETE) with the same sign-in refresh as `api`. */
 export async function send<T = unknown>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
-  const go = () =>
-    fetch(`${API_URL}${path}`, {
+  const go = async () => {
+    const token = await authToken()
+    return fetch(`${API_URL}${path}`, {
       method,
       headers: {
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
+  }
   let r = await go()
   if (r.status === 401 && (await refresh())) r = await go()
   if (!r.ok) throw await readError(r)
@@ -88,7 +107,17 @@ export async function acceptInvite(token: string, password: string): Promise<voi
   if (!r.ok) throw await readError(r)
 }
 
-export type Me = { id: string; email: string; name: string; role: string; tenant_id: string; tenant_name: string }
+export type Me = {
+  id: string
+  email: string
+  name: string
+  role: string
+  tenant_id: string
+  tenant_name: string
+  phone: string | null
+  // Clerk: their role needs two-step sign-in and this session didn't use it
+  mfa_required?: boolean
+}
 export type Page<T> = { items: T[]; total: number }
 export type Contact = {
   id: string

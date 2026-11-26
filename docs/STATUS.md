@@ -62,16 +62,20 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
   - live updates (server-sent events).
 - **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
 - **Voice agent** (`apps/voice`, see `docs/VOICE.md`): LiveKit Agents worker on the same tools as text, every spoken sentence checked before it's said, warm transfer, per-turn latency on the call record. Runs against the real model in text mode; registers with the LiveKit Cloud project. Not yet on a phone line.
+- **Sign-in with Clerk** (switch `AUTH_PROVIDER=clerk`): Clerk handles sign-in, two-step sign-in and invitation emails; Ondra keeps roles, permissions and tenant isolation. Owners and admins must use two-step sign-in. Invite-only. Prestige Motors is linked to a Clerk Organization on the development instance. Local sign-in remains for development and tests.
 - **Calls (API, Step 5):** call records, routing before anyone speaks (VIP rings the owner, never the AI), missed-call text-back only with recorded consent (otherwise a call-back task), summaries after the call, calls in the Inbox thread and client timeline. No voice agent or phone line yet.
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
-- **Quality:** 160 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
+- **Quality:** 165 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
 | Item | Blocks | Status |
 |---|---|---|
 | Rotate the Anthropic, Voyage, LiveKit, ElevenLabs and Twilio keys (all were pasted in chat) and set them in the environment settings | Security | **After testing, before anything goes live** (founder decision) |
+| Clerk Dashboard: turn on Invite-only (Restrictions); decide GitHub and Google sign-in (recommend GitHub off) | Clerk sign-in | **Waiting** |
+| Clerk: a paid plan before production (MFA needs it; the development instance caps an Organization at 5 members) | Clerk in production | Not started |
+| A first real Clerk sign-in: accept the owner invitation (`infra/auth/link_clerk.py --owner-email`), or allow test users | Proving Clerk sign-in end to end | **Waiting** |
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |

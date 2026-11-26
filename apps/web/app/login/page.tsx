@@ -1,6 +1,7 @@
 "use client"
 
 import { IconCalendarCheck, IconCrownFilled, IconEye, IconEyeOff, IconMoonStars } from "@tabler/icons-react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -11,7 +12,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Wordmark from "@/components/wordmark"
-import { ApiError, login } from "@/lib/api"
+import { ApiError, CLERK, login } from "@/lib/api"
+
+// Clerk's sign-in (with two-step sign-in) when Clerk is the provider; Ondra's own form otherwise.
+const ClerkSignIn = CLERK ? dynamic(() => import("@/components/clerk-bridge").then((m) => m.ClerkSignIn), { ssr: false }) : null
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://useondra.com"
 
@@ -55,7 +59,7 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       {/* Form side */}
-      <div className="flex flex-col gap-4 p-6 md:p-10">
+      <div className="flex min-w-0 flex-col gap-4 p-6 md:p-10">
         <div className="flex items-center justify-between">
           <a href={SITE_URL} aria-label="Ondra home">
             <Wordmark className="h-6 w-auto" />
@@ -64,6 +68,11 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-1 items-center justify-center">
+          {ClerkSignIn ? (
+            <div className="flex w-full max-w-[25rem] flex-col items-center gap-4">
+              {status === "no-team" ? <NoTeam /> : <ClerkSignIn />}
+            </div>
+          ) : (
           <div className="w-full max-w-[22rem]">
             <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
@@ -124,6 +133,7 @@ export default function LoginPage() {
               Forgot your password? Ask your dealership&apos;s owner or admin to reset it.
             </p>
           </div>
+          )}
         </div>
 
         <p className="text-center text-sm text-muted-foreground lg:text-left">
@@ -171,6 +181,22 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Signed in with Clerk, but no dealership has added them. Ondra is invite-only. */
+function NoTeam() {
+  const { signOut } = useAuth()
+  return (
+    <div className="w-full max-w-[22rem]">
+      <h1 className="text-2xl font-semibold tracking-tight">You&apos;re not on a dealership&apos;s team yet</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Ondra is invite-only. Ask your dealership&apos;s owner or admin to invite this email from Settings, Team.
+      </p>
+      <Button variant="outline" className="mt-6" onClick={() => signOut()}>
+        Sign out
+      </Button>
     </div>
   )
 }

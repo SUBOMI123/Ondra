@@ -9,7 +9,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo } from "react"
 
-import { API_URL, currentToken, refresh } from "@/lib/api"
+import { API_URL, authToken, refresh } from "@/lib/api"
 
 export type Change = { table: "messages" | "tasks" | "conversations" | "appointments" | "calls"; id: string; conversation_id: string | null }
 
@@ -23,7 +23,7 @@ export function useLiveUpdates(onChange: (c: Change) => void) {
       while (!stopped) {
         ctrl = new AbortController()
         try {
-          const token = currentToken()
+          const token = await authToken()
           const r = await fetch(`${API_URL}/live`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             signal: ctrl.signal,

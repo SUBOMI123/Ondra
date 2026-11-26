@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./shadcn.css";
+/* Clerk's sign-in components take our shadcn tokens (used only when Clerk is the sign-in provider). */
+@import "@clerk/ui/themes/shadcn.css";
 
 @custom-variant dark (&:is(.dark *));
 

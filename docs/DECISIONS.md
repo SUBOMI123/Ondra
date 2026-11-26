@@ -306,3 +306,26 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **Take over, hand back and assign apply to the client on every channel.** Someone handling Jordan by text must not
   find Ondra answering Jordan's WhatsApp. Alternative rejected: merging conversations in the database, which loses
   per-channel delivery state and would need a migration of every message.
+
+## 2026-11-26: Clerk for sign-in; Ondra keeps roles, permissions and tenant isolation
+
+- **Clerk proves who someone is** (sign-in, two-step sign-in, invitation emails, sessions). **Ondra decides what they
+  may do**: roles, VIP visibility and every permission check stay in Ondra's database and API, and Postgres row-level
+  security is unchanged. Alternative rejected: Clerk Organization roles as the source of truth. One wrong role in
+  Clerk's dashboard could expose VIPs, and the rules would live in two places.
+- **A dealership is a Clerk Organization** (`tenants.clerk_org_id`); a person is linked to their Clerk user
+  (`users.clerk_user_id`) on their first sign-in after accepting an invitation, by their verified email.
+- **The API verifies Clerk session tokens** (RS256, key from `CLERK_JWT_KEY` or Clerk's JWKS, `azp` checked against
+  `CLERK_AUTHORIZED_PARTIES`, unfinished sessions refused) and maps the active Organization to a dealership through
+  `tenant_for_clerk_org()`, a narrow SECURITY DEFINER lookup like the existing sign-in one.
+- **Two-step sign-in for owners and admins only, enforced by Ondra.** Clerk's own setting requires it for every
+  user. Ondra reads the token's `fva` claim: an owner or admin without a verified second factor gets 403
+  (`mfa_required`) everywhere except `/me`, and the dashboard shows the setup screen. MFA needs a paid Clerk plan in
+  production.
+- **Invite-only.** Team invites are Clerk Organization invitations (Clerk sends the email); deactivating someone
+  removes their Organization membership and Ondra refuses them at once. Ondra's own password sign-in is switched
+  off when `AUTH_PROVIDER=clerk`, so nobody can skip Clerk's two-step sign-in with an old password.
+- **Local sign-in stays** as the no-account mode for `docker compose up` and tests (CLAUDE.md: every external service
+  has a mock). Clerk is loaded in the web app only when `NEXT_PUBLIC_AUTH_PROVIDER=clerk`.
+- **Not yet:** Clerk webhooks (user deleted in Clerk's dashboard) need a public URL, so they come with hosting; until
+  then Ondra checks membership on every request.

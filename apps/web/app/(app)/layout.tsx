@@ -7,12 +7,13 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { useAuth } from "@/components/providers"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { MfaRequired } from "@/components/mfa-required"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { status } = useAuth()
+  const { status, me } = useAuth()
   const router = useRouter()
   useEffect(() => {
-    if (status === "signed-out") router.replace("/login")
+    if (status === "signed-out" || status === "no-team") router.replace("/login")
   }, [status, router])
 
   if (status !== "signed-in") {
@@ -22,6 +23,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     )
   }
+  // Clerk: an owner or admin who signed in without two-step sign-in sets it up before anything else.
+  if (me?.mfa_required) return <MfaRequired />
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "calc(var(--spacing) * 64)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}

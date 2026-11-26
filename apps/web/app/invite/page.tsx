@@ -15,7 +15,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Wordmark from "@/components/wordmark"
-import { acceptInvite } from "@/lib/api"
+import { acceptInvite, CLERK } from "@/lib/api"
+import dynamic from "next/dynamic"
+
+// With Clerk, the invitation email links here; Clerk's sign-up reads the invitation from the link.
+const ClerkSignUp = CLERK ? dynamic(() => import("@/components/clerk-bridge").then((m) => m.ClerkSignUp), { ssr: false }) : null
 
 function InviteForm() {
   const router = useRouter()
@@ -88,8 +92,8 @@ export default function InvitePage() {
         <ThemeToggle />
       </div>
       <main className="flex flex-1 items-center justify-center">
-        <div className="w-full max-w-[22rem]">
-          <Suspense fallback={null}><InviteForm /></Suspense>
+        <div className={ClerkSignUp ? "flex w-full max-w-[25rem] justify-center" : "w-full max-w-[22rem]"}>
+          {ClerkSignUp ? <ClerkSignUp /> : <Suspense fallback={null}><InviteForm /></Suspense>}
         </div>
       </main>
     </div>

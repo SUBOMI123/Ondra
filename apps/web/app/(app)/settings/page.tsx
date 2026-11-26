@@ -41,7 +41,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { api, send, type Contact, type Page } from "@/lib/api"
+import { api, CLERK, send, type Contact, type Page } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 // --- types from the API ----------------------------------------------------------------------------------------
@@ -244,10 +244,16 @@ function InviteForm({ assignable, onDone }: { assignable: string[]; onDone: () =
   const [role, setRole] = useState("sales")
   const [link, setLink] = useState<string | null>(null)
   const invite = useMutation({
-    mutationFn: () => send<{ invite_link: string }>("POST", "/users/invite", { name, email, role }),
+    mutationFn: () => send<{ invite_link?: string; emailed?: boolean }>("POST", "/users/invite", { name, email, role }),
     onSuccess: (r) => {
-      setLink(r.invite_link)
       qc.invalidateQueries({ queryKey: ["users"] })
+      if (r.invite_link) {
+        setLink(r.invite_link)
+      } else {
+        // Clerk emails the invitation; nothing to copy.
+        toast(`Invitation emailed to ${email}.`)
+        onDone()
+      }
     },
   })
   if (link) {
@@ -348,8 +354,8 @@ function TeamSection() {
     onError: (e) => toast(errorText(e)),
   })
   const reinvite = useMutation({
-    mutationFn: (id: string) => send<{ invite_link: string }>("POST", `/users/${id}/invite`),
-    onSuccess: (r) => navigator.clipboard.writeText(r.invite_link).then(
+    mutationFn: (id: string) => send<{ invite_link?: string; emailed?: boolean }>("POST", `/users/${id}/invite`),
+    onSuccess: (r) => !r.invite_link ? toast("Invitation emailed again.") : navigator.clipboard.writeText(r.invite_link).then(
       () => toast("New invite link copied. The old one no longer works."),
       () => toast(`New invite link: ${r.invite_link}`),
     ),
@@ -403,7 +409,7 @@ function TeamSection() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {u.invited && u.active && (
-                          <DropdownMenuItem onSelect={() => reinvite.mutate(u.id)}>Copy a new invite link</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => reinvite.mutate(u.id)}>{CLERK ? "Email the invitation again" : "Copy a new invite link"}</DropdownMenuItem>
                         )}
                         {u.active ? (
                           <DropdownMenuItem onSelect={() => update.mutate({ id: u.id, patch: { active: false } })}>
