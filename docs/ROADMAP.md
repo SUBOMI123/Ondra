@@ -4,9 +4,7 @@ How we get from the marketing site to a dealer using Ondra. The build order and 
 
 ## Where we are
 
-- **Done:** the marketing site (`apps/site`), logo, brand palette, hosting architecture (`docs/ARCHITECTURE.md`), demo form wired to Formspree.
-- **Not started:** the product itself. No API, database, dashboard or agent exists yet.
-- **Out of date:** `design/mockups/app.html` and the dashboard part of the `ondra-ui` skill (`references/dashboard.md`). Both predate the champagne palette and the move away from a Lagos-only story: they use an old navy palette, a font width Inter doesn't have, and Lagos sample data. They must be refreshed before any dashboard screen is built (D0 below).
+See `docs/STATUS.md`, kept current with every piece of work. This file covers sequencing and lead times.
 
 ## Three tracks, run in parallel
 

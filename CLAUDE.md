@@ -10,6 +10,7 @@ This repo builds **Ondra**, a multi-tenant AI platform for car dealerships. The 
 - Every table holding dealer data has `tenant_id`, and every query is tenant-scoped. Enforce it with Postgres row-level security and prove it with tests.
 - Tests are part of done: unit tests for domain logic, integration tests for adapters against mocks, and conversation evals for the agent.
 - Record non-obvious decisions in `docs/DECISIONS.md` (date, decision, why, alternatives).
+- Keep `docs/STATUS.md` current: update it in the same commit as any work that changes a step's status, an acceptance check, a founder blocker or a known gap.
 - Never commit secrets. Use `.env` (gitignored) and keep `.env.example` complete and documented.
 - Ask before adding infrastructure that isn't in the plan.
 - When building `apps/web`, use `design/README.md` and the prototypes in `design/mockups/` as the reference for screens, layout, copy and colours.
