@@ -40,15 +40,15 @@ const data = {
   navMain: [
     { title: "Today", url: "/", icon: IconLayoutDashboard },
     { title: "Inbox", url: "/inbox", icon: IconMessages, badge: "6" },
-    { title: "Calls", url: "#", icon: IconPhone, soon: "Step 5" },
-    { title: "Calendar", url: "#", icon: IconCalendarEvent, soon: "Step 4" },
+    { title: "Calls", url: "/calls", icon: IconPhone, badge: "2" },
+    { title: "Calendar", url: "/calendar", icon: IconCalendarEvent },
     { title: "Clients", url: "/clients", icon: IconUsers },
     { title: "Deals", url: "/deals", icon: IconLayoutKanban },
     { title: "Tasks", url: "/tasks", icon: IconChecklist, badge: "2" },
     { title: "Inventory", url: "/inventory", icon: IconCar },
   ],
   navSecondary: [
-    { title: "Settings", url: "#", icon: IconSettings },
+    { title: "Settings", url: "/settings", icon: IconSettings },
     { title: "Help", url: "#", icon: IconHelp },
     { title: "Search", url: "#", icon: IconSearch },
   ],

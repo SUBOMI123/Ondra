@@ -2,6 +2,7 @@
 
 import { IconBrandWhatsapp, IconCrownFilled, IconMail, IconMessage, IconPhone } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
+import Link from "next/link"
 import { useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
@@ -65,12 +66,12 @@ export default function ClientsPage() {
                   const ch = CHANNEL[c.preferred_channel as keyof typeof CHANNEL]
                   const phone = formatPhone(c.identities.find((i) => i.kind === "phone")?.value)
                   return (
-                    <TableRow key={c.id} data-vip={c.is_vip || undefined}>
+                    <TableRow key={c.id} data-vip={c.is_vip || undefined} className="relative">
                       <TableCell className="font-medium">
-                        <span className="flex items-center gap-1.5">
+                        <Link href={`/clients/profile?id=${c.id}`} className="flex items-center gap-1.5 rounded-sm outline-none after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring">
                           {c.is_vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
                           {c.display_name}
-                        </span>
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5">

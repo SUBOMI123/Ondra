@@ -321,3 +321,84 @@ export const TODAY_APPOINTMENTS = [
   { time: "2:00 pm", title: "Delivery, Tahoe Z71", client: "Darnell Brooks", who: "Chris", where: "Showroom", byOndra: false },
   { time: "6:30 pm", title: "Test drive, Silverado LT", client: "Kevin Lee", who: "Daniel", where: "Lot", byOndra: true },
 ]
+
+/* ------------------------------------------------------------------ Calendar (Step 4) */
+
+export type Lane = { id: string; name: string; group: "Sales" | "Service" }
+export const LANES: Lane[] = [
+  { id: "daniel", name: "Daniel", group: "Sales" },
+  { id: "chris", name: "Chris", group: "Sales" },
+  { id: "bay1", name: "Bay 1", group: "Service" },
+  { id: "bay2", name: "Bay 2", group: "Service" },
+  { id: "bay3", name: "Bay 3", group: "Service" },
+]
+
+export type Booking = { lane: string; start: number; end: number; title: string; client: string; byOndra?: boolean; vip?: boolean; detail?: string }
+/** Hours as decimals on today's date (9.5 = 9:30 am). */
+export const BOOKINGS: Booking[] = [
+  { lane: "daniel", start: 10, end: 11, title: "Test drive", client: "Priya Shah", byOndra: true, detail: "2024 RAV4 Hybrid. Pre-approved with her credit union." },
+  { lane: "daniel", start: 13, end: 13.5, title: "Video walkaround", client: "Omar Haddad", byOndra: true, detail: "2022 Lexus ES 350, by video call." },
+  { lane: "daniel", start: 18.5, end: 19.5, title: "Test drive", client: "Kevin Lee", byOndra: true, detail: "2022 Silverado LT. Needs financing; credit application started." },
+  { lane: "chris", start: 11.5, end: 12.5, title: "Test drive", client: "Tom Nguyen", detail: "Ford Bronco Badlands, second drive." },
+  { lane: "chris", start: 14, end: 15, title: "Delivery", client: "Darnell Brooks", detail: "2022 Tahoe Z71. Paperwork signed Tuesday." },
+  { lane: "chris", start: 16, end: 16.5, title: "Trade-in appraisal", client: "Robert Hale", vip: true, detail: "Range Rover for his daughter. Owner joins." },
+  { lane: "bay1", start: 8, end: 10, title: "60k-mile service", client: "Luis Romero", byOndra: true, detail: "2020 Tacoma. Waiting in the lounge." },
+  { lane: "bay1", start: 13, end: 14.5, title: "Transmission check", client: "Ethan Walker", detail: "2018 Accord." },
+  { lane: "bay2", start: 9, end: 10.5, title: "Recall", client: "Mei Chen", byOndra: true, detail: "2019 CR-V. Parts confirmed in stock." },
+  { lane: "bay2", start: 15, end: 16, title: "Tires", client: "Rachel Green", detail: "2021 Camry, four tires." },
+  { lane: "bay3", start: 7.5, end: 9, title: "Brakes", client: "Marcus Taylor", byOndra: true, detail: "2019 F-150. Loaner requested." },
+]
+
+/* ------------------------------------------------------------------ Calls (Step 5) */
+
+export type CallTurn = { who: "caller" | "ondra" | "staff"; text: string }
+export type CallLog = {
+  id: string
+  caller: string
+  number: string
+  vip?: boolean
+  direction: "in" | "out"
+  time: string
+  duration: string
+  handledBy: "ondra" | "staff" | "missed"
+  staff?: string
+  outcome: string
+  needsCallback?: boolean
+  summary?: string
+  transcript?: CallTurn[]
+}
+
+export const LIVE_CALL = { caller: "(469) 555-0177", reason: "Asking about the white Highlander", seconds: 74 }
+
+export const CALLS: CallLog[] = [
+  { id: "c1", caller: "Robert Hale", number: "(214) 555-1029", vip: true, direction: "in", time: "8:52 pm", duration: "0:00", handledBy: "missed", outcome: "Missed. Rang your mobile, then the office.", needsCallback: true },
+  { id: "c2", caller: "(972) 555-0143", number: "(972) 555-0143", direction: "in", time: "7:48 pm", duration: "1:05", handledBy: "ondra", outcome: "Asked for a manager about a warranty claim", needsCallback: true,
+    summary: "Unhappy about a warranty repair on a 2021 Explorer. Asked for a manager, so Ondra took a number and promised a call back today.",
+    transcript: [
+      { who: "caller", text: "I need to speak to a manager about my warranty repair." },
+      { who: "ondra", text: "I'm sorry it's been frustrating. The service manager is out tonight, so I'll have them call you first thing tomorrow. Is this the best number?" },
+      { who: "caller", text: "Yes. Before noon please." },
+      { who: "ondra", text: "Before noon tomorrow. I've passed on the details so you won't have to repeat yourself." },
+    ] },
+  { id: "c3", caller: "Kevin Lee", number: "(214) 555-1000", direction: "in", time: "9:20 pm", duration: "1:12", handledBy: "ondra", outcome: "Moved his test drive to Thursday 6:30",
+    summary: "Asked to move Thursday's test drive to 6:30. Confirmed he'll bring his license; no trade-in.",
+    transcript: [
+      { who: "caller", text: "Hi, it's Kevin. Can we make Thursday 6:30 instead of 6?" },
+      { who: "ondra", text: "Of course, Kevin. Thursday at 6:30 with Daniel, and the Silverado will be out front. Anything else?" },
+      { who: "caller", text: "That's it, thanks." },
+    ] },
+  { id: "c4", caller: "Marcus Taylor", number: "(214) 555-1002", direction: "in", time: "7:02 pm", duration: "2:41", handledBy: "ondra", outcome: "Booked brakes, Wed 7:30 am, Bay 3",
+    summary: "Squeaking brakes on his 2019 F-150. Booked Wednesday 7:30 am in Bay 3 and requested a loaner.",
+    transcript: [
+      { who: "caller", text: "My brakes are squeaking on the F-150." },
+      { who: "ondra", text: "Let's get that looked at. Is it the 2019 F-150 on your account?" },
+      { who: "caller", text: "Yes." },
+      { who: "ondra", text: "Wednesday at 7:30 am is open. Do you need a loaner?" },
+      { who: "caller", text: "Yes please." },
+      { who: "ondra", text: "Done. Wednesday 7:30 am with Maria, and a loaner will be ready." },
+    ] },
+  { id: "c5", caller: "Tom Nguyen", number: "(214) 555-1006", direction: "out", time: "4:15 pm", duration: "6:20", handledBy: "staff", staff: "Chris", outcome: "Booked a second test drive",
+    summary: "Chris called back about the Bronco. Second test drive booked for today 11:30." },
+  { id: "c6", caller: "(817) 555-0190", number: "(817) 555-0190", direction: "in", time: "3:40 pm", duration: "0:48", handledBy: "ondra", outcome: "Asked about Saturday hours",
+    summary: "Asked if the service department is open Saturdays. Ondra gave the hours (9 am to 6 pm)." },
+]

@@ -80,3 +80,17 @@ async def test_vehicle_search_matches_every_word(client):
     narrowed = (await client.get(f"/vehicles?q=tahoe {tahoes['items'][0]['year']}&limit=200", headers=h)).json()
     assert 0 < narrowed["total"] <= tahoes["total"]
     assert (await client.get("/vehicles?q=lamborghini", headers=h)).json()["total"] == 0
+
+
+async def test_client_profile_respects_vip_visibility_and_tenants(client):
+    owner = await login(client, "owner@prestigemotors.example")
+    contacts = (await client.get("/contacts?limit=200", headers=owner)).json()["items"]
+    vip = next(c for c in contacts if c["display_name"] == "Robert Hale")
+    regular = next(c for c in contacts if c["display_name"] == "Kevin Lee")
+    assert (await client.get(f"/contacts/{vip['id']}", headers=owner)).status_code == 200
+    profile = (await client.get(f"/contacts/{regular['id']}", headers=owner)).json()
+    assert {i["kind"] for i in profile["identities"]} >= {"phone", "email"}
+    sales = await login(client, "daniel@prestigemotors.example")
+    assert (await client.get(f"/contacts/{vip['id']}", headers=sales)).status_code == 404
+    other = await login(client, "owner@lonestar.example")
+    assert (await client.get(f"/contacts/{regular['id']}", headers=other)).status_code == 404

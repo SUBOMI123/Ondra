@@ -9,7 +9,7 @@ const { chromium } = require("playwright")
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3001"
 // Add every new page here.
-const PAGES = ["/", "/inbox", "/clients", "/deals", "/tasks", "/inventory"]
+const PAGES = ["/", "/inbox", "/calls", "/calendar", "/clients", "/deals", "/tasks", "/inventory", "/settings"]
 const WIDTHS = [390, 768, 1024, 1440]
 const failures = []
 
@@ -37,7 +37,11 @@ for (const scheme of ["light", "dark"]) {
   await page.fill("#password", process.env.REVIEW_PASSWORD ?? "ondra-dev-password")
   await page.click("button[type=submit]")
   await page.waitForURL(`${BASE}/`)
-  for (const path of PAGES) {
+  // Plus one real client profile and one VIP profile, found through the Clients list.
+  await page.goto(`${BASE}/clients`)
+  await page.waitForSelector("a[href^='/clients/profile']")
+  const profiles = await page.$$eval("a[href^='/clients/profile']", (as) => [as[0].getAttribute("href"), as.find((a) => a.querySelector("[aria-label=VIP]"))?.getAttribute("href")].filter(Boolean))
+  for (const path of [...PAGES, ...profiles]) {
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(BASE + path)
@@ -46,7 +50,7 @@ for (const scheme of ["light", "dark"]) {
         overflow: document.documentElement.scrollWidth - innerWidth,
         h1: document.querySelectorAll("h1").length,
         vipAi: document.querySelectorAll("[data-vip] [data-slot^=ai-], [data-vip] .text-ai").length,
-        unlabeled: [...document.querySelectorAll("button, a")].filter((b) => !b.textContent.trim() && !b.getAttribute("aria-label") && !b.title).length,
+        unlabeled: [...document.querySelectorAll("button, a")].filter((b) => !b.textContent.trim() && !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby") && !b.title && !(b.labels && b.labels.length)).length,
       }))
       const at = `${path} at ${width}px (${scheme})`
       if (r.overflow > 0) failures.push(`${at}: scrolls sideways by ${r.overflow}px`)
@@ -63,7 +67,7 @@ if (failures.length) {
   console.error(`UI review: ${failures.length} problem(s)\n- ${failures.join("\n- ")}`)
   process.exit(1)
 }
-console.log(`UI review passed: ${PAGES.length} pages x ${WIDTHS.length} widths x 2 themes, plus source checks.`)
+console.log(`UI review passed: ${PAGES.length + 2} pages x ${WIDTHS.length} widths x 2 themes, plus source checks.`)
 }
 
 main().catch((e) => {

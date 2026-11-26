@@ -1,6 +1,8 @@
 """Read endpoints for Step 1: the seeded contacts, vehicles and team, all tenant-scoped by RLS."""
 
-from fastapi import APIRouter, Depends, Query
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +40,17 @@ async def list_contacts(
         by_contact.setdefault(i.contact_id, []).append(IdentityOut.model_validate(i))
     items = [ContactOut.model_validate(c).model_copy(update={"identities": by_contact.get(c.id, [])}) for c in rows]
     return Page(items=items, total=total)
+
+
+@router.get("/contacts/{contact_id}", response_model=ContactOut)
+async def get_contact(contact_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_READ))) -> ContactOut:
+    caller, db = ctx
+    c = (await db.execute(select(Contact).where(Contact.id == contact_id))).scalar_one_or_none()
+    # A VIP the caller may not see looks exactly like a contact that doesn't exist.
+    if c is None or (c.is_vip and not can_see_vips(caller.role) and c.vip_owner_user_id != caller.user_id):
+        raise HTTPException(404, "No client with that id.")
+    idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
+    return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
 
 
 @router.get("/vehicles", response_model=Page[VehicleOut])
