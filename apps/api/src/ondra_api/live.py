@@ -18,15 +18,10 @@ from collections import defaultdict
 from collections.abc import AsyncIterator
 
 import asyncpg
-import jwt
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from ondra_core.models import User
-from sqlalchemy import select
 
 from ondra_api.config import get_settings
-from ondra_api.db import tenant_session
-from ondra_api.security import decode_access_token
 
 log = logging.getLogger("ondra.live")
 router = APIRouter(tags=["live"])
@@ -74,19 +69,13 @@ broker = Broker()
 
 
 async def _caller_tenant(request: Request) -> uuid.UUID:
-    header = request.headers.get("authorization", "")
-    if not header.lower().startswith("bearer "):
-        raise HTTPException(401, "Sign in to continue.")
-    try:
-        claims = decode_access_token(header[7:])
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Sign in to continue.") from None
-    tenant_id = uuid.UUID(claims["tid"])
-    async with tenant_session(tenant_id) as db:  # short check, then no transaction while streaming
-        user = (await db.execute(select(User).where(User.id == uuid.UUID(claims["sub"])))).scalar_one_or_none()
-        if user is None or not user.active:
-            raise HTTPException(401, "This account is no longer active.")
-    return tenant_id
+    from ondra_api.deps import MFA_REQUIRED, authenticate
+
+    caller, session = await authenticate(request)  # short check, then no transaction while streaming
+    await session.info.pop("cm").__aexit__(None, None, None)
+    if caller.mfa_missing:
+        raise HTTPException(403, MFA_REQUIRED)
+    return caller.tenant_id
 
 
 @router.get("/live")

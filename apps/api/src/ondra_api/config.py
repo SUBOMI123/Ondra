@@ -17,6 +17,16 @@ class Settings(BaseSettings):
     # The API's public URL as providers call it. Twilio signs the exact URL, so this must match what Twilio sees.
     public_api_url: str = "http://localhost:8000"
 
+    # --- Sign-in. "local": Ondra's own email and password (development, tests, no accounts needed). "clerk": Clerk
+    # (staging and production). Roles, permissions and tenant isolation are Ondra's either way.
+    auth_provider: str = "local"
+    clerk_secret_key: str = ""
+    clerk_api_base: str = "https://api.clerk.com"
+    clerk_jwt_key: str = ""  # optional PEM public key (Dashboard > API keys) for networkless verification
+    clerk_authorized_parties: str = ""  # comma-separated origins allowed to use tokens, e.g. https://app.ondra.ai
+    # Owners and admins must have a second factor (MFA) when signing in with Clerk.
+    clerk_mfa_roles: str = "owner,admin"
+
     # --- AI ---
     anthropic_api_key: str = ""
     # Set explicitly so an ANTHROPIC_BASE_URL in the shell can't redirect the app's traffic.

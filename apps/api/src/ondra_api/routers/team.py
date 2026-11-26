@@ -12,6 +12,7 @@ password. Until Postmark sends email for us, the link is shown once to the perso
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -19,7 +20,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from ondra_core.channels.identity import normalize_phone
-from ondra_core.models import AuditLog, Session, User
+from ondra_core.models import AuditLog, Session, Tenant, User
 from ondra_core.permissions import Perm
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, update
@@ -60,7 +61,7 @@ def clean_phone(raw: str | None) -> str | None:
 
 def user_out(u: User) -> dict:
     return {"id": str(u.id), "email": u.email, "name": u.name, "role": u.role, "active": u.active,
-            "invited": u.password_hash is None, "phone": u.phone}
+            "invited": u.password_hash is None and u.clerk_user_id is None, "phone": u.phone}
 
 
 def new_invite_token(tenant_id: uuid.UUID) -> str:
@@ -72,6 +73,32 @@ def _issue_invite(u: User, tenant_id: uuid.UUID) -> str:
     u.invite_token_hash = hash_token(token)
     u.invite_expires_at = datetime.now(UTC) + timedelta(days=INVITE_DAYS)
     return f"{get_settings().app_base_url.rstrip('/')}/invite?token={token}"
+
+
+def _clerk() -> bool:
+    return get_settings().auth_provider == "clerk"
+
+
+async def _clerk_org(db: AsyncSession) -> str:
+    org = (await db.execute(select(Tenant.clerk_org_id).limit(1))).scalar()
+    if not org:
+        raise HTTPException(409, "This dealership isn't connected to Clerk yet, so invitations can't be sent.")
+    return org
+
+
+async def _send_invite(db: AsyncSession, u: User, tenant_id: uuid.UUID) -> dict:
+    """Local sign-in: a link to copy. Clerk: Clerk emails an Organization invitation; accepting it links them."""
+    if not _clerk():
+        return {"invite_link": _issue_invite(u, tenant_id), "expires_in_days": INVITE_DAYS}
+    from ondra_api import clerk
+
+    org = await _clerk_org(db)
+    try:
+        await asyncio.to_thread(clerk.client().invite, org, u.email, clerk.clerk_role(u.role),
+                                f"{get_settings().app_base_url.rstrip('/')}/invite")
+    except clerk.ClerkApiError as e:
+        raise HTTPException(502, f"Clerk didn't send the invitation: {e.message}") from None
+    return {"emailed": True}
 
 
 def _audit(db: AsyncSession, caller: Caller, request: Request, action: str, u: User, before, after) -> None:
@@ -86,15 +113,15 @@ async def invite(body: InviteIn, request: Request,
     if body.role == "owner" and caller.role != "owner":
         raise HTTPException(403, "Only an owner can add another owner.")
     u = User(email=body.email.lower(), name=body.name.strip(), role=body.role, password_hash=None, active=True)
-    link = _issue_invite(u, caller.tenant_id)
     try:
         async with db.begin_nested():
             db.add(u)
             await db.flush()
     except IntegrityError:
         raise HTTPException(409, "That email already has an Ondra account.") from None
+    sent = await _send_invite(db, u, caller.tenant_id)
     _audit(db, caller, request, "team.invite", u, None, user_out(u))
-    return {"user": user_out(u), "invite_link": link, "expires_in_days": INVITE_DAYS}
+    return {"user": user_out(u), **sent}
 
 
 @router.post("/{user_id}/invite")
@@ -104,11 +131,11 @@ async def resend_invite(user_id: uuid.UUID, request: Request,
     u = await db.get(User, user_id)
     if u is None:
         raise HTTPException(404)
-    if u.password_hash is not None:
+    if u.password_hash is not None or u.clerk_user_id is not None:
         raise HTTPException(409, "They've already set up their account.")
-    link = _issue_invite(u, caller.tenant_id)  # the old link stops working
+    sent = await _send_invite(db, u, caller.tenant_id)  # a new local link replaces the old one
     _audit(db, caller, request, "team.reinvite", u, None, None)
-    return {"user": user_out(u), "invite_link": link, "expires_in_days": INVITE_DAYS}
+    return {"user": user_out(u), **sent}
 
 
 @router.patch("/{user_id}")
@@ -141,6 +168,17 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
         # refused sooner, because every request re-reads `active` from the database.
         await db.execute(update(Session).where(Session.user_id == u.id, Session.revoked_at.is_(None))
                          .values(revoked_at=func.now()))
+        if _clerk() and u.clerk_user_id:
+            # Also out of the Clerk Organization. Ondra already refuses them (it re-reads `active` every request).
+            from ondra_api import clerk
+
+            try:
+                await asyncio.to_thread(clerk.client().remove_member, await _clerk_org(db), u.clerk_user_id)
+            except clerk.ClerkApiError as e:
+                if e.status != 404:
+                    raise HTTPException(502, f"Deactivated in Ondra, but Clerk refused to remove them: {e.message}") from None
+    elif body.active is True and _clerk() and u.clerk_user_id:
+        await _send_invite(db, u, caller.tenant_id)  # back into the Clerk Organization
     after = user_out(u)
     _audit(db, caller, request, "team.update", u, before, after)
     return after

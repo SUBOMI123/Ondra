@@ -25,7 +25,14 @@ from ondra_api.security import (
     verify_password,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+
+def _local_sign_in_only() -> None:
+    """With Clerk on, Ondra's own passwords don't sign anyone in (they'd skip Clerk's MFA)."""
+    if get_settings().auth_provider == "clerk":
+        raise HTTPException(404, "Sign in with your dealership's Clerk account.")
+
+
+router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(_local_sign_in_only)])
 COOKIE = "ondra_refresh"
 
 
@@ -144,7 +151,7 @@ async def me(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> MeOut:
     user = (await db.execute(select(User).where(User.id == caller.user_id))).scalar_one()
     tenant = (await db.execute(select(Tenant))).scalar_one()
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role,
-                 tenant_id=tenant.id, tenant_name=tenant.name, phone=user.phone)
+                 tenant_id=tenant.id, tenant_name=tenant.name, phone=user.phone, mfa_required=caller.mfa_missing)
 
 
 class MePatch(BaseModel):

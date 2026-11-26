@@ -17,6 +17,7 @@ class MeOut(_Out):
     tenant_id: uuid.UUID
     tenant_name: str
     phone: str | None = None
+    mfa_required: bool = False  # Clerk sign-in: their role needs two-step sign-in and they haven't used it
 
 
 class IdentityOut(_Out):

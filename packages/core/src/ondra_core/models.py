@@ -63,6 +63,7 @@ class Tenant(Base, Timestamped):
     business_hours: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     plan: Mapped[str] = mapped_column(String(40), server_default="pilot")
     settings: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    clerk_org_id: Mapped[str | None] = mapped_column(String(64), unique=True)  # the dealership's Clerk Organization
 
 
 class User(Base, TenantScoped):
@@ -76,6 +77,7 @@ class User(Base, TenantScoped):
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))
     phone: Mapped[str | None] = mapped_column(String(32))
+    clerk_user_id: Mapped[str | None] = mapped_column(String(64), unique=True)  # linked on their first Clerk sign-in
     password_hash: Mapped[str | None] = mapped_column(Text)
     notification_prefs: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
