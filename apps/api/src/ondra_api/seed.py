@@ -46,6 +46,13 @@ USERS = [
     ("admin@prestigemotors.example", "Chris Bell", "admin", "+12145550104"),
 ]
 
+# Body style and seats, as an inventory feed would provide them (search and "3-row" questions rely on it).
+BODY = {
+    "Silverado 1500": ("truck", 5), "F-150": ("truck", 5), "1500": ("truck", 5), "Highlander": ("SUV", 8),
+    "RAV4 Hybrid": ("SUV", 5), "CR-V": ("SUV", 5), "RX 350": ("SUV", 5), "GLE 450": ("SUV", 5), "X5": ("SUV", 5),
+    "Grand Cherokee L": ("SUV", 7), "Bronco": ("SUV", 5), "Model Y": ("SUV", 5), "Tahoe": ("SUV", 8), "Sport": ("SUV", 5),
+}
+
 MODELS = [
     ("Chevrolet", "Silverado 1500", ["LT", "RST", "LTZ"], 38000, 56000),
     ("Ford", "F-150", ["XLT", "Lariat", "Platinum"], 36000, 62000),
@@ -210,7 +217,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                     tenant_id=t, stock_number=f"{make[:1]}{year % 100:02d}-{1000 + i * 37 % 9000:04d}", vin=_vin(rng),
                     year=year, make=make, model=model, trim=rng.choice(trims),
                     price=round(rng.uniform(lo, hi) / 100) * 100, mileage=0 if year == 2025 else rng.randint(4000, 68000),
-                    status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed",
+                    status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed", raw={"body": BODY.get(model, ("car", 5))[0], "seats": BODY.get(model, ("car", 5))[1]},
                 ))
 
             channels = ["sms", "email", "whatsapp", "phone"]

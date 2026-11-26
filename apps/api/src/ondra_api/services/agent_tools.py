@@ -114,9 +114,16 @@ class DbToolBackend:
             # Seat counts come from the inventory feed (raw.seats); vehicles without one aren't excluded.
             q = q.where(text("coalesce((vehicles.raw->>'seats')::int, 99) >= :seats").bindparams(seats=min_seats))
         for word in (query or "").split():
+            word = word.strip(",.?!").lower()
+            if len(word) > 3 and word.endswith("s"):
+                word = word[:-1]  # "SUVs", "trucks"
+            if word in ("3-row", "third-row", "7-seater", "8-seater") and not min_seats:
+                q = q.where(text("coalesce((vehicles.raw->>'seats')::int, 0) >= 7"))
+                continue
             w = f"%{word}%"
             q = q.where(or_(Vehicle.make.ilike(w), Vehicle.model.ilike(w), Vehicle.trim.ilike(w),
-                            Vehicle.raw["color"].astext.ilike(w), Vehicle.stock_number.ilike(w)))
+                            Vehicle.raw["color"].astext.ilike(w), Vehicle.raw["body"].astext.ilike(w),
+                            Vehicle.stock_number.ilike(w)))
         rows = (await self.db.execute(q.order_by(Vehicle.price).limit(5))).scalars().all()
         return [apply_price_policy(_vehicle_dict(v), self.price_disclosure) for v in rows]
 

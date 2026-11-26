@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 3 done, waiting for review. **Next:** Step 4, Booking
+**Last updated:** 2026-11-26. **Now:** Step 4 done, waiting for review. **Next:** Step 5, Voice
 
 ## Build steps
 
@@ -12,7 +12,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 1 | Foundations: monorepo, Docker Compose, Postgres with row-level security, auth and roles, dashboard shell, seed data | **Done** (accepted 2026-11-25) |
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
-| 4 | Booking | Not started; Calendar designed with example data |
+| 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | Not started; Calls designed with example data |
 | 6 | Routing, follow-ups, learning loop | Not started |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
@@ -20,6 +20,16 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 9 | Analytics | Not started |
 | 10 | Hardening and compliance | Not started |
 | 11 | Instagram and self-serve onboarding | Not started |
+
+### Step 4 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| A dealer creates a custom appointment type in settings | Met | Browser: Settings > Booking > Add appointment type ("EV charging walkthrough"); `test_a_dealer_creates_a_custom_type_and_books_it` |
+| AI books a test drive and a service appointment (with a bay) from a WhatsApp chat | Met | Mock WhatsApp, real model, worker: test drive of the CR-V Saturday 10 am with Daniel; brake service tomorrow 7 am in Bay 1 with Maria, customer waiting |
+| Without double-booking | Met | A third customer asked for the same Saturday 10 am and was offered 9:00, 11:00 or 11:30. No person or bay overlaps in the database. Exclusion constraints; a race of 5 simultaneous bookings yields exactly 1 (fails without the constraint) |
+| Reminders fire | Met | Test drive reminder sent through the worker ("Reminder from Prestige Motors: your test drive is Saturday at 10 am with Daniel..."). Reminders skip moved, cancelled and opted-out appointments, and respect quiet hours |
+| Staff see them in the calendar | Met | Calendar shows both with Ondra's mark; details show the bay; showed, no-show and cancel actions |
 
 ### Step 3 acceptance
 
@@ -51,8 +61,9 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
   - tasks with deadlines in opening hours, and escalation;
   - live updates (server-sent events).
 - **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
-- **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Settings, and sidebar counts. Today, Deals, Calendar and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calendar: Step 4; Calls: Step 5).
-- **Quality:** 123 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
+- **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
+- **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Today, Deals and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calls: Step 5).
+- **Quality:** 141 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
@@ -69,12 +80,17 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 ## Known gaps (honest list)
 
+- **In draft mode, a booking happens at once; only the reply waits for approval.** The slot is held, so nobody else takes it, but the customer isn't told until a person approves. That's arguably right (holding the slot), but it's your call.
+- **Transport can't be changed after booking** (for example, adding a loaner later). Ondra asks wait, loaner or drop-off before booking a service. A person can edit it from the calendar in a later step.
+- Resources are capacity 1. A "bay" that takes two cars needs to be two resources.
+- Test drives aren't tied to a specific car in stock yet (the car is noted in details). Holding the demo car itself needs a `demo_vehicle` resource per car, planned with inventory in Step 7.
+
 - **"New message" (starting a conversation with a customer) isn't built.** Business-initiated messages need consent checks and WhatsApp templates; that work is planned for Step 6 (follow-ups).
 - **A worker crash at the wrong moment can send a reply twice:** after the provider accepted the send, but before the job was marked done. Fix with per-message idempotency keys before real providers go live.
 - Delivery receipts from providers are logged, not stored on the message.
 - Team invites are shown as a link to copy; nothing is emailed yet.
 - Connecting a channel registers the address; provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.
 - The golden conversations are synthetic. `must` checks are pattern-based and can misjudge good replies.
-- **Reply latency tail:** replies needing a lookup and a handoff (WhatsApp export buyers, email leads) take three model rounds, so they run 5 to 6 s when each model call is slow (2 s or more). The fix that remains is a faster model for the final reply-writing round. That changes the plan's model choice (§6.1), so it's a founder decision.
+- **Reply latency tail, growing:** replies that look something up, act (hand off or book), then write take three model rounds, so they run 5 to 6.5 s when the model is slow. On the Step 4 run, 9 of 52 turns were over 5 s (median 3.4 s), up from 4 of 40 in Step 3 and 1 of 100 in Step 2: booking adds rounds, and per-call times were higher that run (up to 4 s for one call). The remaining fix is a faster model for the final reply-writing round, which changes the plan's model choice (§6.1): a founder decision, and it matters more for voice in Step 5.
 - In this build environment, containers can't reach Voyage (Anthropic is reachable), so the seed's embedding step falls back and the knowledge backfill runs from the host. Production hosts won't have this limit.
 - Docker Hub rate-limits image pulls from this build environment; local images are layered from the last good build.

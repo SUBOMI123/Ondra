@@ -135,7 +135,10 @@ class FixtureBackend:
                 continue
             if min_seats and v.get("seats", 99) < min_seats:
                 continue
-            if query and not all(w in hay for w in query.lower().split()):
+            words = [w.strip(",.?!").lower() for w in (query or "").split()]
+            words = [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words]
+            hay += " " + str(v.get("body", "")).lower()
+            if words and not all(w in hay for w in words):
                 continue
             out.append(apply_price_policy(v, self.price_disclosure))
         return out[:5]

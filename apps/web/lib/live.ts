@@ -11,7 +11,7 @@ import { useEffect, useMemo } from "react"
 
 import { API_URL, currentToken, refresh } from "@/lib/api"
 
-export type Change = { table: "messages" | "tasks" | "conversations"; id: string; conversation_id: string | null }
+export type Change = { table: "messages" | "tasks" | "conversations" | "appointments"; id: string; conversation_id: string | null }
 
 export function useLiveUpdates(onChange: (c: Change) => void) {
   useEffect(() => {
@@ -76,17 +76,21 @@ export function useLiveInbox() {
     let timer: ReturnType<typeof setTimeout> | null = null
     const conversations = new Set<string>()
     let tasks = false
+    let calendar = false
     return (c: Change) => {
       if (c.conversation_id) conversations.add(c.conversation_id)
       if (c.table === "tasks") tasks = true
+      if (c.table === "appointments") calendar = true
       if (timer) return
       timer = setTimeout(() => {
         timer = null
         qc.invalidateQueries({ queryKey: ["conversations"] })
         conversations.forEach((id) => qc.invalidateQueries({ queryKey: ["conversation", id] }))
         if (tasks) qc.invalidateQueries({ queryKey: ["tasks"] })
+        if (calendar) qc.invalidateQueries({ queryKey: ["calendar"] })
         conversations.clear()
         tasks = false
+        calendar = false
       }, 300)
     }
   }, [qc])

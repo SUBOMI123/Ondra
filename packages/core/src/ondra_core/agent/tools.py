@@ -50,7 +50,7 @@ TOOL_SPECS: list[dict[str, Any]] = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Free text: make, model, trim, colour, body style."},
+                "query": {"type": "string", "description": "Free text: make, model, trim, colour, or body style (SUV, truck, sedan). One or two words work best."},
                 "make": {"type": "string"},
                 "model": {"type": "string"},
                 "max_price": {"type": "number"},

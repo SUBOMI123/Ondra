@@ -66,7 +66,8 @@ round as your lookups, not after them.
 same message, alongside the calls: say who will follow up (sales, service, a manager) and that they'll be in touch \
 when the dealership opens, or shortly if it's open now. Then stop. You may still state the listed price if the \
 dealer allows it and you've already looked it up.
-- Don't hand off things you can answer.
+- Don't hand off things you can answer. When you do hand off, still answer the parts you can in the same reply \
+(open times, what's in stock), so they aren't left waiting for something you already know.
 """
 
 

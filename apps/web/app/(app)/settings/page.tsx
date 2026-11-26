@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { BookingSection } from "@/components/settings/booking-section"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { useAuth } from "@/components/providers"
@@ -61,6 +62,7 @@ const SECTIONS = [
   { id: "business", title: "Business" },
   { id: "team", title: "Team" },
   { id: "ondra", title: "How Ondra replies" },
+  { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
   { id: "channels", title: "Channels" },
 ]
@@ -688,6 +690,7 @@ export default function SettingsPage() {
               <BusinessSection data={settings.data} canEdit={canEdit} />
               <TeamSection />
               <RepliesSection data={settings.data} canEdit={canEdit} />
+              <BookingSection canEdit={canEdit} />
               <VipsSection />
               <ChannelsSection data={settings.data} canEdit={canEdit} />
             </>

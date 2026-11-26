@@ -269,3 +269,17 @@ async def test_knowledge_search_falls_back_to_full_text_when_embeddings_fail(dat
     async with tenant_session(database["a"]) as db:
         hits = await knowledge.search(db, "parking", emb=Down())
         assert hits and hits[0]["title"] == "Location and parking"
+
+
+async def test_inventory_search_understands_body_style(database):
+    from ondra_api.services.agent_tools import DbToolBackend
+
+    async with tenant_session(database["a"]) as db:
+        contact = (await db.execute(select(Contact).limit(1))).scalar_one()
+        backend = DbToolBackend(db, contact=contact, conversation=None, price_disclosure="listed", open_now=False)
+        suvs = await backend.search_inventory(query="SUVs")
+        assert suvs and all(v["body"] == "SUV" for v in suvs)
+        trucks = await backend.search_inventory(query="trucks")
+        assert trucks and all(v["body"] == "truck" for v in trucks)
+        three_row = await backend.search_inventory(query="3-row SUV")
+        assert three_row and all(v["seats"] >= 7 for v in three_row)
