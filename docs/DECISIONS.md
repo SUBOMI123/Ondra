@@ -362,3 +362,20 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   ending the caller's turn sooner (endpointing).
 - **Booking results say what the transport choice means** ("They leave their car with us and drive Loaner 1"),
   after Ondra said "a loaner while you wait" on a call.
+
+## 2026-11-26: On calls, name the best two cars and text the rest (with the caller's yes)
+
+- **Real calls:** four cars and prices read aloud were hard to follow, and the instruction "mention one or two"
+  didn't hold twice. Now the stock lookup itself, on calls only, hands the model the best two (the cheapest, and
+  the newest if different) plus how many it found, with a note to ask one narrowing question and offer the rest by
+  text. Every price found still counts as real for the spoken checks.
+- **`text_details`** (calls only) texts the cars from the last search to the number the caller is calling from.
+  Only after they ask for a text or say yes to the offer: the code checks the caller's last words for a yes, and
+  records it as consent (`consents`: source `voice_call`, the call id and their words), because CLAUDE.md forbids
+  automated texts without recorded consent. The text goes through the one send path, so opt-outs and VIP status
+  are re-checked. Counsel question: is a recorded spoken yes on a call enough consent for a one-off text the caller
+  asked for (TCPA)? Real delivery from the dealer's number also needs A2P 10DLC registration.
+- **Rejected:** keeping the caller on the line while they read the text. Someone with a phone at their ear can't
+  read a text; it makes dead air. The call carries on by voice, and the text continues in the same Inbox thread.
+- **Delivery-date check** no longer fires on "on" without a date after it ("Done, both are on their way to your
+  phone" was replaced on a call); "ready on Friday", "by next week" still are.

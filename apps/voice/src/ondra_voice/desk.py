@@ -9,6 +9,7 @@ channel. Each tool call opens its own short tenant-scoped transaction; a call la
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -55,6 +56,8 @@ class CallDesk:
     # Short names for the calendar's slot ids ("slot3"): the real ids are ~200 characters, and on a call the model
     # writing one out before booking was most of a 1.9 s wait (and a chance to garble it).
     slot_aliases: dict[str, str] = field(default_factory=dict)
+    # The full result of the last stock search: on a call Ondra names the best two, and can text all of them.
+    last_cars: list[dict] = field(default_factory=list)
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)
@@ -105,8 +108,62 @@ class CallDesk:
                 backend.last_question = next((t["text"] for t in reversed(self.transcript) if t["who"] == "caller"), "")
             out = await run_tool(backend, name, args)
         self.tools_called.append(name)
-        _learn(self.checks, ToolRecord(name, args, out))
+        _learn(self.checks, ToolRecord(name, args, out))  # every price found counts as real, not just the two named
+        if name == "search_inventory" and isinstance(out, list):
+            return self._best_two(out)
         return self._short_slots(out)
+
+    def _best_two(self, cars: list[dict]) -> Any:
+        """On a call, the model gets two cars to name, not a list to read out: reading four cars and prices aloud
+        was hard to follow on real calls, and an instruction to "name one or two" didn't hold. The cheapest, and the
+        newest if that's a different car. The rest are offered by text."""
+        self.last_cars = cars
+        if len(cars) <= 2:
+            return cars
+        cheapest = cars[0]  # search results come cheapest first
+        newest = max(cars, key=lambda c: (c.get("year") or 0, -(c.get("mileage") or 0)))
+        best = [cheapest] + ([newest] if newest is not cheapest else [cars[1]])
+        return {"total_found": len(cars), "best": [_spoken(c) for c in best],
+                "next": f"Say there are {len(cars)} and describe only these two in a sentence or two, then ask one "
+                        "question to narrow it down (budget, newer or lower miles, trim). Offer to text all of them; "
+                        "call text_details once they ask for it or say yes."}
+
+    async def text_details(self, stock_numbers: list[str] | None, said: str) -> dict:
+        """Text the caller the cars from the last search, after they agreed on the call. Their yes is recorded as
+        consent (CLAUDE.md: no automated texts without recorded consent), and the text goes through the one send
+        path, which re-checks opt-outs and VIP status."""
+        from ondra_api.services.inbound import contact_opted_out
+        from ondra_api.services.jobs import enqueue
+        from ondra_core.models import Consent, Event, Message
+
+        if not _AGREED.search(said or ""):
+            return {"error": "They haven't agreed to a text yet. Ask first, and wait for a yes."}
+        wanted = {s.strip().upper() for s in (stock_numbers or []) if s}
+        cars = [c for c in self.last_cars if not wanted or str(c.get("stock", "")).upper() in wanted] or self.last_cars
+        if not cars:
+            return {"error": "There's nothing to text yet: look the cars up first."}
+        async with tenant_session(self.plan.tenant_id) as db:
+            if await contact_opted_out(db, self.plan.contact_id):
+                return {"error": "They've opted out of texts, so nothing can be sent. Offer to go over it by phone."}
+            db.add(Consent(contact_id=self.plan.contact_id, channel="sms", purpose="transactional", status="opted_in",
+                           source="voice_call", evidence={"call_id": str(self.plan.call_id), "said": said[:300],
+                                                          "asked_for": "vehicle details by text"}))
+            conv = (await db.execute(select(Conversation).where(
+                Conversation.contact_id == self.plan.contact_id, Conversation.channel == "sms",
+                Conversation.status != "closed").limit(1))).scalar_one_or_none()
+            if conv is None:
+                conv = Conversation(contact_id=self.plan.contact_id, channel="sms", ai_mode="auto")
+                db.add(conv)
+                await db.flush()
+            m = Message(conversation_id=conv.id, direction="outbound", author_type="ai", status="queued",
+                        body=_details_text(self.dealer.name, cars))
+            db.add(m)
+            await db.flush()
+            enqueue(db, "send_message", {"message_id": str(m.id)})
+            db.add(Event(type="call.texted_details", payload={"call_id": str(self.plan.call_id), "message_id": str(m.id),
+                                                              "cars": len(cars)}))
+        self.tools_called.append("text_details")
+        return {"sent": True, "cars": len(cars), "tell_caller": "It's on its way to the number you're calling from."}
 
     def _short_slots(self, out: Any) -> Any:
         if isinstance(out, dict) and isinstance(out.get("slots"), list):
@@ -180,6 +237,27 @@ async def _backend(db, plan: CallPlan, dealer: DealerFacts) -> DbToolBackend:
     conv = await db.get(Conversation, plan.conversation_id)
     return DbToolBackend(db, contact=contact, conversation=conv, price_disclosure=dealer.price_disclosure,
                          open_now=dealer.open_now)
+
+
+_AGREED = re.compile(r"\b(yes|yeah|yep|yup|sure|ok(?:ay)?|please|go ahead|do it|send it|text (?:it|me|them)|"
+                     r"that works|sounds good|perfect|absolutely|of course)\b", re.IGNORECASE)
+
+
+def _spoken(c: dict) -> dict:
+    """The parts of a car worth saying on a phone."""
+    keep = ("stock", "year", "make", "model", "trim", "mileage", "color", "price", "price_range", "price_note")
+    return {k: c[k] for k in keep if c.get(k) is not None}
+
+
+def _details_text(dealer: str, cars: list[dict]) -> str:
+    lines = [f"{dealer}: the cars we talked about."]
+    for c in cars[:6]:
+        name = " ".join(str(c[k]) for k in ("year", "make", "model", "trim") if c.get(k))
+        price = f"${c['price']:,.0f}" if isinstance(c.get("price"), (int, float)) else c.get("price_range") or "ask us"
+        miles = f"{c['mileage']:,} mi" if c.get("mileage") else "new"
+        lines.append(f"{name}, {miles}, {price} (stock {c.get('stock')})")
+    lines.append("Reply here with questions, or to book a test drive.")
+    return "\n".join(lines)
 
 
 def turn_metrics_from(report: dict) -> dict:

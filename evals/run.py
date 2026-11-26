@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from ondra_api.seed import BODY
 from ondra_core.agent.detectors import BLOCKING_CHECKS, POSITIVE_CHECKS, ReplyContext
 from ondra_core.agent.llm import LLM, AnthropicLLM
 from ondra_core.agent.orchestrator import Turn, run_turn
@@ -137,7 +138,8 @@ class FixtureBackend:
                 continue
             words = [w.strip(",.?!").lower() for w in (query or "").split()]
             words = [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words]
-            hay += " " + str(v.get("body", "")).lower()
+            # Body style as the real inventory has it (the seed's table), so "SUV" finds a Highlander here too.
+            hay += " " + str(v.get("body") or BODY.get(v.get("model", ""), ("",))[0]).lower()
             if words and not all(w in hay for w in words):
                 continue
             out.append(apply_price_policy(v, self.price_disclosure))

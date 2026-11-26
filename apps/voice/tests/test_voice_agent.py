@@ -292,3 +292,43 @@ async def test_voice_requests_skip_thinking_at_low_effort(monkeypatch):
     monkeypatch.delenv("VOICE_THINKING", raising=False)
     monkeypatch.delenv("VOICE_EFFORT", raising=False)
     assert worker.voice_request_settings() == {"output_config": {"effort": "low"}, "thinking": {"type": "disabled"}}
+
+
+async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(database):
+    """Real calls: four cars and prices read aloud were hard to follow. Now the model is given the best two and a
+    count, and can text them all, but only after the caller agrees (their yes is recorded as consent)."""
+    from ondra_api import channels
+    from ondra_api import worker as jobs
+    from ondra_core.models import Consent
+
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    out = await desk.run("search_inventory", {"query": "SUV"})
+    assert out["total_found"] > 2 and len(out["best"]) == 2 and len(desk.last_cars) == out["total_found"]
+    assert "text_details" in out["next"]
+    # Every price found counts as real for the spoken checks, not only the two named.
+    assert {int(c["price"]) for c in desk.last_cars if c.get("price")} <= desk.checks.listed_prices
+    cheapest, newest = out["best"]
+    assert cheapest["price"] == min(c["price"] for c in desk.last_cars if c.get("price"))
+
+    assert "error" in await desk.text_details(None, "Hmm, which one is newer?")  # no yes, no text
+    channels.mock("sms").outbox.clear()
+    sent = await desk.text_details(None, "Yes, text me those please.")
+    assert sent["sent"] and sent["cars"] == len(desk.last_cars)
+    await jobs.run_once()
+    text_msg = channels.mock("sms").outbox[-1]
+    assert text_msg.to_address == await _phone_of(database["a"], "Ben Carter")  # the number they're calling from
+    assert "Prestige Motors" in text_msg.body and cheapest["model"] in text_msg.body
+    async with tenant_session(database["a"]) as db:
+        consent = (await db.execute(select(Consent).where(Consent.contact_id == desk.plan.contact_id,
+                                                          Consent.source == "voice_call"))).scalars().first()
+        assert consent.status == "opted_in" and consent.evidence["said"].startswith("Yes")
+
+
+async def test_no_text_to_a_caller_who_opted_out(database):
+    from ondra_api import channels
+
+    desk = await CallDesk.open(await _plan(database, "Jordan Price"))
+    await desk.run("search_inventory", {"query": "SUV"})
+    channels.mock("sms").outbox.clear()
+    out = await desk.text_details(None, "Yes please.")
+    assert "opted out" in out["error"] and channels.mock("sms").outbox == []

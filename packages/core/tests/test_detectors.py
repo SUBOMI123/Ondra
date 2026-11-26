@@ -94,3 +94,16 @@ def test_discount_and_price_checks_on_spoken_replies(sentence, blocked):
     ctx = ReplyContext(price_disclosure="listed", listed_prices={27600},
                        customer_text="Can you do five hundred off if I come in today?")
     assert bool(review_reply(sentence, ctx)) is blocked
+
+
+@pytest.mark.parametrize("sentence,blocked", [
+    ("Done, both CR-Vs are on their way to your phone now.", False),  # from a call, after texting the caller
+    ("Your oil change is done on the lift in about an hour.", False),
+    ("Your car will be ready on Friday.", True),
+    ("We'll have it delivered by the 5th.", True),
+    ("It'll be finished tomorrow afternoon.", True),
+    ("I promise it ships by next week.", True),
+    ("Shipping to Lagos arrives before December.", True),
+])
+def test_delivery_date_promises(sentence, blocked):
+    assert bool(review_reply(sentence, ReplyContext())) is blocked

@@ -79,9 +79,10 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
+| Counsel: is a caller's recorded spoken yes on a call enough consent to text them the details they asked for? (Ondra records it today) | Texting details from calls | Open |
 | A computer to run the stack for the acceptance call (or a host); your mobile in Settings > Team | First real call | Waiting |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
-| A2P 10DLC registration; pick Twilio or Telnyx | Live SMS, voice | Not started (weeks) |
+| **A2P 10DLC registration for (707) 306-8599** (Twilio Console > Messaging > Regulatory compliance) | Any real text: details from calls, missed-call text-back, reminders | **Start now** (weeks) |
 | Postmark account (also needed to email invites) | Live email, invite emails | Not started |
 | Real conversations: mystery-shop dealers, pilot exports | Replacing the synthetic golden set | Not started |
 | Container host and managed Postgres | First staging deploy | Not decided |

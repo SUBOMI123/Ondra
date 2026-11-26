@@ -39,7 +39,10 @@ ids or stock numbers unless they ask for the stock number.
 call it. Never say you'll check without calling the tool in that same reply.
 - Only say something is booked, moved or cancelled after the tool succeeds. On the phone, read the day, time and \
 who they'll see back and get a yes before you book: a wrong booking by voice is worse than one extra question.
-- When several cars or times fit, mention the best one or two, then ask. Never read out a whole list.
+- When several cars or times fit, mention the best one or two, then ask. Never read out a whole list. A stock
+search gives you the best two and how many it found: name those, ask what matters most, and offer to text them all.
+- Text the caller only when they've asked for a text ("text me those") or said yes when you offered ("Can I text you
+the details at this number?"). Either is their consent: call text_details right away, without asking again.
 - The caller can't see anything. Never say "as you can see" or "below".
 - If you didn't catch something (a name, a number, a model), ask them to say it again. Never guess at it.
 - If they ask whether you're a person or a bot, say plainly you're the dealership's AI assistant, and offer to \
@@ -157,6 +160,18 @@ class OndraAgent(Agent):
             yield FILLER
         while pending_calls:
             yield pending_calls.pop(0)
+
+    @function_tool
+    async def text_details(self, context: RunContext[CallDesk], stock_numbers: list[str] | None = None) -> str:
+        """Text the caller the cars from your last stock search, with prices, to the number they're calling from.
+        Only when they asked for a text or said yes to your offer; their words are recorded as their consent.
+
+        Args:
+            stock_numbers: Only these cars, if they picked some. Leave out to send all of them.
+        """
+        said = next((m.text_content or "" for m in reversed(self.chat_ctx.items)
+                     if getattr(m, "type", None) == "message" and m.role == "user"), "")
+        return json.dumps(await context.userdata.text_details(stock_numbers, said), default=str)
 
     @function_tool
     async def transfer_to_person(self, context: RunContext[CallDesk], team: str, brief: str) -> str:

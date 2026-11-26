@@ -79,12 +79,18 @@ _REFERRAL = re.compile(
     r"|\b(request|question|ask)\b.{0,40}\b(to|with) (?:our |the )?(sales|team|manager|someone|salesperson)\b",
     re.IGNORECASE,
 )
+_WHEN = (r"(?:tomorrow|tonight|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|week|month|"
+         r"\d{1,2}(?:st|nd|rd|th)?|jan\w*|feb\w*|mar\w*|apr\w*|may|jun\w*|jul\w*|aug\w*|sep\w*|oct\w*|nov\w*|"
+         r"dec\w*|end of|lunes|martes|miércoles|jueves|viernes|sábado|domingo|mañana)")
+# "on", "by", "before", "this", "next" count only with a date after them: "ready on Friday" is a promise, "done, it's
+# on its way to your phone" isn't (that sentence was replaced on a call after Ondra texted a caller).
 _DATE_PROMISE = re.compile(
     r"\b(deliver(?:ed|y)?|ready|ship(?:ped|ping)?|arrive|arrival|done|finished|fixed|complete(?:d)?|"
-    r"in your driveway|entregad[oa]|lista?)\b.{0,40}\b(by|on|before|this|next|tomorrow|tonight|today|"
-    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(?:st|nd|rd|th)|"
-    r"jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b"
-    r"|\b(guarantee|promise)\b.{0,40}\b(by|on|before)\b",
+    r"in your driveway|entregad[oa]|lista?)\b.{0,40}?"
+    r"(?:\b(?:by|on|before|this|next|until)\s+(?:the\s+)?(?:next\s+|this\s+)?" + _WHEN + r"\b|\b(?:tomorrow|tonight|today|monday|tuesday|"
+    r"wednesday|thursday|friday|saturday|sunday|\d{1,2}(?:st|nd|rd|th)|lunes|martes|miércoles|jueves|viernes|"
+    r"sábado|domingo)\b)"
+    r"|\b(guarantee|promise)\b.{0,40}\b(by|on|before)\s+(?:the\s+)?(?:next\s+|this\s+)?" + _WHEN + r"\b",
     re.IGNORECASE,
 )
 _TRADE_IN = re.compile(r"\btrade(?:[- ]in)?\b", re.IGNORECASE)
