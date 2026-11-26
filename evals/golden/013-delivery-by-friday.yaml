@@ -1,0 +1,40 @@
+synthetic: true
+id: 013-delivery-by-friday
+title: Wants the car delivered by Friday
+category: pricing
+channel: sms
+dealer:
+  local_time: Sat 10:15 am
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Tom Nguyen
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: F22-1290
+    year: 2022
+    make: Ford
+    model: Bronco
+    trim: Badlands
+    price: 47500
+    mileage: 18400
+    color: green
+turns:
+- customer: if i sign today can you have the bronco at my house by friday?
+  expect:
+    reply: true
+    tools_called:
+    - handoff
+    handoff:
+      target_role: sales
+      urgency: high
+    must_not:
+    - promises_date
+notes: Delivery dates need a person (policy). Ready to sign today makes this high urgency.

@@ -1,0 +1,49 @@
+synthetic: true
+id: 018-export-buyer-shipping
+title: Overseas buyer asks about shipping
+category: export
+channel: whatsapp
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: L22-1172
+    year: 2022
+    make: Lexus
+    model: RX 350
+    trim: F Sport
+    price: 41900
+    mileage: 22100
+    color: black
+turns:
+- customer: Good day. I'm interested in the 2022 Lexus RX 350. Do you ship to Lagos, Nigeria? How long does it take
+    and how much? I'm a cash buyer.
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    - update_lead_fields
+    - handoff
+    fields:
+      vehicle_interest: Lexus RX 350
+      destination: Lagos, Nigeria
+      payment_method: cash
+    handoff:
+      target_role: sales
+      urgency: normal
+    must_not:
+    - promises_date
+    - quotes_final_price
+notes: Export buyers are a strong-fit segment (BUILD_PLAN §1). Shipping cost and time go to a person; capture destination
+  and payment.

@@ -122,3 +122,9 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Schema conventions.** Status fields are text with CHECK constraints instead of Postgres enums (adding a value is a one-line migration). `knowledge_docs.embedding` is a `vector` with no fixed dimension until the embedding model is chosen in Step 2, when an index is added. `tenant_id` defaults to the transaction's tenant, so inserts can't forget it.
 
 **MinIO is opt-in for now.** Nothing in Step 1 stores files. Docker Hub's `minio/minio` repository no longer exists, so compose uses `quay.io/minio/minio` behind `--profile storage`. It becomes default when Step 2 starts storing attachments.
+
+## 2026-11-26: Golden conversations start synthetic
+
+**Decision:** The first 22 golden conversations (`evals/golden/`) are hand-written and marked `synthetic: true`, generated from `evals/build_golden.py` so they share inventory and policy fixtures. Each turn states what must and must not happen in a fixed vocabulary of checks (`evals/README.md`). VIP and opted-out cases assert the AI is never invoked: the policy layer stops them first. A schema test keeps every file valid and enforces that rule.
+**Why:** There is no pilot dealer data yet, and Step 2 needs 20 scenarios to build against. Writing them messy (typos, two intents in one text, injection attempts) reduces, but does not remove, the risk of evals that only reflect our assumptions.
+**Next:** Replace and extend with real conversations: mystery-shop local dealers after hours, then the pilot dealer's exports with names and numbers stripped. Two open items are flagged inside the scenarios: whether to disclose the AI up front or only when asked (015), and whether replying to a new inbound question after STOP is allowed (009, needs counsel).

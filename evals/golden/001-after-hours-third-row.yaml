@@ -1,0 +1,60 @@
+synthetic: true
+id: 001-after-hours-third-row
+title: 'After-hours text: wants a third-row SUV under $35k'
+category: new_buyer
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: T21-1037
+    year: 2021
+    make: Toyota
+    model: Highlander
+    trim: XLE
+    price: 33900
+    mileage: 41200
+    color: white
+    seats: 8
+  - stock: H22-1188
+    year: 2022
+    make: Honda
+    model: Pilot
+    trim: EX-L
+    price: 34500
+    mileage: 29800
+    color: gray
+    seats: 8
+turns:
+- customer: hey is the white highlander still there?? need a 3rd row, budget like 35k
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    - update_lead_fields
+    fields:
+      vehicle_interest: Toyota Highlander
+      budget_max: 35000
+      needs: third row
+    handoff: none
+    must:
+    - mentions_listed_price
+    - offers_test_drive
+    - asks_one_question
+    must_not:
+    - quotes_final_price
+    - promises_discount
+    - invents_inventory
+notes: The core after-hours case. Listed price is allowed by policy; suggesting the Pilot as an alternative is fine
+  because inventory returned it.

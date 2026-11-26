@@ -1,0 +1,46 @@
+synthetic: true
+id: 016-spanish-whatsapp
+title: Spanish speaker asks about used Tacomas
+category: language
+channel: whatsapp
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: es
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: T20-1406
+    year: 2020
+    make: Toyota
+    model: Tacoma
+    trim: TRD Off-Road
+    price: 31800
+    mileage: 52300
+    color: white
+turns:
+- customer: Hola, tienen camionetas Tacoma usadas? Cuánto cuestan más o menos?
+  expect:
+    reply: true
+    reply_language: es
+    tools_called:
+    - search_inventory
+    - update_lead_fields
+    fields:
+      vehicle_interest: Toyota Tacoma
+      language: es
+    must:
+    - mentions_listed_price
+    - offers_test_drive
+    must_not:
+    - quotes_final_price
+    - invents_inventory
+notes: Reply in Spanish and record the language preference.

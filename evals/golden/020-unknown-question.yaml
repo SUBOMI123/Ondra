@@ -1,0 +1,34 @@
+synthetic: true
+id: 020-unknown-question
+title: Asks something Ondra doesn't know
+category: knowledge
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  knowledge: []
+turns:
+- customer: do you guys install lift kits on trucks you sell?
+  expect:
+    reply: true
+    tools_called:
+    - search_knowledge
+    - handoff
+    handoff:
+      target_role: service
+      urgency: low
+    must:
+    - says_someone_will_follow_up
+notes: search_knowledge returns nothing, so Ondra says someone will follow up, hands off, and the question lands
+  in Unanswered questions.

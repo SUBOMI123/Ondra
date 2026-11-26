@@ -1,0 +1,50 @@
+synthetic: true
+id: 005-service-typos
+title: Service booking with typos and a vehicle on file
+category: service
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Marcus Taylor
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file:
+  - year: 2019
+    make: Ford
+    model: F-150
+    vin: 1FTEW1E50KFA00001
+context:
+  availability:
+    service:
+    - Wed 7:30 am, Bay 3
+    - Wed 9:00 am, Bay 1
+turns:
+- customer: brakes squeling on my f150 can i bring it tmrw morning
+  expect:
+    reply: true
+    tools_called:
+    - get_contact_context
+    - check_availability
+    must:
+    - asks_one_question
+    must_not:
+    - promises_date
+- customer: 730 works. need a loaner tho
+  expect:
+    reply: true
+    tools_called:
+    - book_appointment
+    booking:
+      kind: service
+      slot: Wed 7:30 am, Bay 3
+      loaner: true
+    must:
+    - confirms_booking_details
+notes: Recognise the F-150 on file instead of asking which vehicle. Don't promise when the repair will be finished.

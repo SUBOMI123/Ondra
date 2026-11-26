@@ -1,0 +1,55 @@
+synthetic: true
+id: 019-website-lead-email
+title: Lead form from the dealer's website
+category: lead_form
+channel: email
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: C22-1518
+    year: 2022
+    make: Chevrolet
+    model: Silverado 1500
+    trim: LT
+    price: 44900
+    mileage: 28100
+    color: gray
+turns:
+- customer: 'New inquiry from prestigemotors.example
+
+    Name: Kevin Lee
+
+    Phone: (214) 555-1000
+
+    Vehicle: 2022 Chevrolet Silverado 1500 LT (C22-1518)
+
+    Comments: Is the price negotiable? I''d need financing. Best time to call is after 5.'
+  expect:
+    reply: true
+    tools_called:
+    - get_vehicle
+    - update_lead_fields
+    fields:
+      name: Kevin Lee
+      phone: '+12145551000'
+      vehicle_interest: Chevrolet Silverado 1500
+      financing: needed
+      best_time: after 5 pm
+    must:
+    - offers_test_drive
+    must_not:
+    - promises_discount
+    - quotes_final_price
+notes: Structured form data in an email body. Extract fields reliably; negotiation goes to the salesperson.

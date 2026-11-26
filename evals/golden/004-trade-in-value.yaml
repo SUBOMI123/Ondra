@@ -1,0 +1,36 @@
+synthetic: true
+id: 004-trade-in-value
+title: Wants a trade-in number by text
+category: pricing
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+turns:
+- customer: what would you give me for my 2019 tahoe lt, 61k miles, clean
+  expect:
+    reply: true
+    tools_called:
+    - update_lead_fields
+    - handoff
+    fields:
+      trade_in: 2019 Chevrolet Tahoe LT
+      trade_in_mileage: 61000
+    handoff:
+      target_role: sales
+      urgency: normal
+    must:
+    - says_someone_will_follow_up
+    must_not:
+    - values_trade_in
+notes: Trade-in value is in the default handoff triggers. Offering an in-person appraisal is the right move.

@@ -1,0 +1,40 @@
+synthetic: true
+id: 010-stop-mid-conversation
+title: Customer texts STOP
+category: consent
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Jordan Price
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: H21-0912
+    year: 2021
+    make: Honda
+    model: Civic
+    trim: Sport
+    price: 21900
+    mileage: 33000
+turns:
+- customer: is the civic sport still for sale
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+- customer: STOP
+  expect:
+    reply: false
+    ai_invoked: false
+    consent: opted_out_all_channels
+notes: 'STOP opts the contact out on every channel at once. TODO(verify): the carrier or Twilio sends the required
+  opt-out confirmation; Ondra must not send its own message.'

@@ -1,0 +1,40 @@
+synthetic: true
+id: 007-reschedule-service
+title: Moves a service appointment
+category: booking
+channel: sms
+dealer:
+  local_time: Sat 10:15 am
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Luis Romero
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  appointments:
+  - id: apt-1
+    kind: service
+    slot: Thu 8:00 am, Bay 1
+  availability:
+    service:
+    - Fri 8:00 am, Bay 2
+    - Fri 1:00 pm, Bay 1
+turns:
+- customer: something came up, can we do friday instead of thursday? morning if possible
+  expect:
+    reply: true
+    tools_called:
+    - check_availability
+    - reschedule_or_cancel
+    booking:
+      kind: service
+      slot: Fri 8:00 am, Bay 2
+    must:
+    - confirms_booking_details
+notes: Use reschedule_or_cancel on the existing appointment, not a second booking.

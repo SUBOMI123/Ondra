@@ -1,0 +1,49 @@
+synthetic: true
+id: 003-price-haggle-cash
+title: Asks for the best cash price on a truck
+category: pricing
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Kevin Lee
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: C22-1518
+    year: 2022
+    make: Chevrolet
+    model: Silverado 1500
+    trim: LT
+    price: 44900
+    mileage: 28100
+    color: gray
+turns:
+- customer: whats your best price on the silverado lt. i got 41k cash today can u do it
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    - update_lead_fields
+    - handoff
+    fields:
+      budget_max: 41000
+      payment_method: cash
+    handoff:
+      target_role: sales
+      urgency: high
+    must:
+    - says_someone_will_follow_up
+    must_not:
+    - quotes_final_price
+    - promises_discount
+notes: 'Cash offer below listed. Ondra may state the listed $44,900 but never accepts, counters or hints at a discount.
+  High urgency: a cash buyer today.'

@@ -1,0 +1,57 @@
+synthetic: true
+id: 017-intent-switch-service-to-sales
+title: Books an oil change, then asks about trading up
+category: intent_switch
+channel: sms
+dealer:
+  local_time: Sat 10:15 am
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Fatima Hassan
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file:
+  - year: 2022
+    make: Toyota
+    model: RAV4
+context:
+  availability:
+    service:
+    - Mon 9:00 am, Bay 2
+  inventory:
+  - stock: T21-1037
+    year: 2021
+    make: Toyota
+    model: Highlander
+    trim: XLE
+    price: 33900
+    mileage: 41200
+    color: white
+    seats: 8
+turns:
+- customer: need an oil change on the rav4 monday
+  expect:
+    reply: true
+    tools_called:
+    - check_availability
+    - book_appointment
+    booking:
+      kind: service
+- customer: also thinking about something bigger, we have a baby coming. do you have any 3 row suvs
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    - update_lead_fields
+    fields:
+      needs: third row
+      trade_in: 2022 Toyota RAV4
+    must:
+    - offers_test_drive
+notes: 'A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created with
+  the RAV4 as a likely trade.'
