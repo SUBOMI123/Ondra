@@ -48,6 +48,11 @@ AGENT_NAME = "ondra-voice"
 
 server = AgentServer()
 
+# The founder's pick from a blind test of six voices on phone-quality audio (2026-11-26, docs/DECISIONS.md): Cartesia
+# Sonic 3.6, voice "Jacqueline". It also read every price, year and mileage right; ElevenLabs Flash did not.
+DEFAULT_TTS_MODEL = "cartesia/sonic-3.6"
+DEFAULT_TTS_VOICE = "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
+
 
 def sip_facts(p: rtc.RemoteParticipant) -> tuple[str, str, str]:
     """Caller, dialled number and a call id, from LiveKit's SIP participant attributes."""
@@ -110,7 +115,8 @@ def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
         model = os.getenv("VOICE_TTS_MODEL") or "eleven_flash_v2_5"
         tts = elevenlabs.TTS(model=model if model.startswith("eleven_") else "eleven_flash_v2_5", **voice)
     else:
-        tts = inference.TTS(model=os.getenv("VOICE_TTS_MODEL", "cartesia/sonic-3"), voice=os.getenv("VOICE_TTS_VOICE") or None)
+        tts = inference.TTS(model=os.getenv("VOICE_TTS_MODEL") or DEFAULT_TTS_MODEL,
+                            voice=os.getenv("VOICE_TTS_VOICE") or DEFAULT_TTS_VOICE)
     return AgentSession[CallDesk](
         userdata=desk,
         stt=inference.STT(model=stt_model, language="en"),

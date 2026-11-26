@@ -379,3 +379,19 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   read a text; it makes dead air. The call carries on by voice, and the text continues in the same Inbox thread.
 - **Delivery-date check** no longer fires on "on" without a date after it ("Done, both are on their way to your
   phone" was replaced on a call); "ready on Friday", "by next week" still are.
+
+## 2026-11-26: Call voice is Cartesia Sonic 3.6, "Jacqueline"
+
+- **How it was chosen:** a blind test. Six voices read the same four Ondra lines (greeting, two cars with prices,
+  a booking confirmation, the discount refusal), cut to phone quality (300-3400 Hz, 8 kHz, mu-law), labelled A-F
+  at random. The founder liked Rime Coda "astra" and Cartesia Sonic 3.6 "Jacqueline", and picked Jacqueline.
+- **Numbers matter more than tone:** speech recognition run over each sample found that ElevenLabs Flash v2.5 (the
+  voice used on the first real calls) read "$25,100" as "twenty five hundred dollars" and "$21,400" as "twenty one
+  nine four hundred", and ElevenLabs Turbo v2.5 dropped words from prices and mangled "Bay 1". A wrong spoken price
+  breaks the price rule as surely as a made-up one. Cartesia, Rime, Inworld and Deepgram read them all right.
+- **Speed was not the decider:** first audio of a reply was 0.4-1.2 s on the first sentence (a new connection)
+  and 85-175 ms after that for all six; the waits on calls come from the model and lookups.
+- **Alternatives:** Rime Coda "astra" (close second, fastest after the first sentence); keep ElevenLabs with text
+  normalisation on (slower, and it already misread). Both stay one env change away (`VOICE_TTS_*`).
+- **Still to do:** the spoken style of the instructions (short sentences, one fact each) is the bigger change to
+  how human the call sounds; and a guard test for how each voice reads prices belongs in the 5e voice test set.

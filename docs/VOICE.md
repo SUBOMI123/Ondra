@@ -30,7 +30,8 @@ this way: `docs/DECISIONS.md` (2026-11-26, voice).
 
 Set in `.env` (see `.env.example`): `VOICE_STT_MODEL` (LiveKit Inference speech to text), `VOICE_LLM_MODEL`
 (blank: `MODEL_FAST`), `VOICE_TTS_PROVIDER` / `VOICE_TTS_MODEL` / `VOICE_TTS_VOICE` (LiveKit Inference, or
-ElevenLabs with `ELEVEN_API_KEY`). Turn detection is LiveKit's turn detector, with adaptive interruptions and
+ElevenLabs with `ELEVEN_API_KEY`). The default voice is Cartesia Sonic 3.6, "Jacqueline", chosen in a blind
+test (see DECISIONS). Turn detection is LiveKit's turn detector, with adaptive interruptions and
 preemptive generation.
 
 ## Connecting a real number
