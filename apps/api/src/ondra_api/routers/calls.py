@@ -62,6 +62,8 @@ def _out(call: Call, c: Contact | None, names: dict, full: bool = False, text_ba
         out["transcript"] = call.transcript or []
         out["recording_url"] = call.recording_url if call.recording_consent else None
         out["latency"] = (call.metrics or {}).get("summary")
+        # What went wrong on the call (a tool that crashed or refused), for staff and for debugging.
+        out["problems"] = ((call.metrics or {}).get("summary") or {}).get("tool_problems") or []
     return out
 
 

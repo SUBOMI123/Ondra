@@ -51,6 +51,18 @@ type Call = {
 type CallDetail = Call & {
   transcript: { who: "agent" | "caller"; text: string }[]
   recording_url: string | null
+  problems?: { tool: string; crashed?: string; refused?: string }[]
+}
+
+const TOOL_WORDS: Record<string, string> = {
+  book_appointment: "Booking",
+  check_availability: "Checking open times",
+  reschedule_or_cancel: "Changing the appointment",
+  search_inventory: "Looking up stock",
+  get_vehicle: "Looking up a car",
+  search_knowledge: "Looking up an answer",
+  handoff: "Passing it to the team",
+  update_lead_fields: "Saving their details",
 }
 
 /* ---------------------------------------------------------------- formatting */
@@ -255,6 +267,27 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
                     <OndraMark className="size-3.5" /> Summary by Ondra
                   </h3>
                   <p className="mt-1.5 leading-relaxed">{c.summary}</p>
+                </section>
+              )}
+
+              {!!c.problems?.length && (
+                <section>
+                  <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">What went wrong</h3>
+                  <ul className="flex flex-col gap-1">
+                    {c.problems.map((p, i) => (
+                      <li key={i}>
+                        {TOOL_WORDS[p.tool] ?? "A step"} {p.crashed ? "failed with an error." : `didn't go through: ${p.refused}`}
+                      </li>
+                    ))}
+                  </ul>
+                  {c.problems.some((p) => p.crashed) && (
+                    <details className="mt-1.5 text-xs text-muted-foreground">
+                      <summary className="cursor-pointer">Details for support</summary>
+                      <ul className="mt-1 font-mono break-all">
+                        {c.problems.filter((p) => p.crashed).map((p, i) => <li key={i}>{p.tool}: {p.crashed}</li>)}
+                      </ul>
+                    </details>
+                  )}
                 </section>
               )}
 

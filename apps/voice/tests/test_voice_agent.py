@@ -187,7 +187,8 @@ async def test_the_call_record_keeps_the_transcript_and_latency(database):
     desk.turn_metrics += [turn_metrics_from({"e2e_latency": 0.82, "llm_node_ttft": 0.41, "tts_node_ttfb": 0.12}),
                           turn_metrics_from({"e2e_latency": 1.31, "llm_node_ttft": 0.9})]
     m = desk.metrics()
-    assert m["summary"] == {"turns": 2, "avg_ms": 1065, "p90_ms": 1310, "over_1s": 1, "tools": [], "blocked": []}
+    assert m["summary"] == {"turns": 2, "avg_ms": 1065, "p90_ms": 1310, "over_1s": 1, "tools": [], "blocked": [],
+                            "tool_problems": []}
     assert m["turns"][0]["llm_ttft_ms"] == 410
     await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="ai", outcome="handled",
                             transcript=desk.transcript, metrics=m)
@@ -200,3 +201,31 @@ async def test_the_call_record_keeps_the_transcript_and_latency(database):
 @pytest.fixture(autouse=True)
 def _no_real_keys(monkeypatch):
     monkeypatch.delenv("LIVEKIT_SIP_OUTBOUND_TRUNK", raising=False)
+
+
+async def test_a_booking_that_fails_is_kept_on_the_call_record(database, monkeypatch):
+    """Found on the first real call: a booking failed, Ondra handed off, and nothing said why. Now the call record
+    says which tool failed and how, whether it refused (a bad time) or crashed."""
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    model = ScriptedLLM([Step(calls=[("book_appointment", {"slot_id": "sat-8am"})]), Step(text="Let me get someone to help.")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        await session.run(user_input="Book me Saturday at eight.")
+    assert desk.tool_problems == [{"tool": "book_appointment", "refused": "That time isn't one I offered. Check availability again."}]
+
+    real_run = desk.run
+
+    async def crash(name, args):
+        if name == "check_availability":
+            raise RuntimeError("calendar unavailable")
+        return await real_run(name, args)
+
+    monkeypatch.setattr(desk, "run", crash)
+    model = ScriptedLLM([Step(calls=[("check_availability", {"kind": "oil change"})]), Step(text="Someone will call you back.")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="Any oil change times?")
+        out = next(e for e in result.events if e.type == "function_call_output")
+        assert out.item.is_error and "handoff" in out.item.output  # the model is told what to do, not the stack trace
+    assert desk.tool_problems[-1] == {"tool": "check_availability", "crashed": "RuntimeError: calendar unavailable"}
+    assert desk.metrics()["summary"]["tool_problems"] == desk.tool_problems

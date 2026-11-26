@@ -47,6 +47,9 @@ class CallDesk:
     tools_called: list[str] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)  # names of checks that replaced a sentence
     turn_metrics: list[dict] = field(default_factory=list)
+    # Tools that crashed or refused (e.g. a booking that didn't go through), kept on the call record so staff and
+    # engineers can see why without reading the worker's logs.
+    tool_problems: list[dict] = field(default_factory=list)
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)
@@ -139,6 +142,7 @@ class CallDesk:
             "over_1s": sum(1 for x in e2e if x > 1000),
             "tools": self.tools_called,
             "blocked": self.blocked,
+            "tool_problems": self.tool_problems,
         }
         return {"summary": summary, "turns": self.turn_metrics, "recording_notice": self.plan.disclose_recording}
 

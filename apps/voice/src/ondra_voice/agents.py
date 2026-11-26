@@ -76,12 +76,17 @@ def shared_tool(spec: dict) -> llm.RawFunctionTool:
     name = spec["name"]
 
     async def call(raw_arguments: dict, context: RunContext[CallDesk]) -> str:
+        desk = context.userdata
         try:
-            out = await context.userdata.run(name, raw_arguments)
+            out = await desk.run(name, raw_arguments)
         except Exception as e:
-            log.exception("tool %s failed", name)
+            log.exception("tool %s failed with %s", name, json.dumps(raw_arguments, default=str)[:500])
+            desk.tool_problems.append({"tool": name, "crashed": f"{type(e).__name__}: {str(e)[:300]}"})
             raise ToolError("That didn't work. Don't retry it: tell the caller someone from the team will follow "
                             "up, and call handoff.") from e
+        if isinstance(out, dict) and out.get("error"):
+            log.warning("tool %s refused: %s", name, out["error"])
+            desk.tool_problems.append({"tool": name, "refused": str(out["error"])[:300]})
         # LiveKit's Anthropic formatting sends a tool result that is a JSON array as content blocks, so a list of
         # cars would be rejected by the API. Wrap lists in an object.
         return json.dumps({"results": out} if isinstance(out, list) else out, default=str)

@@ -33,6 +33,10 @@ from livekit.agents import (
     room_io,
 )
 from livekit.agents.beta.tools import EndCallTool
+
+# Model and voice plugins load when the worker starts (LiveKit needs plugins registered on the main thread). Loading
+# them during a call added about 0.7 s to the first reply, seen in the first real call's logs.
+from livekit.plugins import anthropic, elevenlabs
 from ondra_api.config import get_settings
 from ondra_api.services.calls import CallPlan, finish_call, start_call
 
@@ -73,14 +77,10 @@ async def ring_someone(plan: CallPlan, transfer: Callable[[str], Awaitable[None]
 
 
 def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
-    from livekit.plugins import anthropic
-
     s = get_settings()
     stt_model = os.getenv("VOICE_STT_MODEL", "deepgram/nova-3")
     tts_provider = os.getenv("VOICE_TTS_PROVIDER", "inference")
     if tts_provider == "elevenlabs":
-        from livekit.plugins import elevenlabs
-
         voice = {"voice_id": v} if (v := os.getenv("VOICE_TTS_VOICE")) else {}  # blank: ElevenLabs' default voice
         model = os.getenv("VOICE_TTS_MODEL") or "eleven_flash_v2_5"
         tts = elevenlabs.TTS(model=model if model.startswith("eleven_") else "eleven_flash_v2_5", **voice)
