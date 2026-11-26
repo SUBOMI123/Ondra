@@ -43,7 +43,7 @@ make up
 Run the tests (needs the database from `make up`, and [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-uv sync && make test
+uv sync --all-packages && make test
 ```
 
 Configuration lives in `.env` (copy `.env.example`); every variable is documented there. Without a `.env`, development defaults are used.

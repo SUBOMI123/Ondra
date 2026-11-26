@@ -56,6 +56,17 @@ services:
     command: ["python", "-m", "ondra_api.worker"]
     depends_on: { api: { condition: service_healthy } }
 
+  # The voice agent connects out to LiveKit (cloud), so it needs LIVEKIT_* in .env; it isn't started by a plain
+  # `up`. Start it with `docker compose --profile voice up`. Calls are tested without it (apps/voice/tests).
+  voice:
+    profiles: [voice]
+    build: { context: .., dockerfile: apps/voice/Dockerfile }
+    env_file: [{ path: ../.env, required: false }]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ondra_app:${APP_DB_PASSWORD:-ondra_app_dev}@db:5432/ondra
+    command: ["python", "-m", "ondra_voice", "start"]
+    depends_on: { api: { condition: service_healthy } }
+
   web:
     build: { context: ../apps/web, args: { NEXT_PUBLIC_API_URL: "http://localhost:8000" } }
     depends_on: [api]

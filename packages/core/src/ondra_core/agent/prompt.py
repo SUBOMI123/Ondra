@@ -95,6 +95,7 @@ CHANNEL_STYLE = {
     "sentence and ask what matters most.",
     "whatsapp": "This is WhatsApp. Keep it under 500 characters, in plain sentences: no markdown, headings or bullet "
     "lists. If several cars match, mention the best one or two in a sentence.",
+    "phone": "This is a live phone call. Follow the voice rules: short spoken sentences, nothing visual.",
     "email": "This is an email reply. A short greeting with their name if known, two or three short paragraphs at "
     "most, sign off as the dealership's team. No subject line.",
 }

@@ -253,3 +253,32 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **A missed call is texted back only if the caller has recorded consent to texts.** That means the latest SMS transactional consent is `opted_in`, with no opt-out on any channel. Without it, no text: a `call.text_back_skipped` event and a call-back task for a person. "They just called us" is not recorded consent, and CLAUDE.md forbids automated texts without it. This means most first-time callers get no text-back. Counsel may decide a reply to a missed call is allowed (it's commonly argued as customer-initiated), and changing it is one function (`_has_text_consent`). Added to the founder list.
 - **A missed VIP call** creates a high-urgency task for the owner and an owner alert. It never sends an automated text.
 - **Summaries** come from the fast model after the call, as a job, and never for VIP calls. Recordings are kept only when the caller consented. Per-turn latency goes in `calls.metrics` for the latency report.
+
+## 2026-11-26: Voice: LiveKit's own agent pattern, one agent, every sentence checked before it's spoken
+
+- **Built the way LiveKit's examples build agents** (`examples/homepage/vehicle-service`, `warm-transfer`): a thin
+  `Agent`, a per-call "desk" that holds the rules, LiveKit's model and tool loop, its turn detector, adaptive
+  interruptions and preemptive generation. Alternative rejected: override `llm_node` to run our text orchestrator
+  (`run_turn`). That checks a whole reply before sending, so the caller would hear nothing until the full reply was
+  written, and it discards LiveKit's streaming and tool loop.
+- **The tools are the text agent's own** (`TOOL_SPECS` registered as raw-schema LiveKit tools, run through
+  `run_tool` on `DbToolBackend`), so a booking, handoff or price works the same on every channel. Each tool call
+  opens its own short transaction; a call never holds one open.
+- **Every spoken sentence passes the text checks first** (`ondra_voice.guard`, in `llm_node`). It holds text only
+  until a sentence ends, which the voice needs anyway. A failing sentence is replaced with "one of our team needs to
+  go over that with you", and a call-back task is created so that promise is true.
+- **Prices are written as digits ($27,600), not words.** The price check reads digits; with prices in words it
+  couldn't catch a made-up price on a call. The voice reads digits aloud. TODO(verify) how each voice reads them in
+  the 5e bake-off.
+- **One agent, not the plan's receptionist routing to sales and service (§4.2 step 4).** Measured on the real model:
+  each switch was a full extra model round (about 2.5 s more silence), and the receptionist announced it as if
+  transferring the caller ("You're being put through to our sales team now"). The plan's reason was letting
+  callers change topic mid-call; one agent with all ten tools did that (car questions, then a service slot) with no
+  switch. Revisit if the tool list grows past what one prompt handles well.
+- **LiveKit quirk:** its Anthropic formatting sends a tool result that's a JSON array as content blocks, which the
+  API rejects. List results are wrapped (`{"results": [...]}`).
+- **Voice model: measured, not yet decided.** Time to first token on the same four-turn call: the plan's
+  conversation model 1.3 to 3.5 s; the fast model 1.1 to 2.6 s. Both behaved correctly (listed prices only,
+  discount refused and handed off). Neither meets the plan's under-1-second target, and a real call adds speech
+  recognition and voice time. Recommendation: the fast model for voice (`VOICE_LLM_MODEL`); the default stays the
+  plan's model until the founder decides and the 5e real-call measurements are in.

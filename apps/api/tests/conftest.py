@@ -1,54 +1,21 @@
-"""Tests run against a real Postgres (the same image as docker compose) in a fresh `ondra_test` database:
-migrations from scratch, the example dealership from the seed, and a second dealership for isolation tests."""
+"""Tests run against a real Postgres (the same image as docker compose) in a fresh `ondra_test` database. The set-up
+is shared with the other suites: see `ondra_api.testing`."""
 
-import os
-import subprocess
 import uuid
-from pathlib import Path
 
 import pytest
+from ondra_api.testing import configure_env, ensure_test_database
 
-ADMIN_URL = os.environ.get("TEST_ADMIN_DATABASE_URL", "postgresql://ondra_owner:ondra_owner_dev@localhost:5432/postgres")
-OWNER_URL = "postgresql+asyncpg://ondra_owner:ondra_owner_dev@localhost:5432/ondra_test"
-APP_URL = "postgresql+asyncpg://ondra_app:ondra_app_dev@localhost:5432/ondra_test"
-# Tests never call real providers: blank the keys a developer's .env may hold (env vars win over .env).
-os.environ.update(DATABASE_URL=APP_URL, MIGRATIONS_DATABASE_URL=OWNER_URL, JWT_SECRET="test-secret-" + "x" * 32,
-                  ANTHROPIC_API_KEY="", VOYAGE_API_KEY="")
+configure_env()
 
-import asyncpg
 import httpx
 from ondra_api.main import app
-from ondra_api.security import hash_password
-from ondra_api.seed import DEV_PASSWORD, seed
-from ondra_core.models import Contact, Tenant, User, Vehicle
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-API_DIR = Path(__file__).resolve().parents[1]
+from ondra_api.seed import DEV_PASSWORD
 
 
 @pytest.fixture(scope="session")
 async def database():
-    conn = await asyncpg.connect(ADMIN_URL)
-    await conn.execute("DROP DATABASE IF EXISTS ondra_test WITH (FORCE)")
-    await conn.execute("CREATE DATABASE ondra_test")
-    await conn.execute("GRANT CONNECT ON DATABASE ondra_test TO ondra_app")
-    await conn.close()
-    subprocess.run(["alembic", "upgrade", "head"], cwd=API_DIR, check=True, env=os.environ | {"MIGRATIONS_DATABASE_URL": OWNER_URL})
-    tenant_a = await seed()
-
-    # A second dealership, created as the owner role, with one user, contact and vehicle.
-    engine = create_async_engine(OWNER_URL)
-    async with async_sessionmaker(engine, expire_on_commit=False)() as db, db.begin():
-        b = Tenant(name="Lone Star Autos")
-        db.add(b)
-        await db.flush()
-        db.add(User(tenant_id=b.id, email="owner@lonestar.example", name="Lone Star Owner", role="owner",
-                    password_hash=hash_password(DEV_PASSWORD)))
-        db.add(Contact(tenant_id=b.id, display_name="Only In Tenant B"))
-        db.add(Vehicle(tenant_id=b.id, stock_number="B-1", year=2024, make="Kia", model="Telluride"))
-        tenant_b = b.id
-    await engine.dispose()
-    return {"a": tenant_a, "b": tenant_b}
+    return await ensure_test_database()
 
 
 @pytest.fixture

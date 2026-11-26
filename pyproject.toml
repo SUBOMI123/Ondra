@@ -1,4 +1,5 @@
-# uv workspace for the Python services. `uv sync` at the repo root installs everything.
+# uv workspace for the Python services. `uv sync --all-packages` at the repo root installs everything (plain
+# `uv sync` installs only the dev tools and removes the services' packages).
 [project]
 name = "ondra"
 version = "0.1.0"
@@ -8,11 +9,12 @@ requires-python = ">=3.12"
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "apps/api"]
+members = ["packages/core", "apps/api", "apps/voice"]
 
 [tool.uv.sources]
 ondra-core = { workspace = true }
 ondra-api = { workspace = true }
+ondra-voice = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -26,7 +28,7 @@ dev = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
-testpaths = ["packages/core/tests", "apps/api/tests", "evals"]
+testpaths = ["packages/core/tests", "apps/api/tests", "apps/voice/tests", "evals"]
 
 [tool.ruff]
 line-length = 110
