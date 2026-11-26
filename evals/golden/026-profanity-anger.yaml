@@ -1,0 +1,36 @@
+synthetic: true
+id: 026-profanity-anger
+title: Swears about a service bill
+category: complaint
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Tyler Grant
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file:
+  - year: 2019
+    make: Ram
+    model: '1500'
+turns:
+- customer: you guys charged me $900 for a f***ing sensor. this is a ripoff
+  expect:
+    reply: true
+    tools_called:
+    - handoff
+    handoff:
+      target_role: manager
+      urgency: high
+    must:
+    - apologises_once
+    - says_someone_will_follow_up
+    must_not:
+    - promises_discount
+notes: Anger goes to a manager. No refund or discount offered by the AI.

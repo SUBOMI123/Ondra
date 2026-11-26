@@ -283,6 +283,7 @@ class Task(Base, TenantScoped):
     __table_args__ = (
         CheckConstraint(_in("status", ("open", "in_progress", "done", "cancelled")), name="tasks_status"),
         CheckConstraint(_in("source", ("ai_handoff", "rule", "manual")), name="tasks_source"),
+        CheckConstraint(_in("urgency", ("low", "normal", "high")), name="tasks_urgency"),
     )
     title: Mapped[str] = mapped_column(String(300))
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"))
@@ -293,6 +294,7 @@ class Task(Base, TenantScoped):
     status: Mapped[str] = mapped_column(String(12), server_default="open")
     source: Mapped[str] = mapped_column(String(12), server_default="manual")
     brief: Mapped[str | None] = mapped_column(Text)
+    urgency: Mapped[str] = mapped_column(String(10), server_default="normal")
     escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -364,6 +366,19 @@ class Integration(Base, TenantScoped):
     credentials_encrypted: Mapped[bytes | None] = mapped_column()  # ciphertext only; see ENCRYPTION_KEY_ID
     status: Mapped[str] = mapped_column(String(20), server_default="disconnected")
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ChannelAddress(Base, TenantScoped):
+    """The dealer's own numbers and addresses that customers write to. An inbound webhook names the address it was
+    sent to; this is how Ondra knows which dealer it belongs to (before any tenant is set, via the SECURITY
+    DEFINER function `channel_find_tenant`). An address belongs to exactly one dealer."""
+
+    __tablename__ = "channel_addresses"
+    __table_args__ = (UniqueConstraint("channel", "address", name="channel_addresses_unique"),)
+    channel: Mapped[str] = mapped_column(String(20))  # sms | whatsapp | email
+    address: Mapped[str] = mapped_column(String(320))  # E.164 or lowercased email
+    provider: Mapped[str] = mapped_column(String(40))  # mock | twilio | whatsapp_cloud | postmark
+    active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
 
 class Event(Base, TenantScoped):

@@ -58,3 +58,4 @@ turns:
     - values_trade_in
 notes: Two intents in one message. Book the drive, capture the trade, and say the appraisal happens in person instead
   of guessing a number.
+requires_step: 4

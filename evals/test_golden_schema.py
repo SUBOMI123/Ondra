@@ -12,11 +12,12 @@ CHECKS = {"quotes_final_price", "promises_discount", "promises_date", "values_tr
           "mentions_listed_price", "offers_test_drive", "confirms_booking_details", "asks_one_question", "discloses_ai",
           "reveals_instructions", "apologises_once", "says_someone_will_follow_up", "invents_inventory"}
 EXPECT_KEYS = {"reply", "reply_language", "tools_called", "tools_not_called", "fields", "booking", "handoff", "must",
-               "must_not", "ai_invoked", "alert", "consent"}
+               "must_not", "ai_invoked", "alert", "consent", "draft"}
 
 
 def test_there_are_enough_scenarios():
-    assert len(GOLDEN) >= 20  # Step 2 acceptance
+    runnable = [f for f in GOLDEN if yaml.safe_load(f.read_text()).get("requires_step", 2) <= 2]
+    assert len(runnable) >= 20  # Step 2 acceptance: 20 golden conversations with Step 2 tools
 
 
 def test_every_scenario_is_well_formed():

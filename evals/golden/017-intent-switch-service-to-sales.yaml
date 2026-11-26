@@ -55,3 +55,4 @@ turns:
     - offers_test_drive
 notes: 'A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created with
   the RAV4 as a likely trade.'
+requires_step: 4

@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from ondra_core.models import AuditLog, Session, Tenant, User
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +24,6 @@ from ondra_api.security import (
     tenant_of_refresh_token,
     verify_password,
 )
-from ondra_core.models import AuditLog, Session, Tenant, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 COOKIE = "ondra_refresh"

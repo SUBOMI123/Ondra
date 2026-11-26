@@ -3,13 +3,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from ondra_core.models import Contact, ContactIdentity, User, Vehicle
+from ondra_core.permissions import Perm, can_see_vips
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.schemas import ContactOut, IdentityOut, Page, UserOut, VehicleOut
-from ondra_core.models import Contact, ContactIdentity, User, Vehicle
-from ondra_core.permissions import Perm, can_see_vips
 
 router = APIRouter(tags=["data"])
 

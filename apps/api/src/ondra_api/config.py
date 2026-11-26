@@ -14,6 +14,35 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 7
     app_base_url: str = "http://localhost:3001"
+    # The API's public URL as providers call it. Twilio signs the exact URL, so this must match what Twilio sees.
+    public_api_url: str = "http://localhost:8000"
+
+    # --- AI ---
+    anthropic_api_key: str = ""
+    # Set explicitly so an ANTHROPIC_BASE_URL in the shell can't redirect the app's traffic.
+    anthropic_api_base: str = "https://api.anthropic.com"
+    model_conversation: str = "claude-sonnet-5-5"
+    model_fast: str = "claude-haiku-5-5"
+    agent_effort: str = "low"
+    # Run the agent in the background after the webhook returns (production), or inline (tests, evals).
+    agent_inline: bool = False
+
+    # --- Channels. Each uses its mock until its flag is on. ---
+    mock_webhook_secret: str = "mock-secret"
+    feature_whatsapp: bool = False
+    whatsapp_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_verify_token: str = ""
+    whatsapp_app_secret: str = ""
+    whatsapp_api_version: str = "v27.0"
+    feature_sms: bool = False
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_messaging_service_sid: str = ""
+    feature_email: bool = False
+    postmark_server_token: str = ""
+    postmark_inbound_user: str = ""
+    postmark_inbound_password: str = ""
 
     @property
     def cookie_secure(self) -> bool:

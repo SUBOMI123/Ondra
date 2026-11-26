@@ -2,11 +2,10 @@
 database as the app role directly, the way a buggy query would."""
 
 import pytest
-from sqlalchemy import func, select, text, update
-from sqlalchemy.exc import DBAPIError, ProgrammingError
-
 from ondra_api.db import no_tenant_session, tenant_session
 from ondra_core.models import TENANT_TABLES, Contact, Vehicle
+from sqlalchemy import func, select, text, update
+from sqlalchemy.exc import DBAPIError, ProgrammingError
 
 
 async def test_every_table_with_tenant_id_has_forced_rls(database):

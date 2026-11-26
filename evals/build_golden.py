@@ -455,6 +455,90 @@ scenario(
     notes="A short, friendly 'you've reached Prestige Motors' and nothing else. No lead created.",
 )
 
+# ---------------------------------------------------------------- Step 2 additions
+
+scenario(
+    id="023-draft-mode-first-week",
+    title="Dealer in draft mode: Ondra writes, a person approves",
+    category="new_buyer",
+    channel="sms",
+    dealer={"local_time": "Wed 2:05 pm", "open_now": True, "policy": {"price_disclosure": "listed", "draft_mode": True}},
+    contact=contact(),
+    context={"inventory": [TACOMA]},
+    turns=[{"customer": "do you have any tacomas", "expect": {
+        "reply": True, "draft": True, "tools_called": ["search_inventory"],
+        "must_not": ["invents_inventory", "quotes_final_price"],
+    }}],
+    notes="Draft mode is the default for a dealer's first week. The reply is stored as a draft and nothing is sent.",
+)
+
+scenario(
+    id="024-car-not-in-stock",
+    title="Asks for a car the dealer doesn't have",
+    category="new_buyer",
+    channel="sms",
+    dealer=CLOSED_TUE,
+    contact=contact(),
+    context={"inventory": [HIGHLANDER, PILOT]},
+    turns=[{"customer": "looking for a 4runner, got any?", "expect": {
+        "reply": True, "tools_called": ["search_inventory"], "handoff": "none",
+        "must": ["asks_one_question"], "must_not": ["invents_inventory", "promises_date"],
+    }}],
+    notes="Say plainly it isn't in stock. Suggesting the Highlander or Pilot is fine; inventing a 4Runner is not.",
+)
+
+scenario(
+    id="025-asks-for-a-person",
+    title="Wants to talk to a person",
+    category="new_buyer",
+    channel="whatsapp",
+    dealer=CLOSED_TUE,
+    contact=contact("Marcus Webb"),
+    turns=[{"customer": "can I just talk to a real person please", "expect": {
+        "reply": True, "tools_called": ["handoff"], "handoff": {"target_role": "sales", "urgency": "normal"},
+        "must": ["says_someone_will_follow_up"],
+    }}],
+    notes="No arguing, no 'I can help with that'. Hand off and say who will reply and when.",
+)
+
+scenario(
+    id="026-profanity-anger",
+    title="Swears about a service bill",
+    category="complaint",
+    channel="sms",
+    dealer=CLOSED_TUE,
+    contact=contact("Tyler Grant", vehicles_on_file=[{"year": 2019, "make": "Ram", "model": "1500"}]),
+    turns=[{"customer": "you guys charged me $900 for a f***ing sensor. this is a ripoff", "expect": {
+        "reply": True, "tools_called": ["handoff"], "handoff": {"target_role": "manager", "urgency": "high"},
+        "must": ["apologises_once", "says_someone_will_follow_up"], "must_not": ["promises_discount"],
+    }}],
+    notes="Anger goes to a manager. No refund or discount offered by the AI.",
+)
+
+scenario(
+    id="027-burst-of-messages",
+    title="Three texts in a row before Ondra replies",
+    category="noise",
+    channel="sms",
+    dealer=CLOSED_TUE,
+    contact=contact(),
+    context={"inventory": [BRONCO]},
+    turns=[{"customer": ["hey", "the green bronco", "is it still for sale? whats the mileage"], "expect": {
+        "reply": True, "tools_called": ["search_inventory"],
+        "must": ["asks_one_question"], "must_not": ["invents_inventory", "quotes_final_price"],
+    }}],
+    notes="One reply that answers all three, not three replies. In production the earlier runs are skipped.",
+)
+
+# Scenarios that need tools from later steps (booking is Step 4, repair-order status Step 7).
+REQUIRES_STEP = {
+    "002-books-saturday-test-drive": 4, "005-service-typos": 4, "007-reschedule-service": 4,
+    "017-intent-switch-service-to-sales": 4, "006-repair-status": 7,
+}
+for _s in S:
+    if _s["id"] in REQUIRES_STEP:
+        _s["requires_step"] = REQUIRES_STEP[_s["id"]]
+
 
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)

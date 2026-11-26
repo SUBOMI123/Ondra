@@ -38,3 +38,4 @@ turns:
     must:
     - confirms_booking_details
 notes: Use reschedule_or_cancel on the existing appointment, not a second booking.
+requires_step: 4

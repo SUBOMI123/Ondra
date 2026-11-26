@@ -4,9 +4,8 @@ import asyncio
 import os
 
 from alembic import context
-from sqlalchemy.ext.asyncio import create_async_engine
-
 from ondra_core.models import Base
+from sqlalchemy.ext.asyncio import create_async_engine
 
 target_metadata = Base.metadata
 

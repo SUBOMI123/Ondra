@@ -13,7 +13,14 @@ Revises: 0001
 
 from alembic import op
 
-from ondra_core.models import TENANT_TABLES
+# Frozen at the tables that existed in revision 0001. Later tables get RLS in their own migration (see
+# `enable_tenant_rls` in 0003), so this revision never changes meaning when the model grows.
+TENANT_TABLES = (
+    'appointment_types', 'events', 'follow_up_sequences', 'integrations', 'message_templates', 'policies',
+    'resources', 'routing_rules', 'users', 'vehicles', 'audit_log', 'contacts', 'knowledge_docs', 'sessions',
+    'consents', 'contact_identities', 'contact_relations', 'conversations', 'deals', 'knowledge_gaps',
+    'appointments', 'calls', 'messages', 'tasks',
+)
 
 revision = "0002"
 down_revision = "0001"

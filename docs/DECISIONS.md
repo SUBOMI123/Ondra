@@ -128,3 +128,29 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Decision:** The first 22 golden conversations (`evals/golden/`) are hand-written and marked `synthetic: true`, generated from `evals/build_golden.py` so they share inventory and policy fixtures. Each turn states what must and must not happen in a fixed vocabulary of checks (`evals/README.md`). VIP and opted-out cases assert the AI is never invoked: the policy layer stops them first. A schema test keeps every file valid and enforces that rule.
 **Why:** There is no pilot dealer data yet, and Step 2 needs 20 scenarios to build against. Writing them messy (typos, two intents in one text, injection attempts) reduces, but does not remove, the risk of evals that only reflect our assumptions.
 **Next:** Replace and extend with real conversations: mystery-shop local dealers after hours, then the pilot dealer's exports with names and numbers stripped. Two open items are flagged inside the scenarios: whether to disclose the AI up front or only when asked (015), and whether replying to a new inbound question after STOP is allowed (009, needs counsel).
+
+## 2026-11-26: Step 2: channel gateway, policy layer and text agent
+
+**Product rules live in code, before and after the model.** `ondra_core.agent.policy.evaluate_inbound` runs before any model call. STOP (and plain-language "stop texting me") opts the contact out on every channel and purpose. VIPs get no AI reply or draft, and the owner (or the VIP's handler) gets a high-urgency task plus an `alert.created` event. An opted-out contact who writes in gets nothing automated, and a person is told. A second gate, `may_send_outbound`, re-reads consent and VIP status after the model finishes, in case STOP arrived mid-turn. After the model, `detectors.review_reply` blocks final prices, discounts, date promises, trade-in values, financing guarantees, leaked instructions and cars the tools never returned. A blocked draft is rewritten once, with a mid-conversation system note; if it fails again, a safe "I've passed this to…" reply goes out and a person gets a task. With price policy `none`, the model never sees prices at all.
+*Why:* a prompt is a request, not a guarantee. These rules must hold whatever the model does. Mutation-checked: removing the VIP rule fails 3 tests, and removing idempotency fails 1.
+*Alternatives:* an LLM judge as the guard (slower and non-deterministic; it may be added later as a second layer for tone checks).
+
+**Tenant from the receiving address.** Inbound webhooks arrive before a tenant is known. `channel_addresses` (RLS-scoped, unique per channel and address) maps the dealer's own number or email to the tenant, and is read through one `SECURITY DEFINER` function, `channel_find_tenant`. Revision 0002's table list is now frozen, so later tables get RLS in their own migration.
+
+**Idempotency.** Messages are inserted with `ON CONFLICT DO NOTHING` on (tenant, provider, provider_message_id); a duplicate webhook stores nothing and runs nothing. Meta retries for up to 36 hours and Postmark 10 times, so this matters.
+
+**Draft mode is dealer-wide.** It is `policies.draft_mode`, the default for the first week. `conversations.ai_mode` is a per-conversation override (`auto` follows the dealer, `draft` forces drafts, `off` disables the AI). New conversations start at `auto`.
+
+**The AI turn runs after the webhook answers**, as a FastAPI background task. It is not yet on a durable queue: if the API restarts mid-turn, that one reply is lost (the inbound message is stored either way). It moves to the worker in Step 3, together with SLA timers. A burst of messages is answered once: a run that sees a newer inbound message skips, and the newest one's run answers all of them.
+
+**Models.** Conversations use `claude-sonnet-5-5`, as in BUILD_PLAN.md §6.1. It runs with adaptive thinking at `low` effort for latency, `auto` tool choice (current models reject forced tool choice), server-side refusal fallback (`fallbacks: "default"`), and the stable system-prompt block marked for caching. The base URL is set explicitly, so a shell `ANTHROPIC_BASE_URL` can't redirect production traffic.
+
+**Knowledge search is Postgres full-text for now**, OR-ing the query's words and ranking with `ts_rank`. Embeddings (pgvector) wait until an embedding provider is chosen. Anthropic has no embeddings API, so this needs a new vendor, which is a founder decision. The tool interface doesn't change when it lands.
+
+**Provider details were checked against the official docs on 2026-11-26.** WhatsApp: `X-Hub-Signature-256`, the `hub.*` handshake, the webhook shape and v27.0 send. Twilio: the signature algorithm, verified against the docs' worked example in a test, the webhook params, and Advanced Opt-Out behaviour. Postmark: the inbound fields; it has no HMAC signatures, so Basic auth is used. Unconfirmed details are marked `TODO(verify)` in code:
+- WhatsApp's HMAC and hex encoding, which the docs imply but don't state.
+- Twilio API-key versus auth-token send auth, and its newer shared-key signing.
+- Postmark In-Reply-To through custom headers.
+- WhatsApp usernames: users who hide their phone number arrive with only a BSUID. That is stored as their WhatsApp identity for now.
+
+**Opt back in.** START or UNSTOP re-subscribes every channel the STOP covered (Twilio: "YES" does not). `TODO(verify, counsel)`: per-channel rules.

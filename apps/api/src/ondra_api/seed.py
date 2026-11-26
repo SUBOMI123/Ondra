@@ -12,12 +12,22 @@ import random
 import sys
 import uuid
 
+from ondra_core.models import (
+    ChannelAddress,
+    Consent,
+    Contact,
+    ContactIdentity,
+    KnowledgeDoc,
+    Policy,
+    Tenant,
+    User,
+    Vehicle,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ondra_api.config import get_settings
 from ondra_api.security import hash_password
-from ondra_core.models import Consent, Contact, ContactIdentity, Policy, Tenant, User, Vehicle
 
 DEV_PASSWORD = "ondra-dev-password"
 
@@ -59,6 +69,24 @@ def _vin(rng: random.Random) -> str:
     return "".join(rng.choice(chars) for _ in range(17))
 
 
+DEALER_PHONE = "+12145550100"
+DEALER_EMAIL = "sales@prestige-motors.example"
+
+KNOWLEDGE = [
+    ("Opening hours", ("Sales: Monday to Friday 9 am to 7 pm, Saturday 9 am to 6 pm, closed Sunday. "
+     "Service: Monday to Friday 7 am to 6 pm, Saturday 8 am to 2 pm."), "hours"),
+    ("Location and parking", ("4100 Lemmon Ave, Dallas, TX 75219. Free customer parking in front of the showroom."), "location"),
+    ("Financing", ("We work with several banks and credit unions. A finance manager reviews every application; we "
+     "can't say whether an application will be approved until it's submitted."), "financing"),
+    ("Test drives", ("Test drives are available during sales hours. Bring a valid driver's license. They take about "
+     "30 minutes."), "sales"),
+    ("Shipping and export", ("We can arrange shipping through partner carriers. A salesperson confirms costs, "
+     "documents and timing for each order."), "shipping"),
+    ("Service loaners and shuttle", ("Free shuttle within 10 miles. Loaner cars for repairs over 4 hours, "
+     "subject to availability."), "service"),
+]
+
+
 async def seed(if_empty: bool = False) -> uuid.UUID | None:
     engine = create_async_engine(get_settings().migrations_database_url)
     rng = random.Random(42)
@@ -86,6 +114,12 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             db.add(Policy(tenant_id=t, price_disclosure="listed", draft_mode=True,
                           never_say=["guaranteed approval", "final price"],
                           handoff_triggers=["discount", "trade-in value", "delivery date", "complaint"]))
+
+            # The dealer's own number, WhatsApp and email. They use the mock adapters until a provider flag is on.
+            for channel, address in (("sms", DEALER_PHONE), ("whatsapp", DEALER_PHONE), ("email", DEALER_EMAIL)):
+                db.add(ChannelAddress(tenant_id=t, channel=channel, address=address, provider="mock"))
+            for title, body, category in KNOWLEDGE:
+                db.add(KnowledgeDoc(tenant_id=t, title=title, body=body, category=category))
 
             for i in range(50):
                 make, model, trims, lo, hi = MODELS[i % len(MODELS)]

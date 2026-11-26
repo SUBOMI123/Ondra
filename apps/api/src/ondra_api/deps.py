@@ -6,13 +6,13 @@ from dataclasses import dataclass
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
+from ondra_core.models import User
+from ondra_core.permissions import Perm, has_perm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.db import tenant_session
 from ondra_api.security import decode_access_token
-from ondra_core.models import User
-from ondra_core.permissions import Perm, has_perm
 
 
 @dataclass(frozen=True)

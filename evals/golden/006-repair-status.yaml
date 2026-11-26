@@ -35,3 +35,4 @@ turns:
     must_not:
     - promises_date
 notes: The DMS says waiting on parts with no ETA. Say so plainly, name the advisor, and don't invent a pickup date.
+requires_step: 7

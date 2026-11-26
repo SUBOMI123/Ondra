@@ -5,10 +5,9 @@ Revises:
 Create Date: 2026-11-25 23:07:29.495295
 """
 
-from alembic import op
-import sqlalchemy as sa
 import pgvector.sqlalchemy
-from sqlalchemy.dialects import postgresql
+import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = '0001'

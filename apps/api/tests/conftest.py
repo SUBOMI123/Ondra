@@ -13,14 +13,13 @@ OWNER_URL = "postgresql+asyncpg://ondra_owner:ondra_owner_dev@localhost:5432/ond
 APP_URL = "postgresql+asyncpg://ondra_app:ondra_app_dev@localhost:5432/ondra_test"
 os.environ.update(DATABASE_URL=APP_URL, MIGRATIONS_DATABASE_URL=OWNER_URL, JWT_SECRET="test-secret-" + "x" * 32)
 
-import asyncpg  # noqa: E402
-import httpx  # noqa: E402
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
-
-from ondra_api.main import app  # noqa: E402
-from ondra_api.security import hash_password  # noqa: E402
-from ondra_api.seed import DEV_PASSWORD, seed  # noqa: E402
-from ondra_core.models import Contact, Tenant, User, Vehicle  # noqa: E402
+import asyncpg
+import httpx
+from ondra_api.main import app
+from ondra_api.security import hash_password
+from ondra_api.seed import DEV_PASSWORD, seed
+from ondra_core.models import Contact, Tenant, User, Vehicle
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 API_DIR = Path(__file__).resolve().parents[1]
 
