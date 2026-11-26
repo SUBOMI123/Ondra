@@ -25,6 +25,7 @@ def test_field_matching():
     assert run.field_matches("third row", "3rd row")
     assert not run.field_matches("Toyota Tacoma", "Toyota Highlander")
     assert run.field_matches("+12145551000", "(214) 555-1000")
+    assert run.field_matches("after 5 pm", "after 5")
 
 
 async def test_fixture_knowledge_search():

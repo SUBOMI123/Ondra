@@ -134,7 +134,7 @@ def field_matches(expected: Any, actual: Any) -> bool:
     if str(expected).startswith("+"):
         return re.sub(r"\D", "", str(actual)).endswith(re.sub(r"\D", "", str(expected))[-10:])
     exp, act = _norm(expected).split(), _norm(actual)
-    return all(w in act for w in exp)
+    return all(w in act for w in exp if w not in ("am", "pm"))  # "after 5" and "after 5 pm" mean the same
 
 
 @dataclass

@@ -95,15 +95,19 @@ async def run_turn(
     channel: str,
     history: list[Turn],
     known_makes: set[str] | None = None,
+    preload_contact: bool = True,
 ) -> TurnResult:
     """`history` ends with the customer's new message(s)."""
     started = time.monotonic()
     result = TurnResult(reply="")
-    system = build_system(dealer, channel, customer)
+    contact_context = await backend.get_contact_context() if preload_contact and customer.known else None
+    system = build_system(dealer, channel, customer, contact_context)
     messages = _to_messages(history)
     ctx = ReplyContext(
         price_disclosure=dealer.price_disclosure,
-        known_makes=set(known_makes or ()),
+        known_makes=set(known_makes or ()) | {
+            str(v["make"]) for v in (contact_context or {}).get("vehicles_on_file", []) if isinstance(v, dict) and v.get("make")
+        },
         customer_text="\n".join(t.text for t in history if t.role == "customer"),
     )
     reply: str | None = None

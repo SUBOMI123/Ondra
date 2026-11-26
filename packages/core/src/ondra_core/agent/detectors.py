@@ -184,7 +184,7 @@ def review_reply(reply: str, ctx: ReplyContext, never_say: list[str] | None = No
 _TEST_DRIVE = re.compile(
     r"\b(test[- ]drive|come (?:in|by|see|take a look|check)|stop by|swing by|see (?:it|her|them|one) in person|"
     r"take (?:it|her) for a (?:spin|drive)|visit (?:us|the lot)|set up a time|book a time|"
-    r"prueba de manejo|manejarl[oa]|venir a ver|pasar a ver|visitarnos)\b",
+    r"prueba de manejo|manejarl[oa]|probarl[oa]|verl[oa]|venir|pasar a ver|visitarnos|l[oa]s? esperamos)\b",
     re.IGNORECASE,
 )
 _AI = re.compile(r"\b(AI|A\.I\.|virtual assistant|automated assistant|digital assistant|asistente virtual)\b")

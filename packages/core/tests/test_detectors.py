@@ -55,3 +55,8 @@ def test_positive_checks():
     assert POSITIVE_CHECKS["discloses_ai"]("I'm the dealership's AI assistant.", CTX)
     assert POSITIVE_CHECKS["mentions_listed_price"]("Listed at $33,900.", CTX)
     assert POSITIVE_CHECKS["offers_test_drive"]("Want to take it for a test drive Saturday?", CTX)
+
+
+def test_spanish_visit_invitation_counts_as_offering_a_test_drive():
+    r = "Si quiere verla o probarla, con gusto la esperamos. ¿Qué día le queda bien para venir?"
+    assert POSITIVE_CHECKS["offers_test_drive"](r, CTX)
