@@ -127,3 +127,12 @@ async def test_overdue_tasks_escalate_once_to_a_manager_then_owner(database):
         events = (await db.execute(select(Event).where(Event.type == "task.escalated"))).scalars().all()
         assert {e.payload["task_id"] for e in events} >= {str(s.id), str(m.id)}
         await db.execute(update(Task).where(Task.id.in_(ids)).values(status="done"))
+
+
+def test_handoff_task_titles_are_actions_not_codes():
+    from ondra_api.services.agent_tools import handoff_title
+
+    assert handoff_title("pricing", "Sarah King") == "Talk price with Sarah"
+    assert handoff_title("vehicle_request", "Mei Chen") == "Find a car for Mei"
+    assert handoff_title("trade_in", "+12145550199") == "Value the customer's trade-in"
+    assert handoff_title("something_new", "Kevin Lee") == "Follow up with Kevin"

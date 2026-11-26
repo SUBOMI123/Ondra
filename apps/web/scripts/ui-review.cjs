@@ -24,6 +24,8 @@ const hex = grep("#[0-9a-fA-F]{3,8}\\b").split("\n").filter((l) => l && !/compon
 if (hex.length) failures.push(`Hex colours in components (use tokens):\n  ${hex.join("\n  ")}`)
 const dots = grep("·")
 if (dots) failures.push(`Middle-dot metadata strings:\n  ${dots}`)
+const effects = grep("useEffect\\(\\(\\) => [^{]")
+if (effects) failures.push(`Effects must have a block body (a returned Promise, e.g. from scrollIntoView, crashes React):\n  ${effects}`)
 const sparkles = grep("IconSparkles")
 if (sparkles) failures.push(`Sparkles icon (use OndraMark for Ondra):\n  ${sparkles}`)
 

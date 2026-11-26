@@ -51,6 +51,26 @@ async def assignee_for(db: AsyncSession, role: str, preferred: uuid.UUID | None 
     return None
 
 
+_HANDOFF_TITLES = {
+    "pricing": "Talk price with {first}",
+    "discount": "Talk price with {first}",
+    "trade_in": "Value {first}'s trade-in",
+    "financing": "Go over financing with {first}",
+    "delivery_date": "Confirm a delivery date with {first}",
+    "complaint": "Call {first} about their complaint",
+    "asked_for_person": "Get back to {first}",
+    "unknown_answer": "Answer {first}'s question",
+    "shipping": "Sort out shipping for {first}",
+    "vehicle_request": "Find a car for {first}",
+}
+
+
+def handoff_title(reason: str, name: str) -> str:
+    """A task title a salesperson can act on: "Talk price with Sarah", not "pricing"."""
+    first = name.split()[0] if name and not name.startswith("+") else "the customer"
+    return _HANDOFF_TITLES.get(reason, "Follow up with {first}").format(first=first)
+
+
 class DbToolBackend:
     def __init__(self, db: AsyncSession, *, contact: Contact, conversation: Conversation, price_disclosure: str,
                  open_now: bool) -> None:
@@ -155,7 +175,7 @@ class DbToolBackend:
 
         task = await new_task(
             self.db,
-            title=f"{c.display_name}: {reason.replace('_', ' ')}",
+            title=f"{c.display_name}: {handoff_title(reason, c.display_name)}",
             contact_id=c.id,
             conversation_id=self.conversation.id,
             assignee_user_id=await assignee_for(self.db, target_role, preferred),

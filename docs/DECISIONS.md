@@ -215,7 +215,21 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **Retries:** failed jobs retry with exponential backoff (10 s, 20 s, 40 s…) up to `max_attempts`, then stay `failed` with the error kept. A job stuck in `running` past its lease (a crashed worker) is claimed again.
 - **Escalation:** every 60 s the worker sweeps for overdue tasks.
 
-**Deadlines:** high urgency 15 min, normal 2 h, low 1 day, counted only in the dealer's opening hours, so overnight leads don't escalate at 1 am. An overdue task escalates once: urgency becomes high, and it goes to a manager, or to the owner if a manager already had it. Both a `task.escalated` and an `alert.created` event are recorded.
+**Deadlines:** high urgency 15 min, normal 2 h, low 8 open hours (about one working day), counted only in the dealer's opening hours, so overnight leads don't escalate at 1 am. An overdue task escalates once: urgency becomes high, and it goes to a manager, or to the owner if a manager already had it. Both a `task.escalated` and an `alert.created` event are recorded.
 **Why:** the plan calls for a worker (`apps/worker` in §13) but names no queue. Postgres needs no new infrastructure, and RLS covers jobs like any other dealer data. The worker lives in the API package because every job reuses API services; a separate `apps/worker` package would only re-export them.
 **Alternatives:** Redis with RQ or Celery (new infrastructure to run and secure); a cloud queue (ties local dev to an account).
 **Known limit:** if a worker crashes after the provider accepted a send but before the job is marked done, the retry can send that reply twice. Fix with an idempotency key per outbound message when real providers go live.
+
+## 2026-11-26: Step 3 choices: inbox views, one send path, live updates
+
+- **Inbox views come from data, not a status column.**
+  - *Needs you:* a VIP whose last message was inbound, a waiting AI draft, an open task, or `waiting_staff`.
+  - *Ondra handled:* the last word was Ondra's.
+  - *With the team:* everything else.
+
+  The reason is shown in words. Computing this keeps it from drifting out of sync with the facts.
+- **One send path** (`services/outbound.deliver`) for Ondra, approved drafts and staff replies. It re-checks the opt-out and VIP gate right before sending, so no route can skip it. A staff reply replaces any waiting AI draft.
+- **Draft edits are recorded** as `draft.edited` events (before and after) for the learning loop (§6.3a). Approving credits the approver on the message, and the author stays the AI.
+- **Live updates** use Postgres NOTIFY from triggers (ids only), one listener per API process, and server-sent events per dealer. The dashboard reads the stream with `fetch`, so the token stays in a header, not the URL. Changes in a burst refresh once.
+- **Effects never return values.** A `useEffect(() => el.scrollIntoView())` returned a Promise in newer Chromium, and React crashed calling it as cleanup. Every effect now has a block body, and `npm run review:ui` fails any that doesn't.
+- **The seed has five example conversations,** one per state the Inbox shows (VIP waiting, draft, overdue handoff, handled by Ondra, opted out), so a fresh `docker compose up` can be demoed.

@@ -1,6 +1,9 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
 import * as React from "react"
+
+import { api } from "@/lib/api"
 import {
   IconCalendarEvent,
   IconCar,
@@ -39,12 +42,12 @@ import {
 const data = {
   navMain: [
     { title: "Today", url: "/", icon: IconLayoutDashboard },
-    { title: "Inbox", url: "/inbox", icon: IconMessages, badge: "6" },
-    { title: "Calls", url: "/calls", icon: IconPhone, badge: "2" },
+    { title: "Inbox", url: "/inbox", icon: IconMessages },
+    { title: "Calls", url: "/calls", icon: IconPhone },
     { title: "Calendar", url: "/calendar", icon: IconCalendarEvent },
     { title: "Clients", url: "/clients", icon: IconUsers },
     { title: "Deals", url: "/deals", icon: IconLayoutKanban },
-    { title: "Tasks", url: "/tasks", icon: IconChecklist, badge: "2" },
+    { title: "Tasks", url: "/tasks", icon: IconChecklist },
     { title: "Inventory", url: "/inventory", icon: IconCar },
   ],
   navSecondary: [
@@ -61,6 +64,15 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { me } = useAuth()
+  // Real counts: conversations that need a person, and my open tasks. Same queries as those pages, so live
+  // updates refresh both. No badge when the count is zero or unknown.
+  const inbox = useQuery({ queryKey: ["conversations"], queryFn: () => api<{ counts: { needs: number } }>("/conversations?view=all"), enabled: !!me })
+  const tasks = useQuery({ queryKey: ["tasks", "mine", "open"], queryFn: () => api<{ items: unknown[] }>("/tasks?scope=mine&status=open"), enabled: !!me })
+  const badge = (n?: number) => (n ? String(n) : undefined)
+  const navMain = data.navMain.map((item) =>
+    item.url === "/inbox" ? { ...item, badge: badge(inbox.data?.counts.needs) }
+      : item.url === "/tasks" ? { ...item, badge: badge(tasks.data?.items.length) } : item,
+  )
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -77,7 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavDocuments items={data.views} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ondra_core.models import Appointment, Contact, Conversation, Event, Message, Task, User
+from ondra_core.models import Appointment, Contact, Conversation, Deal, Event, Message, Task, User
 from ondra_core.permissions import Perm, can_see_vips
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
@@ -155,5 +155,27 @@ async def timeline(contact_id: uuid.UUID, limit: int = Query(100, le=300),
         items.append({"kind": "appointment", "at": a.starts_at.isoformat(), "status": a.status,
                       "service_type": a.service_type, "source": a.source})
     items.sort(key=lambda i: i["at"], reverse=True)
-    return {"items": items[:limit]}
+
+    from ondra_api.services.inbound import contact_opted_out
+
+    deal = (await db.execute(select(Deal).where(Deal.contact_id == c.id).order_by(Deal.created_at.desc()).limit(1))
+            ).scalar_one_or_none()
+    nxt = (await db.execute(select(Task).where(Task.contact_id == c.id, Task.status.in_(("open", "in_progress")))
+                            .order_by(Task.due_at.asc().nulls_last()).limit(1))).scalar_one_or_none()
+    brief = None if c.is_vip else (await db.execute(
+        select(Task.brief).where(Task.contact_id == c.id, Task.source == "ai_handoff").order_by(Task.created_at.desc()).limit(1)
+    )).scalar_one_or_none()
+    latest_conv = (await db.execute(select(Conversation.id).where(Conversation.contact_id == c.id)
+                                    .order_by(Conversation.updated_at.desc()).limit(1))).scalar_one_or_none()
+    now = datetime.now(UTC)
+    return {
+        "items": items[:limit],
+        "opted_out": await contact_opted_out(db, c.id),
+        "deal": None if deal is None else {"stage": deal.stage, "vehicle": (deal.vehicle_of_interest or {}).get("description"),
+                                           "budget_max": float(deal.budget_max) if deal.budget_max is not None else None},
+        "next_task": None if nxt is None else {"title": nxt.title, "due_at": nxt.due_at.isoformat() if nxt.due_at else None,
+                                               "overdue": bool(nxt.due_at and nxt.due_at < now)},
+        "brief": brief,  # never for a VIP (product rule)
+        "latest_conversation_id": str(latest_conv) if latest_conv else None,
+    }
 

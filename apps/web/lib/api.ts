@@ -35,6 +35,11 @@ export async function login(email: string, password: string): Promise<void> {
 }
 
 /** Trade the refresh cookie for a new access token. Returns false when there is no live session. */
+/** The current access token, for requests `api`/`send` can't make (the live stream). */
+export function currentToken(): string | null {
+  return accessToken
+}
+
 export async function refresh(): Promise<boolean> {
   const r = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null)
   if (!r || !r.ok) return false

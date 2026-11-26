@@ -29,7 +29,9 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false)
   const [show, setShow] = useState(false)
   const [welcome, setWelcome] = useState(false)
-  useEffect(() => setWelcome(new URLSearchParams(window.location.search).has("welcome")), [])
+  useEffect(() => {
+    setWelcome(new URLSearchParams(window.location.search).has("welcome"))
+  }, [])
 
   useEffect(() => {
     if (status === "signed-in") router.replace("/")

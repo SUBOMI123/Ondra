@@ -164,7 +164,9 @@ function SaveBar({ dirty, saving, error, onSave, onReset }: {
 function BusinessSection({ data, canEdit }: { data: SettingsData; canEdit: boolean }) {
   const qc = useQueryClient()
   const [form, setForm] = useState<Business>(data.business)
-  useEffect(() => setForm(data.business), [data.business])
+  useEffect(() => {
+    setForm(data.business)
+  }, [data.business])
   const dirty = JSON.stringify(form) !== JSON.stringify(data.business)
   const save = useMutation({
     mutationFn: () => send("PUT", "/settings/business", form),
@@ -386,7 +388,9 @@ function TeamSection() {
 function RepliesSection({ data, canEdit }: { data: SettingsData; canEdit: boolean }) {
   const qc = useQueryClient()
   const [form, setForm] = useState<Replies>(data.replies)
-  useEffect(() => setForm(data.replies), [data.replies])
+  useEffect(() => {
+    setForm(data.replies)
+  }, [data.replies])
   const dirty = JSON.stringify(form) !== JSON.stringify(data.replies)
   const save = useMutation({
     mutationFn: () => send("PUT", "/settings/replies", form),

@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 
 from ondra_core.models import Tenant
 
-SLA = {"high": timedelta(minutes=15), "normal": timedelta(hours=2), "low": timedelta(days=1)}
+# Counted in open hours: "low" is about one working day (8 open hours), not 24 open hours (2 to 3 days).
+SLA = {"high": timedelta(minutes=15), "normal": timedelta(hours=2), "low": timedelta(hours=8)}
 _DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 

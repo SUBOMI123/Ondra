@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 3, Inbox, clients and tasks (API first). **Next:** Step 4, Booking
+**Last updated:** 2026-11-26. **Now:** Step 3 done, waiting for review. **Next:** Step 4, Booking
 
 ## Build steps
 
@@ -11,7 +11,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 |---|---|---|
 | 1 | Foundations: monorepo, Docker Compose, Postgres with row-level security, auth and roles, dashboard shell, seed data | **Done** (accepted 2026-11-25) |
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
-| 3 | Inbox, clients, tasks (API first, then screens) | **In progress**: job queue and worker done; conversations, tasks and live-update APIs next, then screens |
+| 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | Not started; Calendar designed with example data |
 | 5 | Voice | Not started; Calls designed with example data |
 | 6 | Routing, follow-ups, learning loop | Not started |
@@ -21,27 +21,38 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 10 | Hardening and compliance | Not started |
 | 11 | Instagram and self-serve onboarding | Not started |
 
+### Step 3 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| A staff user can work a lead end to end in the UI | Met | Browser run on a fresh stack (`scratchpad/step3-acceptance.cjs`). New text appears live without reload. Ondra's draft is edited and sent, credited to the approver. Take over, then a staff reply. Opted-out client has no reply box. Task completed with undo. Client history shows the reply and Ondra's brief. VIP profile has no AI content |
+| An overdue task escalates | Met | Seeded overdue task escalated by the worker to the manager within a minute of start; `test_overdue_tasks_escalate_once_to_a_manager_then_owner` |
+
 ### Step 2 acceptance
 
 | Check | Status | Evidence |
 |---|---|---|
-| A mock WhatsApp message gets a correct AI reply in under 5 s | Met | Over 100 model turns: median 3.2 s, p90 4.6 s. Every text and WhatsApp reply was under 5 s; one email reply took 5.6 s |
+| A mock WhatsApp message gets a correct AI reply in under 5 s | Met, with a tail | Typical replies: median about 3 s. Replies needing a lookup and a handoff (export buyer on WhatsApp, email leads) take three model rounds and run 5 to 6 s when the model is slower: 1 in 100 turns on 2026-11-26 morning, 4 in 40 on the Step 3 rerun |
 | A VIP gets no AI reply and an alert is created | Met | `test_vip_gets_no_ai_and_the_owner_is_alerted`; live stack check |
 | Draft mode stores a draft | Met | `test_draft_mode_stores_a_draft_and_sends_nothing` |
 | 20 golden conversations pass | Met | 22 runnable, all pass against the real model: 110 of 110 across the last two runs (`--repeat 2` and `--repeat 3`) |
 
 ## What works today
 
-- **Marketing site** (`apps/site`): live-ready static site, demo form to Formspree.
+- **Marketing site** (`apps/site`): static site ready to deploy, demo form to Formspree.
 - **API** (`apps/api`):
   - sign-in, roles and tenant isolation;
-  - clients, inventory, team;
-  - settings (business hours, reply rules, channels) and team management (invite, roles, deactivate);
-  - channel webhooks for WhatsApp, SMS and email (mock until provider accounts exist);
+  - clients with timeline, inventory;
+  - settings and team management;
+  - channel webhooks (mock until provider accounts exist);
   - the AI agent with its policy layer;
-  - knowledge search with Voyage embeddings.
-- **Dashboard** (`apps/web`): sign-in, invite acceptance, Settings, Clients, client profile and Inventory on real data. Today, Inbox, Tasks, Deals, Calendar and Calls are designed but show **example data** until their steps.
-- **Quality:** 99 Python tests, 22 golden conversations against the real model, and `npm run review:ui` on 12 pages.
+  - knowledge search (Voyage);
+  - inbox conversations (approve and edit drafts, reply, take over, hand back, assign);
+  - tasks with deadlines in opening hours, and escalation;
+  - live updates (server-sent events).
+- **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
+- **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Settings, and sidebar counts. Today, Deals, Calendar and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calendar: Step 4; Calls: Step 5).
+- **Quality:** 123 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
@@ -58,9 +69,12 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 ## Known gaps (honest list)
 
-- Delivery receipts from providers are logged, not stored.
+- **"New message" (starting a conversation with a customer) isn't built.** Business-initiated messages need consent checks and WhatsApp templates; that work is planned for Step 6 (follow-ups).
+- **A worker crash at the wrong moment can send a reply twice:** after the provider accepted the send, but before the job was marked done. Fix with per-message idempotency keys before real providers go live.
+- Delivery receipts from providers are logged, not stored on the message.
 - Team invites are shown as a link to copy; nothing is emailed yet.
 - Connecting a channel registers the address; provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.
 - The golden conversations are synthetic. `must` checks are pattern-based and can misjudge good replies.
-- Email replies that need a lookup and a handoff can take just over 5 s (one in 100 turns). Each model round is about 1 to 2 s; the model writes its reply in a separate round after handing off.
+- **Reply latency tail:** replies needing a lookup and a handoff (WhatsApp export buyers, email leads) take three model rounds, so they run 5 to 6 s when each model call is slow (2 s or more). The fix that remains is a faster model for the final reply-writing round. That changes the plan's model choice (§6.1), so it's a founder decision.
+- In this build environment, containers can't reach Voyage (Anthropic is reachable), so the seed's embedding step falls back and the knowledge backfill runs from the host. Production hosts won't have this limit.
 - Docker Hub rate-limits image pulls from this build environment; local images are layered from the last good build.

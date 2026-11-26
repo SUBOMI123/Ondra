@@ -28,7 +28,6 @@ import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
 import { api, ApiError, type Contact } from "@/lib/api"
-import { CONVERSATIONS, type ThreadEvent } from "@/lib/examples"
 import { cn } from "@/lib/utils"
 
 const CHANNEL = {
@@ -43,42 +42,55 @@ function formatPhone(e164?: string) {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : (e164 ?? "")
 }
 
-function TimelineItem({ e, first }: { e: ThreadEvent; first: string }) {
+type TimelineEntry =
+  | { kind: "message"; at: string; channel: string; direction: string; author: string; author_name: string | null; body: string | null; status: string }
+  | { kind: "task"; at: string; title: string; status: string; source: string; assignee_name: string | null }
+  | { kind: "appointment"; at: string; status: string; service_type: string | null; source: string }
+type Timeline = {
+  items: TimelineEntry[]
+  opted_out: boolean
+  deal: { stage: string; vehicle: string | null; budget_max: number | null } | null
+  next_task: { title: string; due_at: string | null; overdue: boolean } | null
+  brief: string | null
+  latest_conversation_id: string | null
+}
+
+function stamp(iso: string) {
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`
+}
+
+function TimelineItem({ e, first }: { e: TimelineEntry; first: string }) {
   let icon = <IconMessage className="size-4" aria-hidden="true" />
   let who = first
   let text = ""
   let ai = false
   if (e.kind === "message") {
-    ai = e.author === "ondra"
-    who = e.author === "ondra" ? "Ondra" : e.author === "staff" ? (e.name ?? "Your team") : first
-    text = e.body
+    ai = e.author === "ai"
+    who = ai ? "Ondra" : e.author === "user" ? (e.author_name ?? "Your team") : first
+    text = (e.body ?? "") + (e.status === "failed" ? " (not delivered)" : "")
     icon = ai ? <OndraMark className="size-4" /> : e.channel === "email" ? <IconMail className="size-4" aria-hidden="true" /> : <IconMessage className="size-4" aria-hidden="true" />
-  } else if (e.kind === "call") {
-    ai = e.answeredBy === "Ondra"
-    who = e.duration === "0:00" ? "Missed call" : ai ? "Call answered by Ondra" : "Call"
-    text = e.summary
-    icon = <IconPhoneIncoming className="size-4" aria-hidden="true" />
-  } else if (e.kind === "event") {
-    ai = !!e.ai
-    who = ai ? "Ondra" : "Update"
-    text = e.text
-    icon = ai ? <OndraMark className="size-4" /> : /opted out/i.test(e.text) ? <IconBan className="size-4" aria-hidden="true" /> : <IconBell className="size-4" aria-hidden="true" />
+  } else if (e.kind === "task") {
+    ai = e.source === "ai_handoff"
+    who = ai ? "Handed to your team by Ondra" : e.status === "done" ? "Task done" : "Task"
+    text = e.title.split(": ").slice(-1)[0] + (e.assignee_name ? `, ${e.assignee_name}` : "")
+    icon = ai ? <OndraMark className="size-4" /> : <IconBell className="size-4" aria-hidden="true" />
   } else {
-    ai = true
-    who = "Draft by Ondra, waiting for approval"
-    text = e.body
-    icon = <OndraMark className="size-4" />
+    ai = e.source === "ai"
+    who = ai ? "Booked by Ondra" : "Appointment"
+    text = `${e.service_type ?? "Visit"}, ${e.status}`
+    icon = <IconPhoneIncoming className="size-4" aria-hidden="true" />
   }
-  const time = "time" in e ? e.time : ""
   return (
     <li className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
       <span className={cn("relative z-10 flex size-8 items-center justify-center rounded-full border bg-background", ai ? "text-ai" : "text-muted-foreground")}>{icon}</span>
       <div className="min-w-0 pt-1">
         <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
           <span className={cn("font-medium", ai && "text-ai")}>{who}</span>
-          <span className="text-xs text-muted-foreground tabular-nums">{time}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{stamp(e.at)}</span>
         </p>
-        <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
+        <p className="mt-0.5 text-sm break-words text-muted-foreground">{text}</p>
       </div>
     </li>
   )
@@ -86,6 +98,7 @@ function TimelineItem({ e, first }: { e: ThreadEvent; first: string }) {
 
 function Profile({ id }: { id: string }) {
   const q = useQuery({ queryKey: ["contact", id], queryFn: () => api<Contact>(`/contacts/${id}`) })
+  const tl = useQuery({ queryKey: ["timeline", id], queryFn: () => api<Timeline>(`/contacts/${id}/timeline`), enabled: q.isSuccess })
   if (q.isPending) return <div className="p-6"><TableSkeleton rows={4} /></div>
   if (q.isError)
     return (
@@ -103,7 +116,7 @@ function Profile({ id }: { id: string }) {
   const phone = c.identities.find((i) => i.kind === "phone")?.value
   const email = c.identities.find((i) => i.kind === "email")?.value
   const pref = CHANNEL[c.preferred_channel as keyof typeof CHANNEL]
-  const history = CONVERSATIONS.find((x) => x.client === c.display_name)
+  const t = tl.data
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 lg:px-6" data-vip={c.is_vip || undefined}>
@@ -130,7 +143,7 @@ function Profile({ id }: { id: string }) {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link href="/inbox">
+              <Link href={t?.latest_conversation_id ? `/inbox?c=${t.latest_conversation_id}` : "/inbox"}>
                 <IconMessage /> Message
               </Link>
             </Button>
@@ -146,9 +159,11 @@ function Profile({ id }: { id: string }) {
           <h3 id="timeline" className="mb-4 text-sm font-medium text-muted-foreground">
             History
           </h3>
-          {history ? (
+          {tl.isPending ? (
+            <TableSkeleton rows={4} />
+          ) : t && t.items.length > 0 ? (
             <ol className="relative before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-border">
-              {[...history.events].reverse().map((e, i) => (
+              {t.items.map((e, i) => (
                 <TimelineItem key={i} e={e} first={first} />
               ))}
             </ol>
@@ -160,38 +175,38 @@ function Profile({ id }: { id: string }) {
         </section>
 
         <aside className="flex flex-col gap-6" aria-label="About this client">
-          {!c.is_vip && history?.brief && (
+          {!c.is_vip && t?.brief && (
             <section data-slot="ai-summary">
               <h3 className="flex items-center gap-1.5 text-xs font-medium text-ai">
                 <OndraMark className="size-3.5" /> Summary by Ondra
               </h3>
-              <p className="mt-1.5 text-sm leading-relaxed">{history.brief}</p>
+              <p className="mt-1.5 text-sm leading-relaxed">{t.brief}</p>
             </section>
           )}
-          {history?.deal && (
+          {t?.deal && (
             <section>
               <h3 className="text-xs font-medium text-muted-foreground">Deal</h3>
-              <p className="mt-1.5 text-sm font-medium">{history.deal.vehicle}</p>
-              <p className="text-sm text-muted-foreground">{history.deal.stage}</p>
+              <p className="mt-1.5 text-sm font-medium">{t.deal.vehicle ?? "Vehicle not chosen yet"}</p>
+              <p className="text-sm text-muted-foreground first-letter:uppercase">
+                {t.deal.stage}
+                {t.deal.budget_max ? `, up to $${t.deal.budget_max.toLocaleString("en-US")}` : ""}
+              </p>
             </section>
           )}
-          {history?.upcoming?.[0] && (
+          {t?.next_task && (
             <section>
               <h3 className="text-xs font-medium text-muted-foreground">Next</h3>
-              <p className="mt-1.5 text-sm font-medium">{history.upcoming[0].title}</p>
-              <p className="text-sm text-muted-foreground tabular-nums">{history.upcoming[0].when}</p>
+              <p className="mt-1.5 text-sm font-medium first-letter:uppercase">{t.next_task.title.split(": ").slice(-1)[0]}</p>
+              <p className={cn("text-sm tabular-nums", t.next_task.overdue ? "text-vip" : "text-muted-foreground")}>
+                {t.next_task.due_at ? `${t.next_task.overdue ? "Overdue, was due" : "Due"} ${stamp(t.next_task.due_at)}` : ""}
+              </p>
             </section>
           )}
           <section>
-            <h3 className="text-xs font-medium text-muted-foreground">Consent</h3>
-            <dl className="mt-1.5 grid gap-1 text-sm">
-              {(history?.consent ?? [{ channel: "Text", status: "Not recorded yet" }]).map((k) => (
-                <div key={k.channel} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-                  <dt className="text-muted-foreground">{k.channel}</dt>
-                  <dd>{k.status}</dd>
-                </div>
-              ))}
-            </dl>
+            <h3 className="text-xs font-medium text-muted-foreground">Messages</h3>
+            <p className="mt-1.5 text-sm">
+              {t?.opted_out ? `Opted out on every channel. Nobody can message ${first} until they opt back in.` : "Allowed"}
+            </p>
           </section>
         </aside>
       </div>
