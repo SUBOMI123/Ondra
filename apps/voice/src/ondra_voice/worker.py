@@ -76,6 +76,31 @@ async def ring_someone(plan: CallPlan, transfer: Callable[[str], Awaitable[None]
                       transferred_to_user_id=plan.ring_user_id)
 
 
+def voice_request_settings() -> dict:
+    """How the model is asked to answer on a call. Claude Haiku 5.5 thinks by default at medium effort, which on the
+    first real calls was most of a 3.5 s average wait. VOICE_THINKING=off (default) skips thinking, allowed at effort
+    high or below; VOICE_EFFORT=low (default). Measured in docs/DECISIONS.md (voice latency)."""
+    body: dict = {"output_config": {"effort": os.getenv("VOICE_EFFORT", "low")}}
+    thinking = os.getenv("VOICE_THINKING", "off")
+    if thinking == "off":
+        body["thinking"] = {"type": "disabled"}
+    elif thinking == "adaptive":
+        body["thinking"] = {"type": "adaptive"}
+    return body  # "default": leave thinking to the model
+
+
+class VoiceLLM(anthropic.LLM):
+    """LiveKit's Anthropic plugin with Ondra's voice request settings on every request (the plugin has no option
+    for effort or thinking, so they go in the request body)."""
+
+    def chat(self, *, extra_kwargs=None, **kw):  # type: ignore[override]
+        extra = dict(extra_kwargs) if isinstance(extra_kwargs, dict) else {}
+        body = dict(extra.get("extra_body") or {})
+        body.update(voice_request_settings())
+        extra["extra_body"] = body
+        return super().chat(extra_kwargs=extra, **kw)
+
+
 def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
     s = get_settings()
     stt_model = os.getenv("VOICE_STT_MODEL", "deepgram/nova-3")
@@ -92,7 +117,7 @@ def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
         # Phone audio mangles names ("Honda CR-V" came through as "hunger series" on the first real call): tell the
         # recogniser the dealership's name and the makes and models in stock.
         stt_context_options=STTContextOptions(keyterms=desk.vocabulary or [desk.dealer.name]),
-        llm=anthropic.LLM(model=os.getenv("VOICE_LLM_MODEL") or s.model_fast, api_key=s.anthropic_api_key,
+        llm=VoiceLLM(model=os.getenv("VOICE_LLM_MODEL") or s.model_fast, api_key=s.anthropic_api_key,
                           base_url=s.anthropic_api_base, caching="ephemeral", max_tokens=600),
         tts=tts,
         turn_handling=TurnHandlingOptions(

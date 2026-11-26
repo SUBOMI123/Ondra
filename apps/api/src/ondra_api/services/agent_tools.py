@@ -71,6 +71,18 @@ def handoff_title(reason: str, name: str) -> str:
     return _HANDOFF_TITLES.get(reason, "Follow up with {first}").format(first=first)
 
 
+def _getting_around(a) -> str | None:
+    """What the transport choice means for the customer, in words, so the reply says it right (on a call Ondra
+    once said "you'll have a loaner while you wait": a loaner is so they don't wait)."""
+    d = a.details or {}
+    if a.transport == "loaner":
+        return (f"They leave their car with us and drive {d['loaner']} until it's ready." if d.get("loaner")
+                else d.get("loaner_note") or "They need a loaner; the service team will arrange it.")
+    return {"wait": "They wait at the dealership while it's done.",
+            "drop_off": "They drop the car off and pick it up when it's ready.",
+            "dropoff": "They drop the car off and pick it up when it's ready."}.get(a.transport or "")
+
+
 class DbToolBackend:
     def __init__(self, db: AsyncSession, *, contact: Contact, conversation: Conversation, price_disclosure: str,
                  open_now: bool) -> None:
@@ -212,7 +224,7 @@ class DbToolBackend:
         who = await self.db.get(User, a.assigned_user_id) if a.assigned_user_id else None
         return {"appointment_id": str(a.id), "kind": t.name if t else None, "status": a.status,
                 "when": slot_label(a.starts_at, tz_of(await self._tenant()), names), "with": who.name if who else None,
-                "loaner": (a.details or {}).get("loaner")}
+                "loaner": (a.details or {}).get("loaner"), "getting_around": _getting_around(a)}
 
     async def check_availability(self, kind: str, day: str | None = None, part_of_day: str | None = None) -> dict:
         from ondra_api.services.booking import InternalCalendar, find_type, local_window, resolve_day

@@ -175,10 +175,13 @@ async def test_service_books_through_the_shared_calendar(database):
         model.steps = [Step(calls=[("book_appointment", {"slot_id": slot["id"], "details": {"transport": "wait"}})]),
                        Step(text=lambda c: "You're booked." if last_tool_output(c).get("booked") else "Hmm.")]
         result = await session.run(user_input="Yes, that works, I'll wait for it.")
+        result.expect.skip_next_event_if(type="message")  # "One moment." while it books
         result.expect.next_event().is_function_call(name="book_appointment")
         result.expect.next_event().is_function_call_output()
         assert result.expect.next_event().is_message(role="assistant").event().item.text_content == "You're booked."
     assert desk.tools_called == ["check_availability", "book_appointment"]
+    # The model only ever saw short slot names; the calendar got the real id.
+    assert slot["id"] == "slot1" and len(desk.slot_aliases["slot1"]) > 100
 
 
 async def test_the_call_record_keeps_the_transcript_and_latency(database):
@@ -264,3 +267,28 @@ async def test_the_callers_own_car_is_not_mistaken_for_an_invented_one(database)
         await session.start(agents.OndraAgent(desk))
         result = await session.run(user_input="Anything else?")
         assert guard.SAFE_LINE in result.expect.next_event().is_message(role="assistant").event().item.text_content
+
+
+async def test_a_silent_lookup_gets_a_filler_and_bookkeeping_does_not(database):
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    model = ScriptedLLM([Step(calls=[("check_availability", {"kind": "oil change"})]), Step(text="I have Friday at 7.")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="Any oil change times?")
+        said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
+    assert said[0].strip() == agents.FILLER.strip() and said[-1] == "I have Friday at 7."
+    model = ScriptedLLM([Step(text="Got it.", calls=[("update_lead_fields", {"fields": {"vehicle_interest": "CR-V"}})]),
+                         Step(text="Anything else?")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="I want a CR-V.")
+        said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
+    assert agents.FILLER.strip() not in " ".join(said)
+
+
+async def test_voice_requests_skip_thinking_at_low_effort(monkeypatch):
+    """Measured 2026-11-26 on the booking call: thinking off at low effort, median 0.61 s to first word against
+    1.32 s with the model's default (thinking on, medium), every booking still right."""
+    monkeypatch.delenv("VOICE_THINKING", raising=False)
+    monkeypatch.delenv("VOICE_EFFORT", raising=False)
+    assert worker.voice_request_settings() == {"output_config": {"effort": "low"}, "thinking": {"type": "disabled"}}

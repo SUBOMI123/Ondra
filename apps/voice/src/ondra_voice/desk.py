@@ -52,6 +52,9 @@ class CallDesk:
     tool_problems: list[dict] = field(default_factory=list)
     # Words speech recognition should expect: the dealership's name and the makes and models in stock.
     vocabulary: list[str] = field(default_factory=list)
+    # Short names for the calendar's slot ids ("slot3"): the real ids are ~200 characters, and on a call the model
+    # writing one out before booking was most of a 1.9 s wait (and a chance to garble it).
+    slot_aliases: dict[str, str] = field(default_factory=dict)
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)
@@ -93,6 +96,7 @@ class CallDesk:
     async def run(self, name: str, args: dict) -> Any:
         """Run one shared tool for this caller, in its own transaction, and remember what it returned so the
         spoken-reply checks know which prices and cars are real."""
+        args = self._real_slots(name, args)
         async with tenant_session(self.plan.tenant_id) as db:
             backend = await _backend(db, self.plan, self.dealer)
             if self.transcript:
@@ -100,7 +104,23 @@ class CallDesk:
             out = await run_tool(backend, name, args)
         self.tools_called.append(name)
         _learn(self.checks, ToolRecord(name, args, out))
+        return self._short_slots(out)
+
+    def _short_slots(self, out: Any) -> Any:
+        if isinstance(out, dict) and isinstance(out.get("slots"), list):
+            for slot in out["slots"]:
+                if isinstance(slot, dict) and slot.get("slot_id"):
+                    alias = f"slot{len(self.slot_aliases) + 1}"
+                    self.slot_aliases[alias] = slot["slot_id"]
+                    slot["slot_id"] = alias
         return out
+
+    def _real_slots(self, name: str, args: dict) -> dict:
+        keys = {"book_appointment": "slot_id", "reschedule_or_cancel": "new_slot_id"}
+        key = keys.get(name)
+        if key and args.get(key) in self.slot_aliases:
+            return {**args, key: self.slot_aliases[args[key]]}
+        return args
 
     def follow_up_on_block(self, problems: list[str]) -> None:
         """The spoken check replaced a sentence and told the caller a person will follow up: make that true.

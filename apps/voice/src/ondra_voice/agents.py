@@ -99,6 +99,16 @@ def shared_tools() -> list[llm.RawFunctionTool]:
     return [shared_tool(s) for s in TOOL_SPECS]
 
 
+FILLER = "One moment. "
+# Tools that take a moment and lead to a second model reply; bookkeeping (update_lead_fields) and hanging up don't.
+_SLOW_TOOLS = {"check_availability", "book_appointment", "reschedule_or_cancel", "search_inventory", "get_vehicle",
+               "search_knowledge", "get_contact_context"}
+
+
+def _needs_filler(chunks: list[llm.ChatChunk]) -> bool:
+    return any(c.delta and any(t.name in _SLOW_TOOLS for t in c.delta.tool_calls or []) for c in chunks)
+
+
 class OndraAgent(Agent):
     def __init__(self, desk: CallDesk) -> None:
         self._desk = desk
@@ -135,10 +145,16 @@ class OndraAgent(Agent):
                         pending_calls.append(llm.ChatChunk(id=chunk.id, usage=chunk.usage))
 
         pending_calls: list[llm.ChatChunk] = []
+        spoke = False
         async for sentence in guarded(text_only(), desk.checks, desk.dealer.never_say, blocked):
+            spoke = True
             yield sentence
             while pending_calls:
                 yield pending_calls.pop(0)
+        if pending_calls and not spoke and _needs_filler(pending_calls):
+            # A lookup or booking with nothing said first: say something now rather than leave the caller in
+            # silence while the tool runs and the model answers again.
+            yield FILLER
         while pending_calls:
             yield pending_calls.pop(0)
 

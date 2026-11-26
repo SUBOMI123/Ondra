@@ -344,3 +344,21 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
   rows, not 100. Checked with 116 people.
 - **Roles are Ondra's.** Clerk's own roles (admin, member) only mirror them for Clerk's screens: owner and admin are
   Clerk admins, everyone else a member. No custom roles in Clerk.
+
+## 2026-11-26: Voice latency: no thinking, low effort, short slot names, a filler
+
+First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.15 s, so the time was the model.
+- **Claude Haiku 5.5 thinks by default at medium effort**, and the voice path (LiveKit's Anthropic plugin) never
+  said otherwise. Measured on the booking conversation, back to back, 16 to 17 replies each, every booking right:
+  default (thinking on, medium) median 1.32 s to first word, p90 1.95 s, 6 replies over 1.5 s; **thinking off at low
+  effort median 0.61 s, p90 0.76 s, none over 1.5 s**. Now the voice default (`VOICE_THINKING=off`,
+  `VOICE_EFFORT=low`; thinking off is allowed at effort high or below). Text replies keep adaptive thinking.
+- **Short slot names on calls.** The calendar's slot ids are about 200 characters; writing one out before booking
+  was most of the booking turn. The voice agent shows the model `slot1`, `slot2`... and maps them back: the booking
+  turn went from about 1.85 s to 1.36 s.
+- **A filler:** if the model calls a lookup or booking tool without saying anything, Ondra says "One moment."
+- **Model response times vary by hour** (the same settings measured 0.6 s and 1.2 s median at different times), so
+  the latency report from real calls is what counts. Next levers if it's still slow: a shorter prompt for calls, and
+  ending the caller's turn sooner (endpointing).
+- **Booking results say what the transport choice means** ("They leave their car with us and drive Loaner 1"),
+  after Ondra said "a loaner while you wait" on a call.
