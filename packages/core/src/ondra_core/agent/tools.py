@@ -105,7 +105,8 @@ TOOL_SPECS: list[dict[str, Any]] = [
             "whenever the dealer's rules need a person (prices below listed, discounts, trade-in values, "
             "financing decisions, delivery dates, complaints), when the customer asks for a person, or when you "
             "don't know the answer. After calling it, tell the customer who will follow up and roughly when; "
-            "use the `tell_customer` text it returns."
+            "use the `tell_customer` text it returns. Also use it, at low urgency, when they want a car we don't "
+            "have in stock, so sales can try to find one."
         ),
         "input_schema": {
             "type": "object",
@@ -113,7 +114,7 @@ TOOL_SPECS: list[dict[str, Any]] = [
                 "reason": {
                     "type": "string",
                     "enum": [
-                        "pricing", "discount", "trade_in", "financing", "delivery_date", "complaint",
+                        "pricing", "discount", "trade_in", "financing", "delivery_date", "complaint", "vehicle_request",
                         "asked_for_person", "unknown_answer", "shipping", "other",
                     ],
                 },

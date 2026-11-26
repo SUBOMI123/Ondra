@@ -161,3 +161,9 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Why:** It's the founder's call. Up-front disclosure on every text adds friction to the short after-hours replies that are the product's core.
 **Risk to check with counsel before launch:** California's bot-disclosure law (the B.O.T. Act, SB 1001) requires disclosure, as we understand it, when a bot is used to encourage a sale to people in California, whether or not they ask. Other states are adding AI-disclosure rules. Check which states pilot dealers sell into, and turn on up-front disclosure there. TODO(verify, counsel).
 **Alternatives:** always up front (safest legally, more friction); never (not an option).
+
+## 2026-11-26: Out-of-stock requests always go to sales
+
+**Decision:** When a customer wants a car the dealer doesn't have, Ondra says so plainly and offers what's in stock. It also always hands the request to sales at low urgency (reason `vehicle_request`), so they can try to find one.
+**Why:** It's the founder's call. A buyer asking for a specific car is a lead, and dealers can source cars from other dealers or at auction.
+**Watch:** low-urgency tasks could pile up. If they do, Step 6's routing rules can batch them into a daily list instead of one task each.

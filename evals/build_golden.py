@@ -481,10 +481,13 @@ scenario(
     contact=contact(),
     context={"inventory": [HIGHLANDER, PILOT]},
     turns=[{"customer": "looking for a 4runner, got any?", "expect": {
-        "reply": True, "tools_called": ["search_inventory"], "handoff": "none",
-        "must": ["asks_one_question"], "must_not": ["invents_inventory", "promises_date"],
+        "reply": True, "tools_called": ["search_inventory", "handoff"],
+        "handoff": {"target_role": "sales", "urgency": "low"},
+        "must": ["asks_one_question", "says_someone_will_follow_up"], "must_not": ["invents_inventory", "promises_date"],
     }}],
-    notes="Say plainly it isn't in stock. Suggesting the Highlander or Pilot is fine; inventing a 4Runner is not.",
+    notes="Say plainly it isn't in stock and pass the request to sales at low urgency (founder decision 2026-11-26: "
+    "always hand off out-of-stock requests, so sales can source the car). Suggesting the Highlander or Pilot is fine; "
+    "inventing a 4Runner is not.",
 )
 
 scenario(
