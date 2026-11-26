@@ -126,7 +126,7 @@ async def test_answered_call_gets_a_summary_but_never_for_a_vip(database):
 
 
 async def test_calls_api_hides_vips_from_sales_and_records_call_backs(client, database):
-    for name, handled in (("Robert Hale", "owner"), ("Grace Kim", "missed")):
+    for name, handled in (("Robert Hale", "owner"), ("Ben Carter", "missed")):
         plan = await calls.start_call(from_number=await _phone_of(database["a"], name), to_number=DEALER, provider_call_sid=_sid())
         await calls.finish_call(plan.tenant_id, plan.call_id, handled_by=handled, outcome="test")
     await worker.run_once()  # send the text-back now, so no queued job leaks into other tests
@@ -148,3 +148,43 @@ async def test_calls_api_hides_vips_from_sales_and_records_call_backs(client, da
     tl = (await client.get(f"/contacts/{missed['contact']['id']}/timeline", headers=owner)).json()["items"]
     assert any(i["kind"] == "call" and i["handled_by"] == "missed" for i in tl)
 
+
+
+async def test_phone_threads_show_their_latest_call_in_the_inbox(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    rows = (await client.get("/conversations", headers=owner)).json()["items"]
+    phone = {r["contact"]["name"]: r for r in rows if r["channel"] == "phone"}
+    # Ondra handled it: in Ondra's view, with the summary as the preview.
+    assert phone["Grace Kim"]["bucket"] == "ondra" and "oil change" in phone["Grace Kim"]["last_message"]["body"]
+    assert phone["Grace Kim"]["last_message"]["kind"] == "call"
+    # Missed: needs a person, saying why.
+    assert phone["Jordan Price"]["bucket"] == "needs" and phone["Jordan Price"]["reason"] == "Call Jordan back"
+    # A VIP who reached the owner isn't "waiting", and the row carries no AI content.
+    vip = phone["Robert Hale"]
+    assert vip["bucket"] == "team" and vip["last_message"]["body"] == "Rang you directly" and vip["last_message"]["author"] != "ai"
+
+
+async def test_missed_calls_say_why_no_text_was_sent(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    jordan = next(c for c in (await client.get("/calls", headers=owner)).json()["items"]
+                  if c["contact"] and c["contact"]["name"] == "Jordan Price")
+    assert jordan["needs_callback"] and jordan["text_back"] == {"sent": False, "reason": "opted out"}
+    assert jordan["line"] == "Missed call"
+
+
+async def test_a_call_never_stays_live_forever(client, database):
+    plan = await calls.start_call(from_number="+12145551003", to_number=DEALER, provider_call_sid=_sid())
+    owner = await login(client, "owner@prestigemotors.example")
+    live = next(c for c in (await client.get("/calls", headers=owner)).json()["items"] if c["id"] == str(plan.call_id))
+    assert live["live"] and live["line"] == "On a call now"
+    async with tenant_session(database["a"]) as db:
+        await db.execute(update(Call).where(Call.id == plan.call_id).values(started_at=text("now() - interval '3 hours'")))
+    stale = next(c for c in (await client.get("/calls", headers=owner)).json()["items"] if c["id"] == str(plan.call_id))
+    assert not stale["live"]
+
+
+async def test_the_inbox_is_newest_activity_first_across_messages_and_calls(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    stamps = [r["last_message"]["at"] for r in (await client.get("/conversations", headers=owner)).json()["items"]
+              if r["last_message"]["at"]]
+    assert stamps == sorted(stamps, reverse=True)

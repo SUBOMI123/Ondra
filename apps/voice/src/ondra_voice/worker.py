@@ -89,7 +89,7 @@ def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
         stt=inference.STT(model=stt_model, language="en"),
         # Phone audio mangles names; telling the recogniser the dealer's name helps it hear them.
         stt_context_options=STTContextOptions(keyterms=[desk.dealer.name]),
-        llm=anthropic.LLM(model=os.getenv("VOICE_LLM_MODEL") or s.model_conversation, api_key=s.anthropic_api_key,
+        llm=anthropic.LLM(model=os.getenv("VOICE_LLM_MODEL") or s.model_fast, api_key=s.anthropic_api_key,
                           base_url=s.anthropic_api_base, caching="ephemeral", max_tokens=600),
         tts=tts,
         turn_handling=TurnHandlingOptions(

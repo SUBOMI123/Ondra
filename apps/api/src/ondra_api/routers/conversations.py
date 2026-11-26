@@ -16,7 +16,7 @@ exist. Edits to drafts are recorded (before and after) for the learning loop (§
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -41,6 +41,9 @@ from ondra_api.deps import Caller, require
 from ondra_api.services.inbound import contact_opted_out
 from ondra_api.services.outbound import Blocked, deliver
 
+# A call with no end after this long is treated as over (the voice worker died before storing it).
+LIVE_FOR = timedelta(hours=2)
+
 router = APIRouter(tags=["inbox"])
 
 View = Literal["needs", "ondra", "team", "all"]
@@ -60,9 +63,35 @@ async def _load(db: AsyncSession, caller: Caller, conversation_id: uuid.UUID) ->
     return conv, contact
 
 
-def _bucket(row) -> tuple[str, str | None]:
+def call_line(handled_by: str | None, live: bool, is_vip: bool, transferred_to: str | None, summary: str | None) -> str:
+    """A call, in words, for a list row or a thread."""
+    if live:
+        return "On a call now"
+    if handled_by == "missed":
+        return "Missed call"
+    if handled_by == "owner":
+        return "Rang you directly" if is_vip else "Call put through to the owner"
+    if handled_by == "staff":
+        return f"Call taken by {transferred_to}" if transferred_to else "Call taken by the team"
+    return (summary if summary and not is_vip else "Call handled by Ondra")
+
+
+def _last_activity(r, names: dict, now: datetime) -> dict:
+    """The latest message or call, whichever is newer: a phone thread's activity is its calls."""
+    msg = {"body": (r.last_body or "")[:200], "direction": r.last_direction, "author": r.last_author,
+           "at": r.last_at.isoformat() if r.last_at else None, "is_draft": bool(r.last_is_draft), "kind": "message"}
+    if r.call_at is None or (r.last_at is not None and r.last_at >= r.call_at):
+        return msg
+    live = r.call_ended_at is None and now - r.call_at < LIVE_FOR
+    author = "ai" if (r.call_handled_by == "ai" or (live and not r.is_vip)) else "user"
+    body = call_line(r.call_handled_by, live, r.is_vip, names.get(r.call_transferred_to), r.call_summary)
+    return {"body": body[:200], "direction": "call", "author": author, "at": r.call_at.isoformat(), "is_draft": False,
+            "kind": "call"}
+
+
+def _bucket(row, last: dict) -> tuple[str, str | None]:
     """Which view a conversation belongs in, and why it needs a person (in words)."""
-    if row.is_vip and row.last_direction == "inbound":
+    if row.is_vip and last["direction"] == "inbound":
         return "needs", "VIP waiting for you"
     if row.drafts:
         return "needs", "Draft to approve"
@@ -70,7 +99,7 @@ def _bucket(row) -> tuple[str, str | None]:
         return "needs", row.task_title.split(": ", 1)[-1]
     if row.status == "waiting_staff":
         return "needs", "Waiting for your team"
-    if row.last_author == "ai":
+    if last["author"] == "ai":
         return "ondra", None
     return "team", None
 
@@ -92,7 +121,9 @@ async def list_conversations(
                lm.created_at AS last_at, lm.is_draft AS last_is_draft,
                (SELECT count(*) FROM messages d WHERE d.conversation_id = c.id AND d.is_draft AND d.status = 'queued')
                  AS drafts,
-               t.title AS task_title, t.due_at AS task_due, t.urgency AS task_urgency
+               t.title AS task_title, t.due_at AS task_due, t.urgency AS task_urgency,
+               lc.started_at AS call_at, lc.handled_by AS call_handled_by, lc.ended_at AS call_ended_at,
+               lc.summary AS call_summary, lc.transferred_to_user_id AS call_transferred_to
         FROM conversations c
         JOIN contacts ct ON ct.id = c.contact_id
         LEFT JOIN LATERAL (
@@ -100,20 +131,26 @@ async def list_conversations(
           WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1
         ) lm ON true
         LEFT JOIN LATERAL (
+          SELECT started_at, handled_by, ended_at, summary, transferred_to_user_id FROM calls k
+          WHERE k.conversation_id = c.id ORDER BY k.started_at DESC NULLS LAST LIMIT 1
+        ) lc ON true
+        LEFT JOIN LATERAL (
           SELECT title, due_at, urgency FROM tasks t
           WHERE t.conversation_id = c.id AND t.status IN ('open', 'in_progress')
           ORDER BY (t.urgency = 'high') DESC, t.due_at NULLS LAST LIMIT 1
         ) t ON true
         WHERE c.status != 'closed' {vip_filter}
           AND (CAST(:q AS text) IS NULL OR ct.display_name ILIKE '%' || CAST(:q AS text) || '%')
-        ORDER BY coalesce(lm.created_at, c.updated_at) DESC
+        ORDER BY coalesce(greatest(lm.created_at, lc.started_at), c.updated_at) DESC
         LIMIT 200
     """), {"me": caller.user_id, "q": q})).all()
 
     now = datetime.now(UTC)
+    names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
     items, counts = [], {"needs": 0, "ondra": 0, "team": 0}
     for r in rows:
-        bucket, reason = _bucket(r)
+        last = _last_activity(r, names, now)
+        bucket, reason = _bucket(r, last)
         counts[bucket] += 1
         if view != "all" and bucket != view:
             continue
@@ -121,8 +158,7 @@ async def list_conversations(
             "id": str(r.id), "channel": r.channel, "status": r.status, "ai_mode": r.ai_mode,
             "assigned_user_id": str(r.assigned_user_id) if r.assigned_user_id else None,
             "contact": {"id": str(r.contact_id), "name": r.display_name, "is_vip": r.is_vip},
-            "last_message": {"body": (r.last_body or "")[:200], "direction": r.last_direction, "author": r.last_author,
-                             "at": r.last_at.isoformat() if r.last_at else None, "is_draft": bool(r.last_is_draft)},
+            "last_message": last,
             "bucket": bucket, "reason": reason,
             "overdue": bool(r.task_due and r.task_due < now),
         })
@@ -174,6 +210,9 @@ async def get_conversation(conversation_id: uuid.UUID,
             "summary": None if contact.is_vip else c.summary,  # VIPs never get AI content
             "transferred_to": authors.get(c.transferred_to_user_id),
             "needs_callback": c.handled_by == "missed" and c.callback_done_at is None,
+            "live": c.ended_at is None and c.started_at is not None and now - c.started_at < LIVE_FOR,
+            "line": call_line(c.handled_by, c.ended_at is None and c.started_at is not None and now - c.started_at < LIVE_FOR,
+                              contact.is_vip, authors.get(c.transferred_to_user_id), None),
         } for c in call_rows],
         # VIPs never get AI content (product rule), so no brief either.
         "brief": None if contact.is_vip else brief,

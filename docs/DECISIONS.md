@@ -280,5 +280,17 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **Voice model: measured, not yet decided.** Time to first token on the same four-turn call: the plan's
   conversation model 1.3 to 3.5 s; the fast model 1.1 to 2.6 s. Both behaved correctly (listed prices only,
   discount refused and handed off). Neither meets the plan's under-1-second target, and a real call adds speech
-  recognition and voice time. Recommendation: the fast model for voice (`VOICE_LLM_MODEL`); the default stays the
-  plan's model until the founder decides and the 5e real-call measurements are in.
+  recognition and voice time. **Decided (founder, 2026-11-26): calls use the fast model** (`MODEL_FAST`;
+  `VOICE_LLM_MODEL` overrides). Text keeps the plan's conversation model. Re-check with the 5e real-call measurements.
+
+## 2026-11-26: Calls on screen: call-backs first, phone threads have no text box
+
+- **The Calls screen leads with who to call back**, each saying why in words, including why no text went out
+  ("No text sent: they opted out of texts"), so the consent rule is visible, not mysterious. The primary action is
+  "Call them back" (the phone's dialler), plus "Mark as called back".
+- **No Listen, Take the call or Play buttons until they work** (no dead ends). Listening in and taking over a live
+  call need LiveKit room access from the browser; playback needs recording (Egress, with consent). Both are 5e or later.
+- **A phone thread in the Inbox has no reply box:** a phone line can't send texts. It offers "Call them" instead.
+- **A call counts as live for at most 2 hours.** If the voice worker dies mid-call, the record would otherwise say
+  "on a call now" forever.
+- **The Inbox orders by the latest message or call,** and a phone thread's preview is its latest call in words.

@@ -15,12 +15,14 @@ from datetime import UTC, datetime, timedelta
 
 from ondra_core.models import (
     AppointmentType,
+    Call,
     ChannelAddress,
     Consent,
     Contact,
     ContactIdentity,
     Conversation,
     Deal,
+    Event,
     KnowledgeDoc,
     Message,
     Policy,
@@ -165,6 +167,57 @@ async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
     msg(jordan, "inbound", "customer", "STOP", 590, "received")
 
 
+async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
+    """Four example calls, one per state the Calls screen shows. Example data, like the rest of the seed."""
+    now = datetime.now(UTC)
+
+    def at(minutes_ago: int) -> datetime:
+        return now - timedelta(minutes=minutes_ago)
+
+    async def call(name, minutes_ago, secs, handled_by, outcome, **kw):
+        c = contacts[name]
+        conv = Conversation(tenant_id=t, contact_id=c.id, channel="phone", ai_mode="auto",
+                            status=kw.pop("status", "waiting_customer"))
+        db.add(conv)
+        await db.flush()
+        phone = (await db.execute(select(ContactIdentity.value).where(ContactIdentity.contact_id == c.id,
+                                                                      ContactIdentity.kind == "phone"))).scalar_one()
+        k = Call(tenant_id=t, conversation_id=conv.id, contact_id=c.id, provider_call_sid=f"seed-{name}", direction="inbound",
+                 started_at=at(minutes_ago), ended_at=at(minutes_ago) + timedelta(seconds=secs), duration_s=secs,
+                 handled_by=handled_by, outcome=outcome, from_number=phone, to_number=DEALER_PHONE, **kw)
+        db.add(k)
+        await db.flush()
+        return conv, k
+
+    # 1. Ondra answered and booked a service.
+    await call("Grace Kim", 55, 134, "ai", "booked", transcript=[
+        {"who": "agent", "text": "Thanks for calling Prestige Motors. How can I help you today?"},
+        {"who": "caller", "text": "Hi, my Camry needs an oil change. Anything Saturday morning?"},
+        {"who": "agent", "text": "Let me check Saturday morning."},
+        {"who": "agent", "text": "I have 8:00 Saturday with Maria in Bay 1. Will you wait, need a loaner, or drop it off?"},
+        {"who": "caller", "text": "I'll wait. 8 works."},
+        {"who": "agent", "text": "You're booked for an oil change at 8:00 on Saturday with Maria. See you then."},
+    ], summary="Grace Kim called to book an oil change for her Camry. Booked Saturday 8:00 am with Maria in Bay 1; "
+               "she'll wait. Nothing else needed.",
+       metrics={"summary": {"turns": 4, "avg_ms": 1240, "p90_ms": 1710, "over_1s": 3, "tools": ["check_availability",
+                                                                                              "book_appointment"]}})
+    # 2. A VIP: rang the owner directly; Ondra never answered.
+    await call("Robert Hale", 140, 312, "owner", "transferred", transferred_to_user_id=users["owner"].id)
+    # 3. Put through to sales by Ondra (warm transfer).
+    await call("Ethan Walker", 230, 418, "staff", "transferred", transferred_to_user_id=users["sales"].id, transcript=[
+        {"who": "agent", "text": "Thanks for calling Prestige Motors. How can I help you today?"},
+        {"who": "caller", "text": "I want to talk to someone about trading in my F-150 on the Tacoma."},
+        {"who": "agent", "text": "One of our sales team can go over that with you. Shall I put you through to Daniel?"},
+        {"who": "caller", "text": "Yes please."},
+    ], summary="Ethan Walker wants to trade in his F-150 toward the Tacoma. Put through to Daniel, who took the call.")
+    # 4. Missed, and no text-back: Jordan opted out of texts, so a person calls back.
+    conv, k = await call("Jordan Price", 20, 0, "missed", "no answer", status="waiting_staff")
+    db.add(Event(tenant_id=t, type="call.text_back_skipped", payload={"call_id": str(k.id), "reason": "opted out"}))
+    db.add(Task(tenant_id=t, title="Jordan Price: Call Jordan back", contact_id=contacts["Jordan Price"].id,
+                conversation_id=conv.id, assignee_user_id=users["sales"].id, source="rule", urgency="normal",
+                brief="Missed call.", due_at=at(-100)))
+
+
 async def seed(if_empty: bool = False) -> uuid.UUID | None:
     engine = create_async_engine(get_settings().migrations_database_url)
     rng = random.Random(42)
@@ -252,6 +305,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                 print(f"seed: couldn't embed knowledge answers ({type(exc).__name__}); "
                       "run `python -m ondra_api.services.knowledge` later")
             await _seed_conversations(db, t, by_name, {u.role: u for u in users})
+            await _seed_calls(db, t, by_name, {u.role: u for u in users})
             print(f"seed: Prestige Motors ({t}) with 5 users, 50 vehicles, 30 contacts. Password: {DEV_PASSWORD}")
             return t
     finally:

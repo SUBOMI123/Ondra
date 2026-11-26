@@ -11,7 +11,7 @@ import { useEffect, useMemo } from "react"
 
 import { API_URL, currentToken, refresh } from "@/lib/api"
 
-export type Change = { table: "messages" | "tasks" | "conversations" | "appointments"; id: string; conversation_id: string | null }
+export type Change = { table: "messages" | "tasks" | "conversations" | "appointments" | "calls"; id: string; conversation_id: string | null }
 
 export function useLiveUpdates(onChange: (c: Change) => void) {
   useEffect(() => {
@@ -69,7 +69,7 @@ export function useLiveUpdates(onChange: (c: Change) => void) {
   }, [onChange])
 }
 
-/** Refresh the inbox, open threads and tasks when their data changes. A burst of changes refreshes once. */
+/** Refresh the inbox, open threads, tasks, the calendar and calls when their data changes. A burst of changes refreshes once. */
 export function useLiveInbox() {
   const qc = useQueryClient()
   const handler = useMemo(() => {
@@ -77,10 +77,12 @@ export function useLiveInbox() {
     const conversations = new Set<string>()
     let tasks = false
     let calendar = false
+    let calls = false
     return (c: Change) => {
       if (c.conversation_id) conversations.add(c.conversation_id)
       if (c.table === "tasks") tasks = true
       if (c.table === "appointments") calendar = true
+      if (c.table === "calls") calls = true
       if (timer) return
       timer = setTimeout(() => {
         timer = null
@@ -88,9 +90,11 @@ export function useLiveInbox() {
         conversations.forEach((id) => qc.invalidateQueries({ queryKey: ["conversation", id] }))
         if (tasks) qc.invalidateQueries({ queryKey: ["tasks"] })
         if (calendar) qc.invalidateQueries({ queryKey: ["calendar"] })
+        if (calls) qc.invalidateQueries({ queryKey: ["calls"] })
         conversations.clear()
         tasks = false
         calendar = false
+        calls = false
       }, 300)
     }
   }, [qc])

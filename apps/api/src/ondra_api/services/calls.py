@@ -183,7 +183,10 @@ async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None
         enqueue(db, "send_message", {"message_id": str(m.id)})
         db.add(Event(type="call.text_back", payload={"call_id": str(call.id), "message_id": str(m.id)}))
     else:
-        db.add(Event(type="call.text_back_skipped", payload={"call_id": str(call.id), "reason": "no recorded consent"}))
+        from ondra_api.services.inbound import contact_opted_out
+
+        reason = "opted out" if await contact_opted_out(db, contact.id) else "no recorded consent"
+        db.add(Event(type="call.text_back_skipped", payload={"call_id": str(call.id), "reason": reason}))
     await new_task(db, title=f"{contact.display_name}: Call {first} back", contact_id=contact.id,
                    conversation_id=call.conversation_id, assignee_user_id=await assignee_for(db, "sales"),
                    source="rule", urgency="normal", brief="Missed call.")

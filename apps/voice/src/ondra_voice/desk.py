@@ -140,7 +140,7 @@ class CallDesk:
             "tools": self.tools_called,
             "blocked": self.blocked,
         }
-        return {"summary": summary, "turns": self.turn_metrics}
+        return {"summary": summary, "turns": self.turn_metrics, "recording_notice": self.plan.disclose_recording}
 
 
 async def _backend(db, plan: CallPlan, dealer: DealerFacts) -> DbToolBackend:

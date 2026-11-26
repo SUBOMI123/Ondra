@@ -19,10 +19,13 @@ import {
   IconMail,
   IconMessage,
   IconPhone,
+  IconPhoneIncoming,
+  IconPhoneX,
   IconSearch,
   IconSend,
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -68,6 +71,19 @@ type Detail = {
   deal: { type: string; stage: string; vehicle_of_interest: Record<string, unknown>; budget_max: number | null; payment_method: string | null; timeline: string | null } | null
   tasks: { id: string; title: string; urgency: string; due_at: string | null; overdue: boolean; assignee: string | null }[]
   brief: string | null
+  calls?: CallItem[]
+}
+type CallItem = {
+  id: string
+  at: string
+  handled_by: "ai" | "staff" | "owner" | "missed" | null
+  outcome: string | null
+  duration_s: number | null
+  summary: string | null
+  transferred_to: string | null
+  needs_callback: boolean
+  live: boolean
+  line: string
 }
 
 const CHANNEL: Record<Channel, { icon: typeof IconPhone; label: string }> = {
@@ -244,6 +260,62 @@ function Bubbled({ m }: { m: Msg }) {
   )
 }
 
+function length(s: number | null) {
+  return s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : ""
+}
+
+/** A call in the thread: what happened, in words, with Ondra's summary when Ondra answered (never for a VIP). */
+function CallEvent({ c, vip }: { c: CallItem; vip: boolean }) {
+  const ai = c.handled_by === "ai" || (c.live && !vip)
+  const Icon = c.handled_by === "missed" ? IconPhoneX : IconPhoneIncoming
+  return (
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-2 rounded-xl border px-4 py-3 text-sm" data-slot="call">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Icon className={cn("size-4 shrink-0", ai ? "text-ai" : "text-muted-foreground")} aria-hidden="true" />
+        <span className={cn("font-medium", ai && "text-ai")}>
+          {c.live ? "On a call with Ondra now" : c.handled_by === "missed" ? "Missed call" : ai ? "Answered by Ondra" : c.line}
+        </span>
+        {c.duration_s ? <span className="text-muted-foreground tabular-nums">{length(c.duration_s)}</span> : null}
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">{when(c.at)}</span>
+      </p>
+      {!vip && c.summary && (
+        <p data-slot="ai-summary" className="rounded-lg bg-ai-subtle px-3 py-2 leading-relaxed">
+          <span className="mb-0.5 flex items-center gap-1 text-xs font-medium text-ai">
+            <OndraMark className="size-3.5" /> Summary by Ondra
+          </span>
+          {c.summary}
+        </p>
+      )}
+      <p className="flex items-center gap-3 text-xs text-muted-foreground">
+        {c.needs_callback && <span>Call back due</span>}
+        <Link href={`/calls?call=${c.id}`} className="underline-offset-4 hover:text-foreground hover:underline">
+          Open call
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+/** A phone thread has no reply box: a phone line can't send texts. Calling back is the reply. */
+function PhoneReply({ d }: { d: Detail }) {
+  const first = d.contact.name.split(" ")[0]
+  const number = d.contact.identities.find((i) => i.kind === "phone")?.value
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-t p-4 text-sm">
+      <p className="min-w-0 flex-1 text-muted-foreground">
+        {d.contact.is_vip ? `${first}'s calls ring you directly.` : `Reply to ${first} by calling back. Texts go in their texting thread.`}
+      </p>
+      {number && (
+        <Button asChild size="sm">
+          <a href={`tel:${number}`}>
+            <IconPhone /> Call {first}
+          </a>
+        </Button>
+      )}
+    </div>
+  )
+}
+
 function Composer({ d }: { d: Detail }) {
   const qc = useQueryClient()
   const [text, setText] = useState("")
@@ -282,6 +354,15 @@ function Composer({ d }: { d: Detail }) {
   )
 }
 
+/** Messages and calls in the order they happened. */
+function timeline(d: Detail): ({ type: "message"; at: string; m: Msg } | { type: "call"; at: string; c: CallItem })[] {
+  const items = [
+    ...d.messages.map((m) => ({ type: "message" as const, at: m.at, m })),
+    ...(d.calls ?? []).map((c) => ({ type: "call" as const, at: c.at, c })),
+  ]
+  return items.sort((a, b) => a.at.localeCompare(b.at))
+}
+
 function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
   id: string; onBack: () => void; panelOpen: boolean; togglePanel: () => void; openDetails: () => void
 }) {
@@ -292,7 +373,7 @@ function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
   // or a cleanup function (returning the Promise crashed the page when switching threads).
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" })
-  }, [q.data?.messages.length])
+  }, [q.data?.messages.length, q.data?.calls?.length])
   const mode = useMutation({
     mutationFn: (to: "takeover" | "handback") => send("POST", `/conversations/${id}/${to}`),
     onSuccess: (_, to) => {
@@ -370,14 +451,20 @@ function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 lg:px-8">
-        {d.messages.length === 0 && <p className="text-sm text-muted-foreground">No messages yet.</p>}
-        {d.messages.map((m) =>
-          m.is_draft && m.status === "queued" ? <Draft key={m.id} m={m} conversationId={d.id} /> : m.is_draft ? null : <Bubbled key={m.id} m={m} />,
+        {d.messages.length === 0 && !d.calls?.length && <p className="text-sm text-muted-foreground">No messages yet.</p>}
+        {timeline(d).map((item) =>
+          item.type === "call" ? (
+            <CallEvent key={item.c.id} c={item.c} vip={vip} />
+          ) : item.m.is_draft && item.m.status === "queued" ? (
+            <Draft key={item.m.id} m={item.m} conversationId={d.id} />
+          ) : item.m.is_draft ? null : (
+            <Bubbled key={item.m.id} m={item.m} />
+          ),
         )}
         <div ref={end} />
       </div>
 
-      <Composer d={d} />
+      {d.channel === "phone" ? <PhoneReply d={d} /> : <Composer d={d} />}
     </section>
   )
 }

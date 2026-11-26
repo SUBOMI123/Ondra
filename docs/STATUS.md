@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 5, Voice: call handling (5b) and the voice agent (5c) done; Calls screen next (5d), then a real phone line (5e)
+**Last updated:** 2026-11-26. **Now:** Step 5, Voice: call handling, the voice agent (on the fast model) and the Calls screen are done. Left: a real phone line and the acceptance call (5e)
 
 ## Build steps
 
@@ -13,7 +13,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
-| 5 | Voice | In progress: call handling and the voice agent done and tested (registers with LiveKit Cloud). Calls screen and a real phone line to come |
+| 5 | Voice | In progress: call handling, voice agent and Calls screen done and tested. Waiting on the real phone line (Twilio, SIP trunk) for acceptance |
 | 6 | Routing, follow-ups, learning loop | Not started |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
@@ -64,8 +64,8 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Voice agent** (`apps/voice`, see `docs/VOICE.md`): LiveKit Agents worker on the same tools as text, every spoken sentence checked before it's said, warm transfer, per-turn latency on the call record. Runs against the real model in text mode; registers with the LiveKit Cloud project. Not yet on a phone line.
 - **Calls (API, Step 5):** call records, routing before anyone speaks (VIP rings the owner, never the AI), missed-call text-back only with recorded consent (otherwise a call-back task), summaries after the call, calls in the Inbox thread and client timeline. No voice agent or phone line yet.
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
-- **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Today, Deals and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calls: Step 5).
-- **Quality:** 156 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
+- **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
+- **Quality:** 160 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
@@ -76,7 +76,6 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
-| Choose the voice model: the fast model is 1.1 to 2.6 s to first word vs 1.3 to 3.5 s; neither hits the plan's 1 s (see DECISIONS) | Voice latency | **Open, recommend the fast model** |
 | Twilio account details and an ElevenLabs key (secure form, not chat), for the real phone line | Step 5e | Waiting |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
 | A2P 10DLC registration; pick Twilio or Telnyx | Live SMS, voice | Not started (weeks) |
@@ -100,5 +99,6 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Reply latency tail, growing:** replies that look something up, act (hand off or book), then write take three model rounds, so they run 5 to 6.5 s when the model is slow. On the Step 4 run, 9 of 52 turns were over 5 s (median 3.4 s), up from 4 of 40 in Step 3 and 1 of 100 in Step 2: booking adds rounds, and per-call times were higher that run (up to 4 s for one call). The remaining fix is a faster model for the final reply-writing round, which changes the plan's model choice (§6.1): a founder decision, and it matters more for voice in Step 5.
 - In this build environment, containers can't reach Voyage (Anthropic is reachable), so the seed's embedding step falls back and the knowledge backfill runs from the host. Production hosts won't have this limit.
 - **Voice, honest list:** (1) it still reads out every matching car or time slot, despite the rule to name one or two; it needs the voice test set (5e) to fix properly; (2) after a cold transfer to a VIP's owner we can't yet tell if they answered (needs Twilio call status); (3) nothing is recorded yet (LiveKit Egress, with consent); (4) no fixed message plays when a VIP's call isn't answered (plan §4.2); (5) speech recognition, voice and real latency are untested until a real call.
+- **A client with a text thread and a phone thread shows twice in the Inbox** (conversations are one per channel, from Step 3; phone threads made it visible). The fix is one thread per client across channels, a change to the Inbox model; proposed for Step 6 (routing).
 - **The plan's receptionist-and-specialists voice design was dropped for one agent:** measured slower and it pretended to transfer callers. See DECISIONS.
 - Docker Hub rate-limits image pulls from this build environment; local images are layered from the last good build.

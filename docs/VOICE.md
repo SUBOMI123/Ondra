@@ -29,7 +29,7 @@ this way: `docs/DECISIONS.md` (2026-11-26, voice).
 ## Models
 
 Set in `.env` (see `.env.example`): `VOICE_STT_MODEL` (LiveKit Inference speech to text), `VOICE_LLM_MODEL`
-(blank: `MODEL_CONVERSATION`), `VOICE_TTS_PROVIDER` / `VOICE_TTS_MODEL` / `VOICE_TTS_VOICE` (LiveKit Inference, or
+(blank: `MODEL_FAST`), `VOICE_TTS_PROVIDER` / `VOICE_TTS_MODEL` / `VOICE_TTS_VOICE` (LiveKit Inference, or
 ElevenLabs with `ELEVEN_API_KEY`). Turn detection is LiveKit's turn detector, with adaptive interruptions and
 preemptive generation.
 

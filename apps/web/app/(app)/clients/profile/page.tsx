@@ -12,11 +12,13 @@ import {
   IconBan,
   IconBell,
   IconBrandWhatsapp,
+  IconCalendarEvent,
   IconCrownFilled,
   IconMail,
   IconMessage,
   IconPhone,
   IconPhoneIncoming,
+  IconPhoneX,
 } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
@@ -46,6 +48,7 @@ type TimelineEntry =
   | { kind: "message"; at: string; channel: string; direction: string; author: string; author_name: string | null; body: string | null; status: string }
   | { kind: "task"; at: string; title: string; status: string; source: string; assignee_name: string | null }
   | { kind: "appointment"; at: string; status: string; service_type: string | null; source: string }
+  | { kind: "call"; at: string; handled_by: "ai" | "staff" | "owner" | "missed" | null; outcome: string | null; duration_s: number | null; summary: string | null }
 type Timeline = {
   items: TimelineEntry[]
   opted_out: boolean
@@ -76,11 +79,18 @@ function TimelineItem({ e, first }: { e: TimelineEntry; first: string }) {
     who = ai ? "Handed to your team by Ondra" : e.status === "done" ? "Task done" : "Task"
     text = e.title.split(": ").slice(-1)[0] + (e.assignee_name ? `, ${e.assignee_name}` : "")
     icon = ai ? <OndraMark className="size-4" /> : <IconBell className="size-4" aria-hidden="true" />
+  } else if (e.kind === "call") {
+    // A VIP's calls never reach Ondra, and the API sends no summary for them.
+    ai = e.handled_by === "ai"
+    const length = e.duration_s ? `, ${Math.floor(e.duration_s / 60)}:${String(e.duration_s % 60).padStart(2, "0")}` : ""
+    who = e.handled_by === "missed" ? "Missed call" : ai ? "Call answered by Ondra" : e.handled_by === "owner" ? "Call put through to the owner" : e.handled_by ? "Call taken by your team" : "On a call now"
+    text = (e.summary ?? "") + (e.summary ? "" : length.replace(/^, /, "Length "))
+    icon = e.handled_by === "missed" ? <IconPhoneX className="size-4" aria-hidden="true" /> : <IconPhoneIncoming className="size-4" aria-hidden="true" />
   } else {
     ai = e.source === "ai"
     who = ai ? "Booked by Ondra" : "Appointment"
     text = `${e.service_type ?? "Visit"}, ${e.status}`
-    icon = <IconPhoneIncoming className="size-4" aria-hidden="true" />
+    icon = <IconCalendarEvent className="size-4" aria-hidden="true" />
   }
   return (
     <li className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
@@ -223,7 +233,7 @@ function ProfileFromQuery() {
 export default function ClientProfilePage() {
   return (
     <>
-      <SiteHeader title="Client" note="History is example data until Step 3" />
+      <SiteHeader title="Client" />
       <Suspense fallback={<div className="p-6"><TableSkeleton rows={4} /></div>}>
         <ProfileFromQuery />
       </Suspense>
