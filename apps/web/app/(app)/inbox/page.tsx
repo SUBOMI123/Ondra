@@ -33,10 +33,10 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
-import { useSidebar } from "@/components/ui/sidebar"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { CONVERSATIONS, type Channel, type Conversation, type ThreadEvent } from "@/lib/examples"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
 const CHANNEL: Record<Channel, { icon: typeof IconPhone; label: string }> = {
@@ -184,7 +184,9 @@ function Composer({ c }: { c: Conversation }) {
   )
 }
 
-function Thread({ c, onBack, panelOpen, togglePanel }: { c: Conversation; onBack: () => void; panelOpen: boolean; togglePanel: () => void }) {
+function Thread({ c, onBack, panelOpen, togglePanel, openDetails }: {
+  c: Conversation; onBack: () => void; panelOpen: boolean; togglePanel: () => void; openDetails: () => void
+}) {
   const [ondraOn, setOndraOn] = useState(c.handledBy === "ondra")
   const [approved, setApproved] = useState(false)
   const Ch = CHANNEL[c.channel].icon
@@ -196,7 +198,7 @@ function Thread({ c, onBack, panelOpen, togglePanel }: { c: Conversation; onBack
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`Conversation with ${c.client}`} data-vip={c.vip || undefined}>
       <header className="flex items-center gap-3 border-b px-4 py-2.5">
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack} aria-label="Back to conversations">
+        <Button variant="ghost" size="icon" className="@2xl/inbox:hidden" onClick={onBack} aria-label="Back to conversations">
           <IconArrowLeft />
         </Button>
         <div className="min-w-0 flex-1">
@@ -229,15 +231,19 @@ function Thread({ c, onBack, panelOpen, togglePanel }: { c: Conversation; onBack
             )}
           </Button>
         )}
+        {/* Wide inbox: show or hide the details column. Narrow inbox: open details in a sheet. */}
         <Button
           variant="ghost"
           size="icon"
-          className="hidden xl:inline-flex"
+          className="hidden @6xl/inbox:inline-flex"
           onClick={togglePanel}
           aria-pressed={panelOpen}
           aria-label={panelOpen ? "Hide details" : "Show details"}
           title={panelOpen ? "Hide details" : "Show details"}
         >
+          <IconLayoutSidebarRight />
+        </Button>
+        <Button variant="ghost" size="icon" className="@6xl/inbox:hidden" onClick={openDetails} aria-label="Show details" title="Show details">
           <IconLayoutSidebarRight />
         </Button>
       </header>
@@ -265,12 +271,19 @@ function Field({ k, v }: { k: string; v?: string }) {
   )
 }
 
-function Details({ c }: { c: Conversation }) {
+function Details({ c, inSheet = false }: { c: Conversation; inSheet?: boolean }) {
   const task = c.tasks?.[0]
   const next = c.upcoming?.[0] ?? (task && { title: task.title, when: task.due })
   const overdue = !c.upcoming && task?.overdue
   return (
-    <aside className="hidden min-h-0 w-80 shrink-0 flex-col gap-6 overflow-y-auto border-l p-5 xl:flex" aria-label="Details" data-vip={c.vip || undefined}>
+    <aside
+      className={cn(
+        "min-h-0 flex-col gap-6 overflow-y-auto",
+        inSheet ? "flex px-4 pb-4" : "hidden w-80 shrink-0 border-l p-5 @6xl/inbox:flex",
+      )}
+      aria-label="Details"
+      data-vip={c.vip || undefined}
+    >
       {!c.vip && c.brief && (
         <section data-slot="ai-brief">
           <h3 className="flex items-center gap-1.5 text-xs font-medium text-ai">
@@ -326,7 +339,6 @@ function Details({ c }: { c: Conversation }) {
 /* ---------------------------------------------------------------- page */
 
 export default function InboxPage() {
-  const { setOpen } = useSidebar()
   const [view, setView] = useState<View>("needs")
   const [q, setQ] = useState("")
   // Open on the most urgent thing: a VIP waiting, if there is one.
@@ -336,8 +348,9 @@ export default function InboxPage() {
   const [mobileThread, setMobileThread] = useState(false)
   const [panelOpen, setPanelOpen] = useState(true)
 
-  // The thread is the work; give it the room the app sidebar would take. Users can reopen it.
-  useEffect(() => setOpen(false), [setOpen])
+  const [detailsSheet, setDetailsSheet] = useState(false)
+  // The sidebar stays however the user left it. The columns below respond to the Inbox's own width
+  // (container queries), so they fit with the sidebar open or closed.
 
   const counts = {
     needs: CONVERSATIONS.filter((c) => c.bucket === "needs").length,
@@ -354,7 +367,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <SiteHeader title="Inbox" note="Example data until channels go live in Step 2" />
+      <SiteHeader title="Inbox" note="Example data until the Inbox is connected in Step 3" />
       <p className="flex items-center gap-2 border-b bg-ai-subtle/50 px-4 py-2 text-sm lg:px-6">
         <OndraMark className="size-4 shrink-0 text-ai" />
         <span>
@@ -362,8 +375,8 @@ export default function InboxPage() {
           <span className="text-muted-foreground">For your first week, Ondra writes and you approve.</span>
         </span>
       </p>
-      <div className="flex min-h-0 flex-1 md:h-[calc(100svh-var(--header-height)-3.25rem)] md:flex-none md:overflow-hidden">
-        <div className={cn("min-h-0 w-full flex-col border-r md:flex md:w-80 md:shrink-0", mobileThread ? "hidden" : "flex")}>
+      <div className="@container/inbox flex min-h-0 flex-1 md:h-[calc(100svh-var(--header-height)-3.25rem)] md:flex-none md:overflow-hidden">
+        <div className={cn("min-h-0 w-full flex-col border-r @2xl/inbox:flex @2xl/inbox:w-72 @2xl/inbox:shrink-0 @5xl/inbox:w-80", mobileThread ? "hidden" : "flex")}>
           <div className="flex flex-col gap-3 p-3">
             <Tabs value={view} onValueChange={(v) => setView(v as View)}>
               <TabsList className="w-full">
@@ -393,11 +406,27 @@ export default function InboxPage() {
             )}
           </div>
         </div>
-        <div className={cn("min-h-0 min-w-0 flex-1 md:flex", mobileThread ? "flex" : "hidden")}>
-          <Thread key={current.id} c={current} onBack={() => setMobileThread(false)} panelOpen={panelOpen} togglePanel={() => setPanelOpen((o) => !o)} />
+        <div className={cn("min-h-0 min-w-0 flex-1 @2xl/inbox:flex", mobileThread ? "flex" : "hidden")}>
+          <Thread
+            key={current.id}
+            c={current}
+            onBack={() => setMobileThread(false)}
+            panelOpen={panelOpen}
+            togglePanel={() => setPanelOpen((o) => !o)}
+            openDetails={() => setDetailsSheet(true)}
+          />
           {panelOpen && <Details c={current} />}
         </div>
       </div>
+      <Sheet open={detailsSheet} onOpenChange={setDetailsSheet}>
+        <SheetContent className="w-full sm:max-w-sm" data-vip={current.vip || undefined}>
+          <SheetHeader>
+            <SheetTitle>{current.client}</SheetTitle>
+            <SheetDescription>Details</SheetDescription>
+          </SheetHeader>
+          <Details c={current} inSheet />
+        </SheetContent>
+      </Sheet>
     </>
   )
 }
