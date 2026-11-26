@@ -10,6 +10,9 @@ from typing import Literal
 from zoneinfo import available_timezones
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from ondra_core.channels.identity import normalize_email, normalize_phone
+from ondra_core.models import AuditLog, ChannelAddress, Policy, Tenant
+from ondra_core.permissions import Perm, has_perm
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -17,9 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.channels import real
 from ondra_api.deps import Caller, get_db, require
-from ondra_core.channels.identity import normalize_email, normalize_phone
-from ondra_core.models import AuditLog, ChannelAddress, Policy, Tenant
-from ondra_core.permissions import Perm, has_perm
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 

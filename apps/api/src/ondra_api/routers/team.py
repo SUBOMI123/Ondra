@@ -18,6 +18,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from ondra_core.models import AuditLog, Session, User
+from ondra_core.permissions import Perm
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
@@ -26,8 +28,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ondra_api.config import get_settings
 from ondra_api.deps import Caller, require
 from ondra_api.security import hash_token
-from ondra_core.models import AuditLog, Session, User
-from ondra_core.permissions import Perm
 
 router = APIRouter(prefix="/users", tags=["team"])
 

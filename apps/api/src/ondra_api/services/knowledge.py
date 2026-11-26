@@ -8,12 +8,12 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
+from ondra_core.embeddings import MIN_SIMILARITY, Embedder, make_embedder
+from ondra_core.models import KnowledgeDoc
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.config import get_settings
-from ondra_core.embeddings import MIN_SIMILARITY, Embedder, make_embedder
-from ondra_core.models import KnowledgeDoc
 
 log = logging.getLogger("ondra.knowledge")
 
