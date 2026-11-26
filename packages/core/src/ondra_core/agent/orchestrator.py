@@ -18,6 +18,10 @@ from ondra_core.agent.tools import TOOL_SPECS, ToolBackend, handoff_message, run
 
 MAX_STEPS = 6  # model calls per turn, including tool rounds and one rewrite
 
+# Tools whose results the reply doesn't depend on. When a response calls only these and also contains the reply
+# text, that text is the reply: no extra model round trip just to write it (about 1 to 1.5 s saved per handoff).
+FINAL_TOOLS = frozenset({"handoff", "update_lead_fields"})
+
 _REASON_FOR_CHECK = {
     "quotes_final_price": "pricing",
     "promises_discount": "discount",
@@ -114,9 +118,11 @@ async def run_turn(
     rewrites = 0
 
     while result.model_calls < MAX_STEPS:
+        call_started = time.monotonic()
         resp = await llm.create(system=system, messages=messages, tools=TOOL_SPECS)
         result.model_calls += 1
-        result.usage.append(resp.usage)
+        result.usage.append({**resp.usage, "ms": int((time.monotonic() - call_started) * 1000),
+                             "tools": [c.name for c in resp.tool_calls]})
 
         if resp.stop_reason == "refusal":
             result.fallback = "refusal"
@@ -125,12 +131,14 @@ async def run_turn(
         if resp.tool_calls:
             messages.append({"role": "assistant", "content": resp.raw_content})
             results = []
+            any_error = False
             for call in resp.tool_calls:
                 try:
                     output = await run_tool(backend, call.name, call.input)
                     is_error = False
                 except Exception as exc:  # noqa: BLE001  a broken tool must not crash the turn; the model is told it failed
                     output, is_error = {"error": f"{type(exc).__name__}: tool failed"}, True
+                    any_error = True
                 rec = ToolRecord(call.name, call.input, output)
                 result.tools.append(rec)
                 _learn(ctx, rec)
@@ -143,7 +151,10 @@ async def run_turn(
                     **({"is_error": True} if is_error else {}),
                 })
             messages.append({"role": "user", "content": results})
-            continue
+            final = {c.name for c in resp.tool_calls} <= FINAL_TOOLS and not any_error
+            if not (final and resp.text.strip()):
+                continue
+            # The reply came with the final tool calls: check it like any other reply below.
 
         text = resp.text.strip()
         problems = review_reply(text, ctx, dealer.never_say) if text else {"empty": ["no reply"]}

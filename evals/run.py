@@ -161,6 +161,7 @@ class TurnReport:
     tools: list[str] = field(default_factory=list)
     latency_ms: int | None = None
     blocked_first_draft: list[str] = field(default_factory=list)
+    calls: list[dict] = field(default_factory=list)  # per model call: ms, tools requested, tokens
 
 
 @dataclass
@@ -279,7 +280,7 @@ async def run_scenario(s: dict, llm: LLM | None) -> ScenarioReport:
                         ctx.known_makes.add(v["make"])
         f = _check_ai_turn(expect, result, backend, ctx, decision, handoffs_before)
         reports.append(TurnReport(i, "fail" if f else "pass", f, result.reply, result.tools_called, latency,
-                                  sorted(result.blocked)))
+                                  sorted(result.blocked), result.usage))
         history.append(Turn("assistant", result.reply))
 
     statuses = {r.status for r in reports}

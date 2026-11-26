@@ -85,3 +85,35 @@ def test_disclosure_is_when_asked_unless_the_dealer_turns_on_upfront():
     upfront = DealerFacts(name="X", local_time="Tue 10:48 pm", open_now=False, disclose_upfront=True)
     assert "first reply in this conversation, say you're the dealership's AI assistant" in build_system(
         upfront, "sms", CustomerFacts(known=False))[1]["text"]
+
+
+async def test_reply_written_alongside_the_final_handoff_saves_a_round_trip():
+    from ondra_core.agent.llm import LLMResponse, ToolCall
+
+    class OneShot:
+        def __init__(self):
+            self.calls = 0
+
+        async def create(self, *, system, messages, tools):
+            self.calls += 1
+            if self.calls == 1:
+                return LLMResponse("tool_use", "", [ToolCall("t1", "search_inventory", {})],
+                                   [{"type": "tool_use", "id": "t1", "name": "search_inventory", "input": {}}])
+            text = "It's listed at $33,900. I've passed your offer to our sales team; they'll be in touch when we open."
+            calls = [ToolCall("t2", "handoff", {"reason": "pricing", "brief": "b", "urgency": "high", "target_role": "sales"})]
+            return LLMResponse("tool_use", text, calls, [{"type": "text", "text": text},
+                                                          {"type": "tool_use", "id": "t2", "name": "handoff", "input": calls[0].input}])
+
+    llm, backend = OneShot(), FakeBackend()
+    res = await run_turn(llm=llm, backend=backend, dealer=DEALER, customer=CustomerFacts(known=False), channel="sms",
+                         history=[Turn("customer", "can you do 30k on the highlander")])
+    assert llm.calls == 2 and res.model_calls == 2
+    assert res.handoff["target_role"] == "sales" and res.reply.startswith("It's listed at $33,900")
+
+
+async def test_reply_alongside_a_lookup_is_not_used_because_it_hasnt_seen_the_results():
+    res, _, llm = await turn([
+        [("search_inventory", {})],
+        "Yes, the Highlander is here at $33,900.",
+    ])
+    assert res.model_calls == 2  # the lookup's text (if any) is ignored; the reply came after the results

@@ -3,14 +3,14 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26 · **Now:** Step 2, the last open item (reply latency) · **Next:** Step 3, Inbox
+**Last updated:** 2026-11-26. **Now:** Step 2 done, waiting for review. **Next:** Step 3, Inbox
 
 ## Build steps
 
 | Step | What | Status |
 |---|---|---|
 | 1 | Foundations: monorepo, Docker Compose, Postgres with row-level security, auth and roles, dashboard shell, seed data | **Done** (accepted 2026-11-25) |
-| 2 | Channel gateway and text agent | **Almost done**: 3 of 4 acceptance checks met, latency open |
+| 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
 | 3 | Inbox, clients, tasks (API first, then screens) | Not started; screens designed with example data |
 | 4 | Booking | Not started; Calendar designed with example data |
 | 5 | Voice | Not started; Calls designed with example data |
@@ -25,10 +25,10 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 | Check | Status | Evidence |
 |---|---|---|
-| A mock WhatsApp message gets a correct AI reply in under 5 s | **Open** | Correct: yes. Median about 3 s; turns with 3 or 4 tool lookups take 5 to 6.4 s |
+| A mock WhatsApp message gets a correct AI reply in under 5 s | Met | Over 100 model turns: median 3.2 s, p90 4.6 s. Every text and WhatsApp reply was under 5 s; one email reply took 5.6 s |
 | A VIP gets no AI reply and an alert is created | Met | `test_vip_gets_no_ai_and_the_owner_is_alerted`; live stack check |
 | Draft mode stores a draft | Met | `test_draft_mode_stores_a_draft_and_sends_nothing` |
-| 20 golden conversations pass | Met | 22 runnable, all pass against the real model (`evals/run.py --repeat 2`: 44/44) |
+| 20 golden conversations pass | Met | 22 runnable, all pass against the real model: 110 of 110 across the last two runs (`--repeat 2` and `--repeat 3`) |
 
 ## What works today
 
@@ -63,4 +63,5 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - Team invites are shown as a link to copy; nothing is emailed yet.
 - Connecting a channel registers the address; provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.
 - The golden conversations are synthetic. `must` checks are pattern-based and can misjudge good replies.
+- Email replies that need a lookup and a handoff can take just over 5 s (one in 100 turns). Each model round is about 1 to 2 s; the model writes its reply in a separate round after handing off.
 - Docker Hub rate-limits image pulls from this build environment; local images are layered from the last good build.

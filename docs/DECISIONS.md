@@ -196,3 +196,14 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 **Channels are honest about their state.** A channel says "Test mode" when its provider isn't live (messages are simulated), "Live" when it is. Phone forwarding arrives with voice (Step 5). Real provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.
 
 **Why now, not Step 6:** the founder rejected a settings page that didn't save. A settings screen that looks editable but isn't is worse than none. Routing rules, quiet hours and the knowledge base answers stay in Step 6.
+
+## 2026-11-26: How reply latency was brought under 5 seconds
+
+**Measured first:** per-call timing showed the AI already ran its lookups in parallel. The time went into extra rounds: lookups, then `handoff`, then the reply, three model calls at about 1 to 2 s each.
+**Changes:**
+- The customer's record is preloaded into the prompt, which saves a lookup round.
+- The prompt and the `handoff` tool description ask for the handoff to be made in the same round as the lookups when a person is clearly needed.
+- If a response calls only `handoff` or `update_lead_fields` and includes the reply text, that text is checked and used without another model call. The model rarely does this today, but the path is tested and costs nothing.
+
+**Result** over 100 model turns: median 3.2 s, p90 4.6 s, and one email reply at 5.6 s. Quality held: 110 of 110 conversations passed.
+**Not done:** a faster model for the final reply-writing round. That would change the plan's model choice (§6.1), so it's the founder's call. Revisit if voice needs it.

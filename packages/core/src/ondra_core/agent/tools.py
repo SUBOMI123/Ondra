@@ -106,7 +106,9 @@ TOOL_SPECS: list[dict[str, Any]] = [
             "financing decisions, delivery dates, complaints), when the customer asks for a person, or when you "
             "don't know the answer. After calling it, tell the customer who will follow up and roughly when; "
             "use the `tell_customer` text it returns. Also use it, at low urgency, when they want a car we don't "
-            "have in stock, so sales can try to find one."
+            "have in stock, so sales can try to find one. Write your reply to the customer as text in the same "
+            "message as this call, before it: that text is sent to the customer as soon as the handoff is made, so "
+            "don't wait for this tool's result to write it."
         ),
         "input_schema": {
             "type": "object",
