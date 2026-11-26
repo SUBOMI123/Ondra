@@ -9,7 +9,7 @@
 
 import { IconCheck, IconCrownFilled } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { TableSkeleton } from "@/components/list-states"
@@ -51,9 +51,46 @@ const CHANNELS = [
   { name: "WhatsApp", status: "Not connected", ok: false, detail: "Needs Meta to verify your business first. We'll walk you through it." },
 ]
 
+/** The section the reader is in: the last one whose heading has scrolled past the top third of the screen. */
+function useCurrentSection(ids: string[]) {
+  const [current, setCurrent] = useState(ids[0])
+  // A click on a section link wins until the scroll it started has settled; otherwise a short section near the
+  // bottom (VIPs) could never be shown as current, because its heading can't scroll up to the line.
+  const clickedAt = useRef(0)
+  useEffect(() => {
+    const update = () => {
+      if (Date.now() - clickedAt.current < 1000) return
+      const line = window.innerHeight * 0.33
+      let active = ids[0]
+      for (const id of ids) {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top <= line) active = id
+      }
+      // At the very bottom, the last section is current even if its heading never reaches the line.
+      const scroller = document.scrollingElement
+      if (scroller && scroller.scrollTop + window.innerHeight >= scroller.scrollHeight - 4) active = ids[ids.length - 1]
+      setCurrent(active)
+    }
+    update()
+    window.addEventListener("scroll", update, { passive: true, capture: true })
+    window.addEventListener("resize", update)
+    return () => {
+      window.removeEventListener("scroll", update, { capture: true })
+      window.removeEventListener("resize", update)
+    }
+  }, [ids])
+  const choose = useCallback((id: string) => {
+    clickedAt.current = Date.now()
+    setCurrent(id)
+  }, [])
+  return [current, choose] as const
+}
+
+const SECTION_IDS = SECTIONS.map((s) => s.id)
+
 function Section({ id, title, description, children }: { id: string; title: string; description: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-20 border-b pb-10 last:border-b-0">
+    <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-20 border-b pb-10 last:border-b-0 lg:scroll-mt-6">
       <h2 id={`${id}-h`} className="text-lg font-medium">{title}</h2>
       <p className="mt-1 max-w-prose text-sm text-muted-foreground">{description}</p>
       <div className="mt-6">{children}</div>
@@ -63,6 +100,14 @@ function Section({ id, title, description, children }: { id: string; title: stri
 
 export default function SettingsPage() {
   const { me } = useAuth()
+  const [current, setCurrent] = useCurrentSection(SECTION_IDS)
+  const phoneBar = useRef<HTMLUListElement>(null)
+  useEffect(() => {
+    // Keep the current section's chip visible in the phone bar (it scrolls sideways at narrow widths).
+    const chip = phoneBar.current?.querySelector<HTMLElement>("[aria-current=location]")
+    const bar = phoneBar.current
+    if (chip && bar) bar.scrollTo({ left: chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2, behavior: "smooth" })
+  }, [current])
   const [draftMode, setDraftMode] = useState(true)
   const [prices, setPrices] = useState("listed")
   const [handoffs, setHandoffs] = useState<string[]>(HANDOFFS.slice(0, 4))
@@ -75,12 +120,34 @@ export default function SettingsPage() {
   return (
     <>
       <SiteHeader title="Settings" note="Changes here aren't saved until Step 6" />
+      {/* Phones and tablets: the same sections as a sticky bar, so you always know where you are. */}
+      <nav aria-label="Settings sections" className="sticky top-0 z-10 border-b bg-background px-4 lg:hidden">
+        <ul ref={phoneBar} className="relative flex gap-1 overflow-x-auto py-2 text-sm [scrollbar-width:none]">
+          {SECTIONS.map((s) => (
+            <li key={s.id} className="shrink-0">
+              <a
+                href={`#${s.id}`}
+                onClick={() => setCurrent(s.id)}
+                aria-current={current === s.id ? "location" : undefined}
+                className="flex min-h-11 items-center rounded-full px-3 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=location]:bg-muted aria-[current=location]:font-medium aria-[current=location]:text-foreground"
+              >
+                {s.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <div className="mx-auto grid w-full max-w-5xl gap-10 px-4 py-6 lg:grid-cols-[11rem_minmax(0,1fr)] lg:px-6">
         <nav aria-label="Settings sections" className="hidden lg:block">
           <ul className="sticky top-6 flex flex-col gap-1 text-sm">
             {SECTIONS.map((s) => (
               <li key={s.id}>
-                <a href={`#${s.id}`} className="block rounded-md px-2 py-1.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                <a
+                  href={`#${s.id}`}
+                  onClick={() => setCurrent(s.id)}
+                  aria-current={current === s.id ? "location" : undefined}
+                  className="block rounded-md px-2 py-1.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=location]:bg-muted aria-[current=location]:font-medium aria-[current=location]:text-foreground"
+                >
                   {s.title}
                 </a>
               </li>
