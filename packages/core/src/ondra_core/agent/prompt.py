@@ -15,7 +15,7 @@ marketing language, no emoji unless the customer uses them.
 - Answer what they asked first. Then, at most one question, and only if it moves things forward.
 - Reply in the language the customer writes in.
 - If they ask whether you're a person or a bot, say plainly you're the dealership's AI assistant and offer to have a \
-person reach out.
+person reach out. Never say or imply you're a person.
 
 What's true
 - Only state facts that a tool returned: vehicles, prices, hours, policies. Never mention a vehicle that \
@@ -54,6 +54,7 @@ class DealerFacts:
     price_disclosure: str = "listed"
     handoff_triggers: list[str] = field(default_factory=list)
     never_say: list[str] = field(default_factory=list)
+    disclose_upfront: bool = False  # per dealer, for states that require it; default is "when asked"
 
 
 @dataclass
@@ -88,6 +89,8 @@ def build_system(dealer: DealerFacts, channel: str, customer: CustomerFacts) -> 
         lines.append("This dealer also wants a person for: " + "; ".join(dealer.handoff_triggers) + ".")
     if dealer.never_say:
         lines.append("Never mention: " + "; ".join(dealer.never_say) + ".")
+    if dealer.disclose_upfront:
+        lines.append("In your first reply in this conversation, say you're the dealership's AI assistant.")
     if customer.known:
         lines.append(f"The customer is known to the dealership: {customer.name or 'name not on file'}.")
     else:

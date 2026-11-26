@@ -74,3 +74,14 @@ async def test_two_bad_drafts_fall_back_to_a_person():
 async def test_invented_car_is_blocked():
     res, _, _ = await turn([[("search_inventory", {})], "We have a 2022 Honda Pilot too.", "We have the Highlander."])
     assert "invents_inventory" in res.blocked and res.reply == "We have the Highlander."
+
+
+def test_disclosure_is_when_asked_unless_the_dealer_turns_on_upfront():
+    from ondra_core.agent.prompt import build_system
+
+    default = build_system(DEALER, "sms", CustomerFacts(known=False))
+    assert "Never say or imply you're a person" in default[0]["text"]
+    assert "first reply" not in default[1]["text"]
+    upfront = DealerFacts(name="X", local_time="Tue 10:48 pm", open_now=False, disclose_upfront=True)
+    assert "first reply in this conversation, say you're the dealership's AI assistant" in build_system(
+        upfront, "sms", CustomerFacts(known=False))[1]["text"]

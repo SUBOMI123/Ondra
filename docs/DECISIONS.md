@@ -154,3 +154,10 @@ Full detail is in `docs/ARCHITECTURE.md`.
 - WhatsApp usernames: users who hide their phone number arrive with only a BSUID. That is stored as their WhatsApp identity for now.
 
 **Opt back in.** START or UNSTOP re-subscribes every channel the STOP covered (Twilio: "YES" does not). `TODO(verify, counsel)`: per-channel rules.
+
+## 2026-11-26: Ondra says it's an AI when asked
+
+**Decision:** Ondra tells customers it's the dealership's AI assistant whenever they ask, and offers to get a person. It never says or implies it's human. It doesn't announce itself in every conversation by default. A per-dealer setting, `tenants.settings.ai_disclosure = "upfront"`, makes it say so in its first reply, for states that require that. The settings UI for this switch arrives with Step 6.
+**Why:** It's the founder's call. Up-front disclosure on every text adds friction to the short after-hours replies that are the product's core.
+**Risk to check with counsel before launch:** California's bot-disclosure law (the B.O.T. Act, SB 1001) requires disclosure, as we understand it, when a bot is used to encourage a sale to people in California, whether or not they ask. Other states are adding AI-disclosure rules. Check which states pilot dealers sell into, and turn on up-front disclosure there. TODO(verify, counsel).
+**Alternatives:** always up front (safest legally, more friction); never (not an option).

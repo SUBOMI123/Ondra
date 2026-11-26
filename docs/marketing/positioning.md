@@ -57,7 +57,7 @@ The product isn't built yet. Until it is, the page sticks to what the plan commi
 
 ## Open questions for the founders
 
-1. **AI disclosure:** does the agent say it's an AI when asked, or at the start of every conversation? The plan is silent. Some states have bot-disclosure laws. Decide this, then add an FAQ answer.
+1. ~~**AI disclosure**~~ Decided 2026-11-26: **when asked**. Ondra never claims to be a person, and says it's the dealership's AI assistant whenever a customer asks. Dealers in states that require up-front disclosure turn that on in settings. FAQ answer: "Does Ondra pretend to be a person? No. Ask it and it tells you it's the dealership's AI assistant, and offers to get a person."
 2. **Demo follow-up promise:** the form says "within one business day". Only keep it if someone will actually do that.
 3. **Name and domain:** "Ondra" is a working name (§16.1). The domain and contact email are placeholders.
 
