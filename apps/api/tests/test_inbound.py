@@ -132,7 +132,7 @@ async def test_vip_gets_no_ai_and_the_owner_is_alerted(client, database, llm, ou
     assert script.requests == []  # the model was never called
     assert outbox("sms").outbox == []
     rows = await messages_for(t, cid)
-    assert all(d == "inbound" for d, *_ in rows)  # no reply, no draft
+    assert not any(author == "ai" for _, author, *_ in rows)  # no AI reply, no AI draft (people may reply)
     async with tenant_session(t) as db:
         task = (await db.execute(select(Task).where(Task.contact_id == cid).order_by(Task.created_at.desc()))).scalars().first()
         owner = (await db.execute(text("SELECT id FROM users WHERE role = 'owner'"))).scalar_one()

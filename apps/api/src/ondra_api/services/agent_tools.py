@@ -14,7 +14,6 @@ from ondra_core.models import (
     Conversation,
     Deal,
     KnowledgeGap,
-    Task,
     User,
     Vehicle,
 )

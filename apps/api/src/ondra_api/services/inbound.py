@@ -20,10 +20,9 @@ from ondra_core.agent.llm import LLM, AnthropicLLM
 from ondra_core.agent.orchestrator import Turn, run_turn
 from ondra_core.agent.policy import Alert, InboundFacts, evaluate_inbound, may_send_outbound
 from ondra_core.agent.prompt import CustomerFacts, DealerFacts
-from ondra_core.channels.base import InboundMessage, OutboundMessage, StatusUpdate
+from ondra_core.channels.base import InboundMessage, StatusUpdate
 from ondra_core.channels.identity import identity_kind
 from ondra_core.models import (
-    ChannelAddress,
     Consent,
     Contact,
     ContactIdentity,
@@ -38,7 +37,6 @@ from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ondra_api.channels import adapter_for
 from ondra_api.config import get_settings
 from ondra_api.db import no_tenant_session, tenant_session
 from ondra_api.services.agent_tools import DbToolBackend, assignee_for
@@ -291,30 +289,16 @@ async def run_agent(tenant_id: uuid.UUID, conversation_id: uuid.UUID, message_id
             conv.status = "waiting_staff"
             return AgentOutcome("drafted" if ok else "blocked", result.reply, out.id,
                                 int((time.monotonic() - started) * 1000), result.tools_called)
-        channel = conv.channel
-        to_address = (await db.execute(
-            select(ContactIdentity.value).where(ContactIdentity.contact_id == contact.id,
-                                                ContactIdentity.kind.in_(("phone", "whatsapp") if channel != "email" else ("email",)))
-            .order_by(ContactIdentity.verified.desc()).limit(1)
-        )).scalar_one()
-        from_row = (await db.execute(
-            select(ChannelAddress).where(ChannelAddress.channel == channel, ChannelAddress.active.is_(True)).limit(1)
-        )).scalar_one()
         out_id, reply, tools = out.id, result.reply, result.tools_called
 
-    # Send outside the transaction, then record the outcome.
-    adapter = adapter_for(channel, from_row.provider)
-    res = await adapter.send(OutboundMessage(channel=channel, to_address=to_address, from_address=from_row.address, body=reply))
-    async with tenant_session(tenant_id) as db:
-        m = await db.get(Message, out_id)
-        m.status = "sent" if res.ok else "failed"
-        m.provider = adapter.provider
-        m.provider_message_id = res.provider_message_id
-        if not res.ok:
-            db.add(Event(type="message.send_failed", payload={"message_id": str(out_id), "error": res.error}))
-        else:
-            (await db.get(Conversation, conversation_id)).status = "waiting_customer"
-    return AgentOutcome("sent" if res.ok else "send_failed", reply, out_id, int((time.monotonic() - started) * 1000), tools)
+    # Send outside the transaction through the one send path (it re-checks opt-outs and VIP status).
+    from ondra_api.services.outbound import Blocked, deliver
+
+    try:
+        d = await deliver(tenant_id, out_id)
+    except Blocked:
+        return AgentOutcome("blocked", reply, out_id, int((time.monotonic() - started) * 1000), tools)
+    return AgentOutcome("sent" if d.ok else "send_failed", reply, out_id, int((time.monotonic() - started) * 1000), tools)
 
 
 async def handle(msg: InboundMessage) -> tuple[IngestResult, AgentOutcome | None]:
