@@ -111,19 +111,9 @@ class DbToolBackend:
 
     async def search_knowledge(self, query: str) -> list[dict]:
         self.last_question = query
-        # Full-text search with OR semantics across the query's words. Embeddings come later (docs/DECISIONS.md).
-        rows = (await self.db.execute(
-            text("""
-                SELECT title, body, ts_rank(doc, q) AS rank
-                FROM knowledge_docs,
-                     to_tsvector('english', title || ' ' || body) AS doc,
-                     CAST(NULLIF(replace(plainto_tsquery('english', :q)::text, '&', '|'), '') AS tsquery) AS q
-                WHERE doc @@ q
-                ORDER BY rank DESC LIMIT 3
-            """),
-            {"q": query},
-        )).all()
-        return [{"title": r.title, "answer": r.body} for r in rows]
+        from ondra_api.services import knowledge
+
+        return await knowledge.search(self.db, query)
 
     async def update_lead_fields(self, fields: dict) -> dict:
         fields = {k: v for k, v in fields.items() if v not in (None, "")}

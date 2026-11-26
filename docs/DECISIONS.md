@@ -167,3 +167,10 @@ Full detail is in `docs/ARCHITECTURE.md`.
 **Decision:** When a customer wants a car the dealer doesn't have, Ondra says so plainly and offers what's in stock. It also always hands the request to sales at low urgency (reason `vehicle_request`), so they can try to find one.
 **Why:** It's the founder's call. A buyer asking for a specific car is a lead, and dealers can source cars from other dealers or at auction.
 **Watch:** low-urgency tasks could pile up. If they do, Step 6's routing rules can batch them into a daily list instead of one task each.
+
+## 2026-11-26: Knowledge search uses Voyage AI embeddings
+
+**Decision:** Knowledge answers are embedded with Voyage AI (`voyage-4` for the dealer's answers, the faster `voyage-4-lite` for customer questions; the voyage-4 series is documented as mutually compatible) at 1024 dimensions. They're stored in `knowledge_docs.embedding` with an HNSW cosine index, and `embedding_space` records which embedder made each vector, so the mock's vectors and Voyage's are never compared. Search returns the top 3 answers at or above a similarity of 0.38. Below that, the AI treats the question as unanswered and hands off. If embedding fails (outage, rate limit) or nothing is embedded yet, search falls back to Postgres full-text. Without a key, a deterministic local mock embedder keeps everything running.
+**Why:** It's the founder's choice, and Anthropic points people to Voyage for embeddings. Word matching missed paraphrases and other languages. Measured on the seed answers: "¿abren los domingos?" matches Opening hours at 0.46, which keyword search can't do. Relevant matches scored 0.42 to 0.53, unrelated questions 0.10 to 0.33, hence 0.38. Re-measure when real dealer answers arrive.
+**Operational:** without a payment method, a Voyage account is limited to 3 requests a minute (seen as 429s during setup), so production needs billing enabled. The seed survives an embedding failure, and `python -m ondra_api.services.knowledge` backfills later.
+**Alternatives:** OpenAI or Cohere embeddings (another vendor with no advantage here); full-text only (fails on Spanish and paraphrase).

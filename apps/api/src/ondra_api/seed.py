@@ -23,7 +23,7 @@ from ondra_core.models import (
     User,
     Vehicle,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ondra_api.config import get_settings
@@ -148,6 +148,17 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                     db.add(ContactIdentity(tenant_id=t, contact_id=c.id, kind="whatsapp", value=phone))
                 db.add(Consent(tenant_id=t, contact_id=c.id, channel="sms", purpose="transactional",
                                status="opted_out" if name == "Jordan Price" else "opted_in", source="seed"))
+            await db.flush()
+            await db.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
+            from ondra_api.services.knowledge import embed_missing
+
+            try:
+                async with db.begin_nested():
+                    n = await embed_missing(db)
+                print(f"seed: embedded {n} knowledge answers")
+            except Exception as exc:  # noqa: BLE001  answers stay; search uses full text until they're embedded
+                print(f"seed: couldn't embed knowledge answers ({type(exc).__name__}); "
+                      "run `python -m ondra_api.services.knowledge` later")
             print(f"seed: Prestige Motors ({t}) with 5 users, 50 vehicles, 30 contacts. Password: {DEV_PASSWORD}")
             return t
     finally:

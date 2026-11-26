@@ -11,7 +11,9 @@ import pytest
 ADMIN_URL = os.environ.get("TEST_ADMIN_DATABASE_URL", "postgresql://ondra_owner:ondra_owner_dev@localhost:5432/postgres")
 OWNER_URL = "postgresql+asyncpg://ondra_owner:ondra_owner_dev@localhost:5432/ondra_test"
 APP_URL = "postgresql+asyncpg://ondra_app:ondra_app_dev@localhost:5432/ondra_test"
-os.environ.update(DATABASE_URL=APP_URL, MIGRATIONS_DATABASE_URL=OWNER_URL, JWT_SECRET="test-secret-" + "x" * 32)
+# Tests never call real providers: blank the keys a developer's .env may hold (env vars win over .env).
+os.environ.update(DATABASE_URL=APP_URL, MIGRATIONS_DATABASE_URL=OWNER_URL, JWT_SECRET="test-secret-" + "x" * 32,
+                  ANTHROPIC_API_KEY="", VOYAGE_API_KEY="")
 
 import asyncpg
 import httpx

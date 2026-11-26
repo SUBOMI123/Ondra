@@ -219,7 +219,7 @@ async def test_tools_in_tenant_a_never_see_tenant_b_stock(database):
         contact = (await db.execute(select(Contact).limit(1))).scalar_one()
         backend = DbToolBackend(db, contact=contact, conversation=None, price_disclosure="listed", open_now=False)
         assert await backend.search_inventory(make="Kia", model="Telluride") == []
-        hits = await backend.search_knowledge("are you open on sunday")
+        hits = await backend.search_knowledge("opening hours on sunday")  # the mock embedder matches words, not meaning
         assert hits and hits[0]["title"] == "Opening hours"
 
 
@@ -238,3 +238,31 @@ async def test_messages_table_is_unchanged_in_shape(database):
     async with tenant_session(database["a"]) as db:
         ids = (await db.execute(select(Message.provider_message_id).where(Message.direction == "inbound"))).scalars().all()
         assert ids and len(ids) == len(set(ids))
+
+
+async def test_knowledge_search_is_semantic_scoped_and_admits_ignorance(database):
+    """With the local mock embedder: answers were embedded at seed time, unrelated questions return nothing
+    (so the AI hands off), and another dealer's answers are invisible."""
+    from ondra_api.services import knowledge
+
+    async with tenant_session(database["a"]) as db:
+        spaces = (await db.execute(text("SELECT DISTINCT embedding_space FROM knowledge_docs"))).scalars().all()
+        assert spaces == ["hash-v1"]
+        assert (await knowledge.search(db, "what are your opening hours on sunday"))[0]["title"] == "Opening hours"
+        assert await knowledge.search(db, "do you install lift kits") == []
+    async with tenant_session(database["b"]) as db:
+        assert await knowledge.search(db, "what are your opening hours") == []
+
+
+async def test_knowledge_search_falls_back_to_full_text_when_embeddings_fail(database):
+    from ondra_api.services import knowledge
+
+    class Down:
+        space = "voyage-4"
+
+        async def embed(self, texts, input_type):
+            raise ConnectionError("voyage unreachable")
+
+    async with tenant_session(database["a"]) as db:
+        hits = await knowledge.search(db, "parking", emb=Down())
+        assert hits and hits[0]["title"] == "Location and parking"

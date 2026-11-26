@@ -311,8 +311,8 @@ class KnowledgeDoc(Base, TenantScoped):
     title: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text)
     category: Mapped[str | None] = mapped_column(String(80))
-    # Dimension is set when the embedding model is chosen (Step 2); see docs/DECISIONS.md.
-    embedding = mapped_column(Vector(), nullable=True)
+    embedding = mapped_column(Vector(1024), nullable=True)
+    embedding_space: Mapped[str | None] = mapped_column(String(40))  # which embedder made it; see ondra_core.embeddings
     updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
 
 

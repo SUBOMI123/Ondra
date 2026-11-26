@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     model_conversation: str = "claude-sonnet-5-5"
     model_fast: str = "claude-haiku-5-5"
     agent_effort: str = "low"
+    # Voyage AI embeddings for knowledge search. Without a key, a local mock embedder is used.
+    voyage_api_key: str = ""
     # Run the agent in the background after the webhook returns (production), or inline (tests, evals).
     agent_inline: bool = False
 

@@ -34,6 +34,7 @@ from ondra_core.agent.orchestrator import Turn, run_turn
 from ondra_core.agent.policy import InboundFacts, evaluate_inbound
 from ondra_core.agent.prompt import CustomerFacts, DealerFacts
 from ondra_core.agent.tools import apply_price_policy, handoff_message
+from ondra_core.embeddings import MIN_SIMILARITY, VoyageEmbedder, cosine
 
 ROOT = Path(__file__).parent
 GOLDEN = ROOT / "golden"
@@ -93,6 +94,20 @@ class FixtureBackend:
         return None
 
     async def search_knowledge(self, query: str) -> list[dict]:
+        # Same semantic search as production when a Voyage key is set; word overlap otherwise.
+        if os.environ.get("VOYAGE_API_KEY") and self.knowledge:
+            emb = VoyageEmbedder(os.environ["VOYAGE_API_KEY"])
+            try:
+                if not hasattr(self, "_doc_vectors"):
+                    self._doc_vectors = await emb.embed([k["q"] + "\n" + k["a"] for k in self.knowledge], "document")
+                [qv] = await emb.embed([query], "query")
+            except Exception:  # noqa: BLE001  same fallback as production (rate limits, outages)
+                return self._keyword_search(query)
+            scored = sorted(((cosine(qv, d), k) for d, k in zip(self._doc_vectors, self.knowledge)), key=lambda x: -x[0])
+            return [{"title": k["q"], "answer": k["a"]} for sim, k in scored[:3] if sim >= MIN_SIMILARITY["voyage-4"]]
+        return self._keyword_search(query)
+
+    def _keyword_search(self, query: str) -> list[dict]:
         q = _words(query)
         hits = [(len(q & _words(k["q"] + " " + k["a"])), k) for k in self.knowledge]
         return [{"title": k["q"], "answer": k["a"]} for n, k in sorted(hits, key=lambda x: -x[0]) if n > 0][:3]
