@@ -63,7 +63,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Today, Deals and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calls: Step 5).
-- **Quality:** 141 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
+- **Quality:** 140 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
