@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 5, Voice: everything but the acceptance call is done. Twilio number (707) 306-8599 is on a SIP trunk; LiveKit trunks and dispatch are set up; waiting on the LiveKit SIP URI to link them
+**Last updated:** 2026-11-26. **Now:** Step 5, Voice: everything but the acceptance call is done. (707) 306-8599 rings through Twilio and LiveKit to the `ondra-voice` worker (proven with a test call on 2026-11-26). The acceptance call has to run from a computer with a normal connection
 
 ## Build steps
 
@@ -76,7 +76,6 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
-| LiveKit SIP URI (Project settings page), to point the Twilio trunk at LiveKit | First real call | **Waiting** |
 | A computer to run the stack for the acceptance call (or a host); your mobile in Settings > Team | First real call | Waiting |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
 | A2P 10DLC registration; pick Twilio or Telnyx | Live SMS, voice | Not started (weeks) |
@@ -99,6 +98,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - The golden conversations are synthetic. `must` checks are pattern-based and can misjudge good replies.
 - **Reply latency tail, growing:** replies that look something up, act (hand off or book), then write take three model rounds, so they run 5 to 6.5 s when the model is slow. On the Step 4 run, 9 of 52 turns were over 5 s (median 3.4 s), up from 4 of 40 in Step 3 and 1 of 100 in Step 2: booking adds rounds, and per-call times were higher that run (up to 4 s for one call). The remaining fix is a faster model for the final reply-writing round, which changes the plan's model choice (§6.1): a founder decision, and it matters more for voice in Step 5.
 - In this build environment, containers can't reach Voyage (Anthropic is reachable), so the seed's embedding step falls back and the knowledge backfill runs from the host. Production hosts won't have this limit.
+- **Before any pilot: a call nobody answers must not vanish.** Proven on the test call: when the voice worker is down or fails, the caller hears ringing until Twilio gives up, and nothing is recorded (no missed-call record, task or text). Fix: a disaster-recovery route on the Twilio trunk that forwards to the dealer's main line or the owner's mobile (needs a public URL, so it comes with hosting), plus an alert when no `ondra-voice` worker is registered.
 - **Voice, honest list:** (1) it still reads out every matching car or time slot, despite the rule to name one or two; it needs the voice test set (5e) to fix properly; (2) after a cold transfer to a VIP's owner we can't yet tell if they answered (needs Twilio call status); (3) nothing is recorded yet (LiveKit Egress, with consent); (4) no fixed message plays when a VIP's call isn't answered (plan §4.2); (5) speech recognition, voice and real latency are untested until a real call.
 - **Ondra's text replies see only the channel they're on:** a WhatsApp reply doesn't read the client's SMS history yet, though staff see one merged thread. Fold the client's other channels into the agent's context in Step 6.
 - A channel a client opens after a person took them over starts with Ondra on; take over again, or fix in Step 6 routing.

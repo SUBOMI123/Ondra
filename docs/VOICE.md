@@ -48,6 +48,10 @@ uv run python infra/telephony/connect_line.py --number +17073068599 --sip-uri si
   outbound trunk to Twilio. It writes `LIVEKIT_SIP_OUTBOUND_TRUNK` and `DEALER_PHONE` to `.env`.
 - The SIP URI is on LiveKit Cloud's Project settings page (or `lk project list --json`: the ProjectId without `p_`).
 
+Verified 2026-11-26: a test call to (707) 306-8599 reached LiveKit, which created the caller's room and dispatched
+the `ondra-voice` worker. In the cloud build container the job then failed joining the room (that network blocks
+LiveKit's media servers), as expected.
+
 ## Where the worker runs for a real call
 
 Not in Ondra's cloud build container: a call's audio flows over WebRTC, which that container's network doesn't
