@@ -38,6 +38,9 @@ class FakeClerk:
         self.calls.append(("invite", org_id, email, role, redirect_url))
         return "orginv_1"
 
+    def set_role(self, org_id, user_id, role):
+        self.calls.append(("role", org_id, user_id, role))
+
     def remove_member(self, org_id, user_id):
         self.calls.append(("remove", org_id, user_id))
 
@@ -136,6 +139,11 @@ async def test_an_invited_person_is_linked_on_first_sign_in(client, clerk_mode, 
                                                         AuditLog.resource == f"user:{ada.id}"))).scalar_one()
     team = {u["email"]: u for u in (await client.get("/users", headers=owner)).json()["items"]}
     assert team["ada@prestigemotors.example"]["invited"] is False
+
+    # A role change in Ondra applies at once (Ondra enforces it) and is mirrored onto Clerk.
+    r = await client.patch(f"/users/{ada.id}", headers=owner, json={"role": "sales"})
+    assert r.status_code == 200 and clerk_mode.calls[-1] == ("role", ORG_A, "user_ada", "org:member")
+    assert (await client.get("/me", headers=token("user_ada", fva=(1, 0)))).json()["role"] == "sales"
 
     # Deactivating removes her from the Clerk organization, and Ondra refuses her at once.
     r = await client.patch(f"/users/{ada.id}", headers=owner, json={"active": False})

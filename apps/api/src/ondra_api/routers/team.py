@@ -13,6 +13,7 @@ password. Until Postmark sends email for us, the link is shown once to the perso
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -31,6 +32,7 @@ from ondra_api.config import get_settings
 from ondra_api.deps import Caller, require
 from ondra_api.security import hash_token
 
+log = logging.getLogger("ondra.team")
 router = APIRouter(prefix="/users", tags=["team"])
 
 Role = Literal["owner", "admin", "manager", "sales", "service", "ops", "viewer"]
@@ -151,6 +153,7 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
     if touches_owner and caller.role != "owner":
         raise HTTPException(403, "Only an owner can change an owner, or make someone an owner.")
     before = user_out(u)
+    role_changed = body.role is not None and body.role != u.role
     if body.role is not None:
         u.role = body.role
     if body.active is not None:
@@ -179,6 +182,15 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
                     raise HTTPException(502, f"Deactivated in Ondra, but Clerk refused to remove them: {e.message}") from None
     elif body.active is True and _clerk() and u.clerk_user_id:
         await _send_invite(db, u, caller.tenant_id)  # back into the Clerk Organization
+    if role_changed and _clerk() and u.clerk_user_id and u.active:
+        # Mirror onto Clerk (owner and admin are Clerk admins, the rest members). Ondra's role is what's enforced,
+        # so a Clerk failure is reported but doesn't undo the change here.
+        from ondra_api import clerk
+
+        try:
+            await asyncio.to_thread(clerk.client().set_role, await _clerk_org(db), u.clerk_user_id, clerk.clerk_role(u.role))
+        except clerk.ClerkApiError as e:
+            log.warning("clerk role mirror failed for %s: %s", u.id, e.message)
     after = user_out(u)
     _audit(db, caller, request, "team.update", u, before, after)
     return after

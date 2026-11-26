@@ -122,6 +122,9 @@ class ClerkClient:
         return self._call("POST", f"/organizations/{org_id}/invitations",
                           json={"email_address": email, "role": role, "redirect_url": redirect_url})["id"]
 
+    def set_role(self, org_id: str, user_id: str, role: str) -> None:
+        self._call("PATCH", f"/organizations/{org_id}/memberships/{user_id}", json={"role": role})
+
     def remove_member(self, org_id: str, user_id: str) -> None:
         self._call("DELETE", f"/organizations/{org_id}/memberships/{user_id}")
 
