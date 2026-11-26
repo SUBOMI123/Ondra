@@ -143,3 +143,18 @@ async def test_team_rules(client, database):
 
     # Restore.
     assert (await client.patch(f"/users/{sales_id}", headers=admin, json={"active": True, "role": "sales"})).status_code == 200
+
+
+async def test_mobiles_for_putting_calls_through(client, database):
+    owner, admin, sales = await login(client, OWNER), await login(client, ADMIN), await login(client, SALES)
+    users = {u["email"]: u for u in (await client.get("/users", headers=admin)).json()["items"]}
+    sales_id = users[SALES]["id"]
+    # An admin records a salesperson's mobile; it's stored in E.164.
+    r = await client.patch(f"/users/{sales_id}", headers=admin, json={"phone": "(469) 555-0188"})
+    assert r.status_code == 200 and r.json()["phone"] == "+14695550188" and r.json()["role"] == "sales"
+    assert (await client.patch(f"/users/{sales_id}", headers=admin, json={"phone": "call me"})).status_code == 422
+    # Anyone sets their own; nobody changes their own role through it.
+    original = (await client.get("/me", headers=owner)).json()["phone"]
+    assert (await client.patch("/me", headers=sales, json={"phone": "+1 214 555 0199"})).json()["phone"] == "+12145550199"
+    assert (await client.patch(f"/users/{users[OWNER]['id']}", headers=owner, json={"role": "sales"})).status_code == 403
+    assert (await client.patch("/me", headers=owner, json={"phone": original})).status_code == 200

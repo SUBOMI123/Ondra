@@ -33,10 +33,33 @@ Set in `.env` (see `.env.example`): `VOICE_STT_MODEL` (LiveKit Inference speech 
 ElevenLabs with `ELEVEN_API_KEY`). Turn detection is LiveKit's turn detector, with adaptive interruptions and
 preemptive generation.
 
+## Connecting a real number
+
+`infra/telephony/connect_line.py` sets up both sides, and is safe to run again:
+
+```
+uv run python infra/telephony/connect_line.py --number +17073068599 --sip-uri sip:<project>.sip.livekit.cloud
+```
+
+- Twilio: an Elastic SIP trunk with call transfer on, origination to LiveKit, a credential LiveKit uses to call
+  out (transfers), and the number on the trunk. Not a TwiML Bin: LiveKit documents that route as supporting neither
+  transfers nor outbound calls, and VIP calls and warm transfers need both.
+- LiveKit: an inbound trunk for the number, a dispatch rule (one room per caller, agent `ondra-voice`), and an
+  outbound trunk to Twilio. It writes `LIVEKIT_SIP_OUTBOUND_TRUNK` and `DEALER_PHONE` to `.env`.
+- The SIP URI is on LiveKit Cloud's Project settings page (or `lk project list --json`: the ProjectId without `p_`).
+
+## Where the worker runs for a real call
+
+Not in Ondra's cloud build container: a call's audio flows over WebRTC, which that container's network doesn't
+carry, and the worker needs the database. For the acceptance call, run the stack on a computer with a normal
+connection: `docker compose -f infra/docker-compose.yml --profile voice up` with the `.env` above. Before a pilot,
+the API, database and worker need a host (founder decision in `docs/STATUS.md`).
+
+Each person's mobile (Settings > Team, or their own via `PATCH /me`) is where Ondra rings to put a call through:
+the owner's for VIP calls, a salesperson's for a warm transfer.
+
 ## Still to do (Step 5e)
 
-- Twilio number, Elastic SIP trunk to LiveKit, LiveKit inbound trunk and dispatch rule; an outbound trunk
-  (`LIVEKIT_SIP_OUTBOUND_TRUNK`) for warm transfers. Steps to be written from LiveKit's and Twilio's docs when it's set up.
 - Whether a cold-transferred call was answered (Twilio call status), so an unanswered VIP alerts the owner.
 - Recording (LiveKit Egress) when the dealer has consent set up. Today nothing is recorded.
 - Speech-to-text bake-off on phone-quality, accented audio; the voice; a real latency report.

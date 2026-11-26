@@ -57,7 +57,7 @@ type Replies = {
 }
 type Channel = { id: string; channel: "sms" | "whatsapp" | "email" | "phone"; address: string; provider: string; active: boolean; live: boolean }
 type SettingsData = { business: Business; replies: Replies; channels: Channel[]; can_edit: boolean; timezones: string[] }
-type User = { id: string; email: string; name: string; role: string; active: boolean; invited: boolean }
+type User = { id: string; email: string; name: string; role: string; active: boolean; invited: boolean; phone: string | null }
 
 const SECTIONS = [
   { id: "business", title: "Business" },
@@ -296,6 +296,45 @@ function InviteForm({ assignable, onDone }: { assignable: string[]; onDone: () =
   )
 }
 
+function formatPhone(e164: string | null) {
+  const m = e164?.match(/^\+1(\d{3})(\d{3})(\d{4})$/)
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : (e164 ?? "")
+}
+
+/** A person's mobile: where Ondra rings them to put a call through. Edited inline. */
+function Mobile({ u, self, canEdit }: { u: User; self: boolean; canEdit: boolean }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(u.phone ?? "")
+  const save = useMutation({
+    mutationFn: () => (self ? send("PATCH", "/me", { phone: value }) : send("PATCH", `/users/${u.id}`, { phone: value })),
+    onSuccess: () => {
+      setEditing(false)
+      qc.invalidateQueries({ queryKey: ["users"] })
+      toast(value.trim() ? "Mobile saved." : "Mobile removed.")
+    },
+  })
+  if (editing)
+    return (
+      <form className="mt-1.5 flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="(214) 555-0100" inputMode="tel" aria-label={`Mobile for ${u.name}`} className="h-8 w-44" autoFocus />
+        <Button size="sm" type="submit" disabled={save.isPending}>Save</Button>
+        <Button size="sm" variant="ghost" type="button" onClick={() => { setEditing(false); setValue(u.phone ?? "") }}>Cancel</Button>
+        {save.isError && <p role="alert" className="w-full text-sm">{errorText(save.error)}</p>}
+      </form>
+    )
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="tabular-nums">{u.phone ? formatPhone(u.phone) : "No mobile"}</span>
+      {canEdit && (
+        <button type="button" className="underline-offset-4 hover:text-foreground hover:underline" onClick={() => setEditing(true)} aria-label={`${u.phone ? "Change" : "Add"} mobile for ${u.name}`}>
+          {u.phone ? "Change" : "Add mobile"}
+        </button>
+      )}
+    </p>
+  )
+}
+
 function TeamSection() {
   const { me } = useAuth()
   const qc = useQueryClient()
@@ -318,7 +357,7 @@ function TeamSection() {
   })
 
   return (
-    <Section id="team" title="Team" description="Who works here and what each role can do. VIPs are visible to owners and managers only.">
+    <Section id="team" title="Team" description="Who works here and what each role can do. VIPs are visible to owners and managers only. A mobile is where Ondra puts calls through: VIP calls ring the owner's.">
       {users.isPending ? (
         <TableSkeleton rows={5} />
       ) : users.isError ? (
@@ -345,6 +384,7 @@ function TeamSection() {
                       {self && <span className="font-normal text-muted-foreground"> (you)</span>}
                     </p>
                     <p className="truncate text-sm text-muted-foreground">{u.email}</p>
+                    <Mobile u={u} self={self} canEdit={self || (canManage && !ownerLocked && u.active)} />
                   </div>
                   {u.invited && u.active && <Badge variant="outline">Invite sent</Badge>}
                   {!u.active && <Badge variant="outline" className="text-muted-foreground">Deactivated</Badge>}

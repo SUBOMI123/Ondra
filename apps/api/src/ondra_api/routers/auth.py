@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from ondra_core.models import AuditLog, Session, Tenant, User
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -144,4 +144,20 @@ async def me(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> MeOut:
     user = (await db.execute(select(User).where(User.id == caller.user_id))).scalar_one()
     tenant = (await db.execute(select(Tenant))).scalar_one()
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role,
-                 tenant_id=tenant.id, tenant_name=tenant.name)
+                 tenant_id=tenant.id, tenant_name=tenant.name, phone=user.phone)
+
+
+class MePatch(BaseModel):
+    phone: str | None = Field(None, max_length=40)
+
+
+@me_router.patch("/me", response_model=MeOut)
+async def update_me(body: MePatch, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> MeOut:
+    """Anyone can set their own mobile: it's the number Ondra rings to put a call through to them."""
+    from ondra_api.routers.team import clean_phone
+
+    caller, db = ctx
+    user = (await db.execute(select(User).where(User.id == caller.user_id))).scalar_one()
+    user.phone = clean_phone(body.phone)
+    db.add(AuditLog(actor_type="user", actor_user_id=user.id, action="team.phone", resource=f"user:{user.id}"))
+    return await me(ctx)

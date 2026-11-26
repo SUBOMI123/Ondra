@@ -16,6 +16,7 @@ class MeOut(_Out):
     role: str
     tenant_id: uuid.UUID
     tenant_name: str
+    phone: str | None = None
 
 
 class IdentityOut(_Out):

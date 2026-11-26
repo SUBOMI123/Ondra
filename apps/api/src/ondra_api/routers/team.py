@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from ondra_core.channels.identity import normalize_phone
 from ondra_core.models import AuditLog, Session, User
 from ondra_core.permissions import Perm
 from pydantic import BaseModel, EmailStr, Field
@@ -44,11 +45,22 @@ class InviteIn(BaseModel):
 class UserPatch(BaseModel):
     role: Role | None = None
     active: bool | None = None
+    # The mobile Ondra rings to put a call through (VIP calls to the owner, warm transfers). "" clears it.
+    phone: str | None = Field(None, max_length=40)
+
+
+def clean_phone(raw: str | None) -> str | None:
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return normalize_phone(raw)
+    except ValueError:
+        raise HTTPException(422, "That doesn't look like a phone number.") from None
 
 
 def user_out(u: User) -> dict:
     return {"id": str(u.id), "email": u.email, "name": u.name, "role": u.role, "active": u.active,
-            "invited": u.password_hash is None}
+            "invited": u.password_hash is None, "phone": u.phone}
 
 
 def new_invite_token(tenant_id: uuid.UUID) -> str:
@@ -106,7 +118,7 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
     u = await db.get(User, user_id)
     if u is None:
         raise HTTPException(404)
-    if u.id == caller.user_id:
+    if u.id == caller.user_id and (body.role is not None or body.active is not None):
         raise HTTPException(403, "You can't change your own role or access. Ask another owner or admin.")
     touches_owner = u.role == "owner" or body.role == "owner"
     if touches_owner and caller.role != "owner":
@@ -116,6 +128,8 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
         u.role = body.role
     if body.active is not None:
         u.active = body.active
+    if "phone" in body.model_fields_set:
+        u.phone = clean_phone(body.phone)
     await db.flush()
     owners = (await db.execute(
         select(func.count()).select_from(User).where(User.role == "owner", User.active.is_(True))

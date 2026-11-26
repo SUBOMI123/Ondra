@@ -81,7 +81,9 @@ def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
     if tts_provider == "elevenlabs":
         from livekit.plugins import elevenlabs
 
-        tts = elevenlabs.TTS(voice_id=os.environ["VOICE_TTS_VOICE"], model=os.getenv("VOICE_TTS_MODEL", "eleven_flash_v2_5"))
+        voice = {"voice_id": v} if (v := os.getenv("VOICE_TTS_VOICE")) else {}  # blank: ElevenLabs' default voice
+        model = os.getenv("VOICE_TTS_MODEL") or "eleven_flash_v2_5"
+        tts = elevenlabs.TTS(model=model if model.startswith("eleven_") else "eleven_flash_v2_5", **voice)
     else:
         tts = inference.TTS(model=os.getenv("VOICE_TTS_MODEL", "cartesia/sonic-3"), voice=os.getenv("VOICE_TTS_VOICE") or None)
     return AgentSession[CallDesk](

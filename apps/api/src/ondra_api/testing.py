@@ -20,6 +20,7 @@ _created: dict | None = None
 def configure_env() -> None:
     """Call before importing the app. Tests never call real providers: blank the keys a developer's .env may hold
     (env vars win over .env)."""
+    os.environ.pop("DEALER_PHONE", None)  # tests use the example dealer number
     os.environ.update(DATABASE_URL=APP_URL, MIGRATIONS_DATABASE_URL=OWNER_URL, JWT_SECRET="test-secret-" + "x" * 32,
                       ANTHROPIC_API_KEY="", VOYAGE_API_KEY="")
 

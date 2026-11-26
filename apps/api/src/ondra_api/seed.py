@@ -8,6 +8,7 @@ example data: 555 phone numbers, example.com emails. Every seeded user's passwor
 """
 
 import asyncio
+import os
 import random
 import sys
 import uuid
@@ -85,7 +86,8 @@ def _vin(rng: random.Random) -> str:
     return "".join(rng.choice(chars) for _ in range(17))
 
 
-DEALER_PHONE = "+12145550100"
+# The dealer's phone line. A real number (set by infra/telephony/connect_line.py in .env) routes real calls here.
+DEALER_PHONE = os.getenv("DEALER_PHONE") or "+12145550100"
 DEALER_EMAIL = "sales@prestige-motors.example"
 
 KNOWLEDGE = [

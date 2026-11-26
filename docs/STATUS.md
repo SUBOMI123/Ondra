@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 5, Voice: call handling, the voice agent (on the fast model) and the Calls screen are done. Left: a real phone line and the acceptance call (5e)
+**Last updated:** 2026-11-26. **Now:** Step 5, Voice: everything but the acceptance call is done. Twilio number (707) 306-8599 is on a SIP trunk; LiveKit trunks and dispatch are set up; waiting on the LiveKit SIP URI to link them
 
 ## Build steps
 
@@ -71,12 +71,13 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 | Item | Blocks | Status |
 |---|---|---|
-| Rotate the Anthropic, Voyage, LiveKit and ElevenLabs keys (all were pasted in chat) and set them in the environment settings | Security | **After testing, before anything goes live** (founder decision) |
+| Rotate the Anthropic, Voyage, LiveKit, ElevenLabs and Twilio keys (all were pasted in chat) and set them in the environment settings | Security | **After testing, before anything goes live** (founder decision) |
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
-| Twilio account details and an ElevenLabs key (secure form, not chat), for the real phone line | Step 5e | Waiting |
+| LiveKit SIP URI (Project settings page), to point the Twilio trunk at LiveKit | First real call | **Waiting** |
+| A computer to run the stack for the acceptance call (or a host); your mobile in Settings > Team | First real call | Waiting |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
 | A2P 10DLC registration; pick Twilio or Telnyx | Live SMS, voice | Not started (weeks) |
 | Postmark account (also needed to email invites) | Live email, invite emails | Not started |
