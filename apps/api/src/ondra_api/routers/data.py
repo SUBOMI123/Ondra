@@ -1,6 +1,8 @@
 """Read endpoints for Step 1: the seeded contacts, vehicles and team, all tenant-scoped by RLS."""
 
+import re
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ondra_core.models import Contact, ContactIdentity, User, Vehicle
@@ -9,7 +11,7 @@ from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
-from ondra_api.schemas import ContactOut, IdentityOut, Page, UserOut, VehicleOut
+from ondra_api.schemas import ContactOut, IdentityOut, Page, TeamPage, UserOut, VehicleOut
 
 router = APIRouter(tags=["data"])
 
@@ -71,9 +73,40 @@ async def list_vehicles(
     return Page(items=[VehicleOut.model_validate(v) for v in rows], total=total)
 
 
-@router.get("/users", response_model=Page[UserOut])
-async def list_users(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.USERS_READ))) -> Page[UserOut]:
+@router.get("/users", response_model=TeamPage)
+async def list_users(
+    ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.USERS_READ)),
+    q: str | None = Query(None, max_length=100), role: str | None = None,
+    status: Literal["active", "invited", "deactivated"] | None = None,
+    limit: int = Query(200, le=200), offset: int = 0,
+) -> TeamPage:
+    """The team, searchable and paged so a dealership of any size stays quick: search by name or email, filter by
+    role and status. `counts` covers the whole team (for the filters), not just this page."""
     _, db = ctx
-    rows, total = await _page(db, select(User).order_by(User.active.desc(), User.name), 200, 0)
-    return Page(items=[UserOut(id=u.id, email=u.email, name=u.name, role=u.role, active=u.active,
-                               invited=u.password_hash is None and u.clerk_user_id is None, phone=u.phone) for u in rows], total=total)
+    invited = User.password_hash.is_(None) & User.clerk_user_id.is_(None)
+    stmt = select(User).order_by(User.active.desc(), User.name)
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        terms = [User.name.ilike(like), cast(User.email, String).ilike(like)]
+        digits = re.sub(r"\D", "", q)
+        if len(digits) >= 4:  # "(214) 555-0102" and "5550102" both find +12145550102
+            terms.append(User.phone.ilike(f"%{digits}%"))
+        stmt = stmt.where(or_(*terms))
+    if role:
+        stmt = stmt.where(User.role == role)
+    if status == "active":
+        stmt = stmt.where(User.active.is_(True), ~invited)
+    elif status == "invited":
+        stmt = stmt.where(User.active.is_(True), invited)
+    elif status == "deactivated":
+        stmt = stmt.where(User.active.is_(False))
+    rows, total = await _page(db, stmt, limit, offset)
+    by_role = dict((await db.execute(select(User.role, func.count()).where(User.active.is_(True)).group_by(User.role))).all())
+    by_status = {
+        "active": (await db.execute(select(func.count()).where(User.active.is_(True), ~invited))).scalar_one(),
+        "invited": (await db.execute(select(func.count()).where(User.active.is_(True), invited))).scalar_one(),
+        "deactivated": (await db.execute(select(func.count()).where(User.active.is_(False)))).scalar_one(),
+    }
+    return TeamPage(items=[UserOut(id=u.id, email=u.email, name=u.name, role=u.role, active=u.active,
+                                   invited=u.password_hash is None and u.clerk_user_id is None, phone=u.phone)
+                           for u in rows], total=total, counts={"role": by_role, "status": by_status})

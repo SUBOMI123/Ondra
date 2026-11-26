@@ -160,3 +160,21 @@ async def test_mobiles_for_putting_calls_through(client, database):
     assert (await client.patch("/me", headers=sales, json={"phone": "+1 214 555 0199"})).json()["phone"] == "+12145550199"
     assert (await client.patch(f"/users/{users[OWNER]['id']}", headers=owner, json={"role": "sales"})).status_code == 403
     assert (await client.patch("/me", headers=owner, json={"phone": original})).status_code == 200
+
+
+async def test_the_team_list_searches_filters_and_pages(client, database):
+    admin = await login(client, ADMIN)
+    everyone = (await client.get("/users", headers=admin)).json()
+    assert everyone["counts"]["status"]["active"] >= 5 and everyone["counts"]["role"]["sales"] >= 1
+    found = (await client.get("/users?q=daniel", headers=admin)).json()
+    assert [u["email"] for u in found["items"]] == [SALES] and found["total"] == 1
+    phone = next(u for u in everyone["items"] if u["email"] == SALES)["phone"]  # E.164, e.g. +12145550199
+    formatted = f"({phone[2:5]}) {phone[5:8]}-{phone[8:]}"
+    assert [u["email"] for u in (await client.get("/users", headers=admin, params={"q": formatted})).json()["items"]] == [SALES]
+    sales_only = (await client.get("/users?role=sales", headers=admin)).json()
+    assert sales_only["items"] and all(u["role"] == "sales" for u in sales_only["items"])
+    page1 = (await client.get("/users?limit=2&offset=0", headers=admin)).json()
+    page2 = (await client.get("/users?limit=2&offset=2", headers=admin)).json()
+    assert len(page1["items"]) == 2 and page1["total"] == everyone["total"]
+    assert not {u["id"] for u in page1["items"]} & {u["id"] for u in page2["items"]}
+    assert (await client.get("/users?status=deactivated", headers=admin)).json()["counts"] == everyone["counts"]

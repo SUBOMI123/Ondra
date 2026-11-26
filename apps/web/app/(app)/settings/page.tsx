@@ -19,11 +19,13 @@ import {
   IconPlus,
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { BookingSection } from "@/components/settings/booking-section"
+import { assignableRoles, canManageTeam, InviteForm, ROLE_LABEL, type TeamData } from "@/components/settings/team"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { useAuth } from "@/components/providers"
@@ -57,7 +59,6 @@ type Replies = {
 }
 type Channel = { id: string; channel: "sms" | "whatsapp" | "email" | "phone"; address: string; provider: string; active: boolean; live: boolean }
 type SettingsData = { business: Business; replies: Replies; channels: Channel[]; can_edit: boolean; timezones: string[] }
-type User = { id: string; email: string; name: string; role: string; active: boolean; invited: boolean; phone: string | null }
 
 const SECTIONS = [
   { id: "business", title: "Business" },
@@ -73,10 +74,6 @@ const DAYS: [Day, string][] = [
   ["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"],
   ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"],
 ]
-
-const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner", admin: "Admin", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations", viewer: "View only",
-}
 
 const HANDOFF_PRESETS = ["A discount or final price", "What their trade-in is worth", "A delivery date", "A complaint", "Financing terms"]
 
@@ -237,196 +234,41 @@ function BusinessSection({ data, canEdit }: { data: SettingsData; canEdit: boole
 
 // --- Team ------------------------------------------------------------------------------------------------------
 
-function InviteForm({ assignable, onDone }: { assignable: string[]; onDone: () => void }) {
-  const qc = useQueryClient()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState("sales")
-  const [link, setLink] = useState<string | null>(null)
-  const invite = useMutation({
-    mutationFn: () => send<{ invite_link?: string; emailed?: boolean }>("POST", "/users/invite", { name, email, role }),
-    onSuccess: (r) => {
-      qc.invalidateQueries({ queryKey: ["users"] })
-      if (r.invite_link) {
-        setLink(r.invite_link)
-      } else {
-        // Clerk emails the invitation; nothing to copy.
-        toast(`Invitation emailed to ${email}.`)
-        onDone()
-      }
-    },
-  })
-  if (link) {
-    return (
-      <div className="rounded-xl border p-4">
-        <p className="font-medium">Invite ready for {name}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Send them this link. It works once and expires in 7 days. Ondra doesn&apos;t email invites yet.
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input readOnly value={link} aria-label="Invite link" className="font-mono text-xs" onFocus={(e) => e.target.select()} />
-          <Button variant="outline" onClick={() => navigator.clipboard.writeText(link).then(() => toast("Link copied"))}>
-            <IconCopy /> Copy link
-          </Button>
-          <Button variant="ghost" onClick={onDone}>Done</Button>
-        </div>
-      </div>
-    )
-  }
-  return (
-    <form
-      className="grid gap-4 rounded-xl border p-4 sm:grid-cols-[1fr_1fr_10rem_auto] sm:items-end"
-      onSubmit={(e) => { e.preventDefault(); invite.mutate() }}
-    >
-      <div className="grid gap-2">
-        <Label htmlFor="inv-name">Name</Label>
-        <Input id="inv-name" required value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="inv-email">Work email</Label>
-        <Input id="inv-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="inv-role">Role</Label>
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger id="inv-role" className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>{assignable.map((r) => <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
-      <div className="flex gap-2">
-        <Button type="submit" disabled={invite.isPending}>{invite.isPending ? "Creating…" : "Create invite"}</Button>
-        <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
-      </div>
-      {invite.isError && <p role="alert" className="text-sm sm:col-span-4">{errorText(invite.error)}</p>}
-    </form>
-  )
-}
-
-function formatPhone(e164: string | null) {
-  const m = e164?.match(/^\+1(\d{3})(\d{3})(\d{4})$/)
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : (e164 ?? "")
-}
-
-/** A person's mobile: where Ondra rings them to put a call through. Edited inline. */
-function Mobile({ u, self, canEdit }: { u: User; self: boolean; canEdit: boolean }) {
-  const qc = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(u.phone ?? "")
-  const save = useMutation({
-    mutationFn: () => (self ? send("PATCH", "/me", { phone: value }) : send("PATCH", `/users/${u.id}`, { phone: value })),
-    onSuccess: () => {
-      setEditing(false)
-      qc.invalidateQueries({ queryKey: ["users"] })
-      toast(value.trim() ? "Mobile saved." : "Mobile removed.")
-    },
-  })
-  if (editing)
-    return (
-      <form className="mt-1.5 flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
-        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="(214) 555-0100" inputMode="tel" aria-label={`Mobile for ${u.name}`} className="h-8 w-44" autoFocus />
-        <Button size="sm" type="submit" disabled={save.isPending}>Save</Button>
-        <Button size="sm" variant="ghost" type="button" onClick={() => { setEditing(false); setValue(u.phone ?? "") }}>Cancel</Button>
-        {save.isError && <p role="alert" className="w-full text-sm">{errorText(save.error)}</p>}
-      </form>
-    )
-  return (
-    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-      <span className="tabular-nums">{u.phone ? formatPhone(u.phone) : "No mobile"}</span>
-      {canEdit && (
-        <button type="button" className="underline-offset-4 hover:text-foreground hover:underline" onClick={() => setEditing(true)} aria-label={`${u.phone ? "Change" : "Add"} mobile for ${u.name}`}>
-          {u.phone ? "Change" : "Add mobile"}
-        </button>
-      )}
-    </p>
-  )
-}
-
 function TeamSection() {
   const { me } = useAuth()
-  const qc = useQueryClient()
   const [inviting, setInviting] = useState(false)
-  const users = useQuery({ queryKey: ["users"], queryFn: () => api<Page<User>>("/users"), retry: false })
-  const canManage = me?.role === "owner" || me?.role === "admin"
-  const assignable = Object.keys(ROLE_LABEL).filter((r) => r !== "owner" || me?.role === "owner")
-  const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<User, "role" | "active">> }) => send("PATCH", `/users/${id}`, patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
-    onError: (e) => toast(errorText(e)),
-  })
-  const reinvite = useMutation({
-    mutationFn: (id: string) => send<{ invite_link?: string; emailed?: boolean }>("POST", `/users/${id}/invite`),
-    onSuccess: (r) => !r.invite_link ? toast("Invitation emailed again.") : navigator.clipboard.writeText(r.invite_link).then(
-      () => toast("New invite link copied. The old one no longer works."),
-      () => toast(`New invite link: ${r.invite_link}`),
-    ),
-    onError: (e) => toast(errorText(e)),
-  })
-
+  const team = useQuery({ queryKey: ["users", "summary"], queryFn: () => api<TeamData>("/users?limit=1"), retry: false })
+  const canManage = canManageTeam(me)
+  const c = team.data?.counts
   return (
     <Section id="team" title="Team" description="Who works here and what each role can do. VIPs are visible to owners and managers only. A mobile is where Ondra puts calls through: VIP calls ring the owner's.">
-      {users.isPending ? (
-        <TableSkeleton rows={5} />
-      ) : users.isError ? (
+      {team.isPending ? (
+        <Skeleton className="h-16 w-full" />
+      ) : team.isError ? (
         <p className="text-sm text-muted-foreground">Only owners, admins and managers can see the team.</p>
       ) : (
         <div className="flex flex-col gap-4">
-          {canManage && (inviting ? (
-            <InviteForm assignable={assignable} onDone={() => setInviting(false)} />
+          <p className="text-sm">
+            <span className="tabular-nums">{(c?.status.active ?? 0) + (c?.status.invited ?? 0)}</span> people
+            {c && c.status.invited > 0 && <> (<span className="tabular-nums">{c.status.invited}</span> yet to accept their invitation)</>}
+            <span className="text-muted-foreground">
+              {" "}({Object.entries(c?.role ?? {}).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${n} ${ROLE_LABEL[r] ?? r}`).join(", ")})
+            </span>
+          </p>
+          {inviting ? (
+            <InviteForm assignable={assignableRoles(me)} onDone={() => setInviting(false)} />
           ) : (
-            <Button variant="outline" className="self-start" onClick={() => setInviting(true)}>
-              <IconPlus /> Invite teammate
-            </Button>
-          ))}
-          <ul className="divide-y rounded-xl border">
-            {users.data.items.map((u) => {
-              const self = u.id === me?.id
-              const ownerLocked = u.role === "owner" && me?.role !== "owner"
-              const editable = canManage && !self && !ownerLocked && u.active
-              return (
-                <li key={u.id} className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3", !u.active && "text-muted-foreground")}>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {u.name}
-                      {self && <span className="font-normal text-muted-foreground"> (you)</span>}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">{u.email}</p>
-                    <Mobile u={u} self={self} canEdit={self || (canManage && !ownerLocked && u.active)} />
-                  </div>
-                  {u.invited && u.active && <Badge variant="outline">Invite sent</Badge>}
-                  {!u.active && <Badge variant="outline" className="text-muted-foreground">Deactivated</Badge>}
-                  {editable ? (
-                    <Select value={u.role} onValueChange={(role) => update.mutate({ id: u.id, patch: { role } })}>
-                      <SelectTrigger className="w-36" aria-label={`Role for ${u.name}`}><SelectValue /></SelectTrigger>
-                      <SelectContent>{assignable.map((r) => <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>)}</SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="w-36 text-sm text-muted-foreground sm:text-right">{ROLE_LABEL[u.role] ?? u.role}</span>
-                  )}
-                  {canManage && !self && !ownerLocked ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`More for ${u.name}`}><IconDotsVertical /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {u.invited && u.active && (
-                          <DropdownMenuItem onSelect={() => reinvite.mutate(u.id)}>{CLERK ? "Email the invitation again" : "Copy a new invite link"}</DropdownMenuItem>
-                        )}
-                        {u.active ? (
-                          <DropdownMenuItem onSelect={() => update.mutate({ id: u.id, patch: { active: false } })}>
-                            Deactivate and sign out
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onSelect={() => update.mutate({ id: u.id, patch: { active: true } })}>Reactivate</DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : canManage ? (
-                    <span className="size-9" aria-hidden="true" />
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/settings/team">Manage the team</Link>
+              </Button>
+              {canManage && (
+                <Button variant="outline" onClick={() => setInviting(true)}>
+                  <IconPlus /> Invite teammate
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Section>

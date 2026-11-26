@@ -333,3 +333,14 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
   has a mock). Clerk is loaded in the web app only when `NEXT_PUBLIC_AUTH_PROVIDER=clerk`.
 - **Not yet:** Clerk webhooks (user deleted in Clerk's dashboard) need a public URL, so they come with hosting; until
   then Ondra checks membership on every request.
+
+## 2026-11-26: Team is its own page, searched and paged on the server
+
+- **Settings shows a summary of the team** (people by role, invitations waiting) with "Manage the team" and
+  "Invite teammate". **The Team page (/settings/team) is where people are managed**: search by name, email or
+  mobile (formatted numbers work: "(214) 555-0102" finds +12145550102), status tabs (active, invited,
+  deactivated) with counts, a role filter, and 25 per page. The API does the searching, filtering and paging
+  (`GET /users?q=&role=&status=&limit=&offset=`, with whole-team counts), so a 100-person dealership loads 25
+  rows, not 100. Checked with 116 people.
+- **Roles are Ondra's.** Clerk's own roles (admin, member) only mirror them for Clerk's screens: owner and admin are
+  Clerk admins, everyone else a member. No custom roles in Clerk.

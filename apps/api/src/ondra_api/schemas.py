@@ -62,3 +62,7 @@ class UserOut(_Out):
 class Page[T](BaseModel):
     items: list[T]
     total: int
+
+
+class TeamPage(Page[UserOut]):
+    counts: dict[str, dict[str, int]]  # {"role": {...}, "status": {"active", "invited", "deactivated"}} for the whole team
