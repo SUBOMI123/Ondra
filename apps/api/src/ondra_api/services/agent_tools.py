@@ -227,7 +227,13 @@ class DbToolBackend:
                 "loaner": (a.details or {}).get("loaner"), "getting_around": _getting_around(a)}
 
     async def check_availability(self, kind: str, day: str | None = None, part_of_day: str | None = None) -> dict:
-        from ondra_api.services.booking import InternalCalendar, find_type, local_window, resolve_day
+        from ondra_api.services.booking import (
+            InternalCalendar,
+            describe_day,
+            find_type,
+            local_window,
+            resolve_day,
+        )
 
         t = await find_type(self.db, kind)
         if t is None:
@@ -237,16 +243,23 @@ class DbToolBackend:
             return {"error": f"No appointment type called '{kind}'.", "types_offered": list(names)}
         tenant = await self._tenant()
         d = resolve_day(tenant, day)
+        if day and d is None:
+            # Never quietly search other days: the caller would be told their day is full.
+            return {"error": f"Couldn't tell which day '{day}' means. Use a weekday (saturday), today, tomorrow or "
+                             "YYYY-MM-DD, and put the time of day in part_of_day."}
         start, until = local_window(tenant, d, days=7)
         slots = await InternalCalendar(self.db, tenant).find_slots(t, start_from=start, until=until, limit=6,
                                                                    part_of_day=part_of_day)
+        searched = describe_day(d) if d else "the next 7 days"
         if not slots and d is not None:  # nothing that day: offer the next openings instead
             start, until = local_window(tenant, None, days=10)
             slots = await InternalCalendar(self.db, tenant).find_slots(t, start_from=start, until=until, limit=6,
                                                                        part_of_day=part_of_day)
-            return {"kind": t.name, "duration_minutes": t.duration_min, "note": "Nothing open that day; next openings:",
+            return {"kind": t.name, "duration_minutes": t.duration_min, "searched": searched,
+                    "note": f"Nothing open {searched}{' ' + part_of_day if part_of_day else ''}; next openings:",
                     "slots": [s.as_tool() for s in slots]}
-        return {"kind": t.name, "duration_minutes": t.duration_min, "slots": [s.as_tool() for s in slots]}
+        return {"kind": t.name, "duration_minutes": t.duration_min, "searched": searched,
+                "slots": [s.as_tool() for s in slots]}
 
     async def book_appointment(self, slot_id: str, details: dict | None = None) -> dict:
         from ondra_api.services import booking

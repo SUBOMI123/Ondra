@@ -112,7 +112,7 @@ async def test_greeting_carries_the_dealers_disclosures(database):
     # The caller was looked up before the greeting, so the agent starts knowing who they are.
     assert desk.contact_context and "Ben Carter" in agents.instructions(desk)
     # Speech recognition is told the dealership's name and the stock it may hear about.
-    assert desk.vocabulary[0] == "Prestige Motors" and {"Honda", "CR-V"} <= set(desk.vocabulary)
+    assert desk.vocabulary[0] == "Prestige Motors" and {"loaner", "Honda", "CR-V"} <= set(desk.vocabulary)
 
 
 async def test_a_caller_asking_for_a_car_hears_only_the_listed_price(database):

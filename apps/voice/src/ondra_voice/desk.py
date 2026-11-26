@@ -84,7 +84,9 @@ class CallDesk:
             stock = (await db.execute(select(Vehicle.make, Vehicle.model).where(Vehicle.status == "available")
                                       .distinct().limit(40))).all()
         checks = ReplyContext(price_disclosure=dealer.price_disclosure, today=local_time.split()[0])
-        vocabulary = list(dict.fromkeys([dealer.name] + [w for make, model in stock for w in (make, model)]))[:60]
+        # Dealership words callers use ("I need the loaner" was heard as "lunar skill" on a real call), then stock.
+        trade = ["loaner", "oil change", "test drive", "trade-in", "service appointment", "brake", "tire rotation"]
+        vocabulary = list(dict.fromkeys([dealer.name, *trade] + [w for make, model in stock for w in (make, model)]))[:60]
         desk = cls(plan=plan, dealer=dealer, customer=customer, contact_context=context, checks=checks,
                    vocabulary=vocabulary)
         if context:

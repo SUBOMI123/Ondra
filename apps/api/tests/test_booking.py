@@ -6,13 +6,18 @@ import uuid
 from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
-from sqlalchemy import select, text
-
 from ondra_api import channels, worker
 from ondra_api.db import tenant_session
 from ondra_api.security import hash_password
 from ondra_api.services import booking
-from ondra_api.services.booking import InternalCalendar, NotBookable, SlotTaken, decode_slot_id, find_type, tz_of
+from ondra_api.services.booking import (
+    InternalCalendar,
+    NotBookable,
+    SlotTaken,
+    decode_slot_id,
+    find_type,
+    tz_of,
+)
 from ondra_api.services.reminders import reminder_time, send_reminder
 from ondra_core.models import (
     Appointment,
@@ -25,6 +30,7 @@ from ondra_core.models import (
     Tenant,
     User,
 )
+from sqlalchemy import select, text
 
 
 def _next(weekday: int) -> date:
@@ -190,7 +196,7 @@ async def test_reschedule_and_cancel_free_the_old_slot(database):
 def test_reminders_stay_out_of_quiet_hours():
     t = Tenant(name="T", timezones=["America/Chicago"])
     tz = tz_of(t)
-    at = lambda d, h, m=0: datetime.combine(d, time(h, m), tz)  # noqa: E731
+    at = lambda d, h, m=0: datetime.combine(d, time(h, m), tz)
     d = date(2026, 12, 2)
     assert reminder_time(t, at(d, 15), 120) == at(d, 13)  # plain 2 h before
     assert reminder_time(t, at(d, 7, 30), 120) == at(d - timedelta(days=1), 19)  # 5:30 am -> 7 pm the evening before
@@ -252,7 +258,7 @@ async def test_opted_out_customers_get_no_reminders(database):
         await booking.set_status(db, await db.get(Appointment, a_id), "cancelled", by="test")
 
 
-__all__ = ["json", "text", "Message", "worker"]
+__all__ = ["Message", "json", "text", "worker"]
 
 
 async def test_a_days_slots_stay_on_that_day(database):
@@ -275,3 +281,24 @@ def test_resolve_day_understands_customer_words():
     assert booking.resolve_day(t, "sat") == sat
     assert booking.resolve_day(t, "2026-12-05") == date(2026, 12, 5)
     assert booking.resolve_day(t, "whenever") is None
+
+
+async def test_days_are_read_the_way_people_say_them_and_never_silently_swapped(database):
+    """From a real call: "Saturday 9 am" wasn't understood, the search quietly returned Thursday and Friday, and the
+    caller was told Saturday was full."""
+    from ondra_api.services.agent_tools import DbToolBackend
+    from ondra_core.models import Contact, Conversation
+
+    async with tenant_session(database["a"]) as db:
+        contact = (await db.execute(select(Contact).where(Contact.display_name == "Ben Carter"))).scalar_one()
+        conv = Conversation(contact_id=contact.id, channel="phone", ai_mode="auto")
+        db.add(conv)
+        await db.flush()
+        backend = DbToolBackend(db, contact=contact, conversation=conv, price_disclosure="listed", open_now=True)
+        for said in ("saturday", "Saturday 9 am", "this Saturday", "sat"):
+            out = await backend.check_availability("test drive", said)
+            assert out["searched"].startswith("Sat") and all(s["when"].startswith("Sat") for s in out["slots"]), (said, out)
+        out = await backend.check_availability("test drive", "the day after the game")
+        assert "error" in out and "slots" not in out
+        assert (await backend.check_availability("test drive"))["searched"] == "the next 7 days"
+        await db.delete(conv)

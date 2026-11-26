@@ -73,3 +73,24 @@ def test_confirms_booking_details_needs_the_booked_day_and_time():
     tomorrow = ReplyContext(booked=["Wed 7:30 am, Bay 3"], today="Tue")
     assert confirms_booking_details("Booked for tomorrow at 7:30 am in Bay 3, with a loaner.", tomorrow)
     assert not confirms_booking_details("Booked for tomorrow at 7 am.", tomorrow)
+
+
+@pytest.mark.parametrize("sentence,blocked", [
+    # From a real call: passing a discount request to sales was replaced mid-reply.
+    ("Your test drive is booked for Friday at 9 with Daniel. I've also passed your discount question to sales.", False),
+    ("I've passed your request for $500 off to our sales team, and they'll call you.", False),
+    ("I can't offer a discount myself, but I've passed your $500 off request to sales.", False),
+    ("I'll ask a manager whether a discount is possible.", False),
+    ("Drop it off Saturday at nine.", False),
+    ("It's listed at $27,600.", False),
+    # Promises, including the way people say them on the phone.
+    ("I can take $500 off for you today.", True),
+    ("Sure, we can do five hundred off.", True),
+    ("I can knock a grand off if you buy today.", True),
+    ("We can give you a discount and I'll let sales know.", True),
+    ("I can do $500 off and I'll pass it to sales to finalize.", True),
+])
+def test_discount_and_price_checks_on_spoken_replies(sentence, blocked):
+    ctx = ReplyContext(price_disclosure="listed", listed_prices={27600},
+                       customer_text="Can you do five hundred off if I come in today?")
+    assert bool(review_reply(sentence, ctx)) is blocked

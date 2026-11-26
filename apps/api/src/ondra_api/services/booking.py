@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
@@ -350,22 +351,32 @@ async def set_status(db: AsyncSession, a: Appointment, status: str, by: str) -> 
 
 
 def resolve_day(tenant: Tenant, day: str | None) -> date | None:
-    """'today', 'tomorrow', a weekday name or abbreviation (the next one, today included), or an ISO date."""
+    """The day a person or the model means: 'today', 'tomorrow', a weekday name or abbreviation (the next one, today
+    included), or an ISO date, found anywhere in the text, so "this Saturday" and "Saturday 9 am" work too. (On a
+    call, "Saturday 9 am" wasn't understood, the search quietly fell back to other days, and the caller was told
+    Saturday was full.) None if no day is named."""
     if not day:
         return None
     today = datetime.now(UTC).astimezone(tz_of(tenant)).date()
     d = day.strip().lower()
-    if d == "today":
+    iso = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", d)
+    if iso:
+        try:
+            return date.fromisoformat(iso.group(1))
+        except ValueError:
+            return None
+    if re.search(r"\btoday\b|\btonight\b", d):
         return today
-    if d == "tomorrow":
+    if re.search(r"\btomorrow\b", d):
         return today + timedelta(days=1)
     for i, name in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")):
-        if d in (name, name[:3]):
+        if re.search(rf"\b({name}|{name[:3]})\b", d):
             return today + timedelta(days=(i - today.weekday()) % 7)
-    try:
-        return date.fromisoformat(d[:10])
-    except ValueError:
-        return None
+    return None
+
+
+def describe_day(day: date) -> str:
+    return day.strftime("%a %b %-d")
 
 
 def local_window(tenant: Tenant, day: date | None, days: int = 7) -> tuple[datetime, datetime]:

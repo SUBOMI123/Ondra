@@ -55,7 +55,28 @@ _FINAL_PRICE = re.compile(
 )
 _DISCOUNT = re.compile(
     r"\b(discount|price match|knock .{0,15}?(?:off|down)|take .{0,15} off|come down|lower (?:the |our )?price|"
-    r"special (?:price|deal|offer)|rebate|markdown|descuento|rebaja)\b",
+    r"special (?:price|deal|offer)|rebate|markdown|descuento|rebaja)\b"
+    # An amount off, in digits or said as words on a call: "$500 off", "five hundred off", "a grand off".
+    r"|(?:\$\s?\d[\d,]*|\b\d[\d,]*|\b(?:a|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|"
+    r"twenty-five|thirty|fifty)(?:[ -](?:hundred|thousand|grand))?)\s+(?:dollars\s+|bucks\s+)?off\b",
+    re.IGNORECASE,
+)
+# A commitment in the same sentence cancels the referral excuse: "I can do $500 off, I'll pass it to sales".
+_COMMIT = re.compile(r"\b(?:i|we)(?: can|'ll| will| could|'d| would)? (?:do|give|take|offer|knock|make|get you)\b",
+                     re.IGNORECASE)
+
+
+def _referral(sentence: str) -> bool:
+    return bool(_REFERRAL.search(sentence)) and not _COMMIT.search(sentence)
+
+
+# Passing a request to a person isn't promising it: "I've passed your $500-off request to sales", "I'll ask a
+# manager about a discount". (A real call had such a sentence replaced, mid-reply.)
+_REFERRAL = re.compile(
+    r"\b(pass(?:ed|ing)?|forward(?:ed|ing)?|sen[dt]|hand(?:ed|ing)?|ask(?:ed|ing)?|check(?:ed|ing)? with|"
+    r"(?:talk|go) (?:it )?(?:over|through) with|let (?:our |the )?\w+ know)\b.{0,80}?"
+    r"\b(sales|team|manager|someone|a person|colleague|salesperson|service advisor|owner|them)\b"
+    r"|\b(request|question|ask)\b.{0,40}\b(to|with) (?:our |the )?(sales|team|manager|someone|salesperson)\b",
     re.IGNORECASE,
 )
 _DATE_PROMISE = re.compile(
@@ -108,10 +129,12 @@ class ReplyContext:
 
 
 def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
-    hits = _flag_unnegated(reply, _FINAL_PRICE)
+    hits = [h for h in _flag_unnegated(reply, _FINAL_PRICE) if not _referral(h)]
     allowed = set(ctx.listed_prices) if ctx.price_disclosure in ("listed", "range") else set()
     customer_amounts = set(money_amounts(ctx.customer_text))
     for s in sentences(reply):
+        if _referral(s):
+            continue  # handing the number to a person isn't quoting it
         for amount in money_amounts(s):
             if amount in allowed:
                 continue
@@ -124,7 +147,7 @@ def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
 
 
 def promises_discount(reply: str, ctx: ReplyContext) -> list[str]:
-    return _flag_unnegated(reply, _DISCOUNT)
+    return [h for h in _flag_unnegated(reply, _DISCOUNT) if not _referral(h)]
 
 
 def promises_date(reply: str, ctx: ReplyContext) -> list[str]:
