@@ -58,6 +58,10 @@ class CallDesk:
     slot_aliases: dict[str, str] = field(default_factory=dict)
     # The full result of the last stock search: on a call Ondra names the best two, and can text all of them.
     last_cars: list[dict] = field(default_factory=list)
+    # Quick fillers: whether one was said this turn and last turn, and which phrase comes next.
+    filled_this_turn: bool = False
+    filled_last_turn: bool = False
+    filler_index: int = 0
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)

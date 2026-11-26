@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from collections.abc import AsyncIterable
 
 from livekit.agents import Agent, FlushSentinel, ModelSettings, RunContext, function_tool, llm
@@ -103,6 +104,17 @@ def shared_tools() -> list[llm.RawFunctionTool]:
 
 
 FILLER = "One moment. "
+# Said the moment the caller finishes, when what they asked needs a lookup: no wait for the model to start talking.
+QUICK_FILLERS = ["Sure, let me check.", "One sec, let me take a look.", "Okay, let me look that up.",
+                 "Let me see what we have.", "Give me a second to check."]
+_NEEDS_LOOKUP = re.compile(
+    r"\b(do you (?:have|guys have|carry)|in stock|available|any (?:\w+ ){0,3}(?:cars?|trucks?|suvs?|vans?|sedans?)|"
+    r"how much|price|cost|book|schedule|appointment|reschedule|move (?:my|it|the)|cancel|times?|slots?|openings?|"
+    r"what (?:time|day)|when (?:can|could|are you)|hours|open (?:on|at|till|until)|test drive|oil change|service)\b",
+    re.IGNORECASE)
+# The model's own "let me check" opener, dropped when a quick filler already said it this turn.
+_OWN_FILLER = re.compile(r"^\s*(?:sure|okay|ok|great|got it)?[,.!]?\s*(?:let me|one (?:sec|second|moment)|give me|"
+                         r"hold on|bear with me)\b[^.?!]*[.!]\s*$", re.IGNORECASE)
 # Tools that take a moment and lead to a second model reply; bookkeeping (update_lead_fields) and hanging up don't.
 _SLOW_TOOLS = {"check_availability", "book_appointment", "reschedule_or_cancel", "search_inventory", "get_vehicle",
                "search_knowledge", "get_contact_context"}
@@ -116,6 +128,18 @@ class OndraAgent(Agent):
     def __init__(self, desk: CallDesk) -> None:
         self._desk = desk
         super().__init__(instructions=instructions(desk), tools=shared_tools())
+
+    async def on_user_turn_completed(self, turn_ctx: llm.ChatContext, new_message: llm.ChatMessage) -> None:
+        """The caller just finished. If what they asked needs a lookup, say a short filler now, so they hear
+        something within a moment instead of waiting for the model's first words (real calls: "a huge pause")."""
+        desk = self._desk
+        desk.filled_this_turn = False
+        if _NEEDS_LOOKUP.search(new_message.text_content or "") and not desk.filled_last_turn:
+            phrase = QUICK_FILLERS[desk.filler_index % len(QUICK_FILLERS)]
+            desk.filler_index += 1
+            desk.filled_this_turn = True
+            self.session.say(phrase, add_to_chat_ctx=False)
+        desk.filled_last_turn = desk.filled_this_turn  # never two turns in a row: it starts to sound canned
 
     async def llm_node(self, chat_ctx: llm.ChatContext, tools: list[llm.Tool],
                        model_settings: ModelSettings) -> AsyncIterable[llm.ChatChunk | str | FlushSentinel]:
@@ -149,12 +173,17 @@ class OndraAgent(Agent):
 
         pending_calls: list[llm.ChatChunk] = []
         spoke = False
+        first = True
         async for sentence in guarded(text_only(), desk.checks, desk.dealer.never_say, blocked):
+            if first and desk.filled_this_turn and _OWN_FILLER.match(sentence):
+                first = False
+                continue  # the caller already heard "let me check" from the quick filler
+            first = False
             spoke = True
             yield sentence
             while pending_calls:
                 yield pending_calls.pop(0)
-        if pending_calls and not spoke and _needs_filler(pending_calls):
+        if pending_calls and not spoke and not desk.filled_this_turn and _needs_filler(pending_calls):
             # A lookup or booking with nothing said first: say something now rather than leave the caller in
             # silence while the tool runs and the model answers again.
             yield FILLER

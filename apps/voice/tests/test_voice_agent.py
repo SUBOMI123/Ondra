@@ -307,7 +307,7 @@ async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(dat
     assert "text_details" in out["next"]
     # Every price found counts as real for the spoken checks, not only the two named.
     assert {int(c["price"]) for c in desk.last_cars if c.get("price")} <= desk.checks.listed_prices
-    cheapest, newest = out["best"]
+    cheapest = out["best"][0]
     assert cheapest["price"] == min(c["price"] for c in desk.last_cars if c.get("price"))
 
     assert "error" in await desk.text_details(None, "Hmm, which one is newer?")  # no yes, no text
@@ -332,3 +332,36 @@ async def test_no_text_to_a_caller_who_opted_out(database):
     channels.mock("sms").outbox.clear()
     out = await desk.text_details(None, "Yes please.")
     assert "opted out" in out["error"] and channels.mock("sms").outbox == []
+
+
+async def test_a_lookup_question_gets_a_filler_the_moment_the_caller_stops(database):
+    """Real calls: "a huge pause" before lookups. The filler is said as soon as the caller finishes (LiveKit's
+    end-of-turn hook, which fires on spoken turns), never two turns in a row, and the model's own "let me check" is
+    dropped so the caller doesn't hear it twice."""
+    from livekit.agents import llm as lk
+
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    model = ScriptedLLM([
+        Step(text="Let me check what we have. ", calls=[("search_inventory", {"query": "CR-V"})]),
+        Step(text="We have two CR-Vs."),
+    ])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        agent = agents.OndraAgent(desk)
+        await session.start(agent)
+        spoken = []
+        session.say = lambda text, **kw: spoken.append(text)  # type: ignore[method-assign]
+
+        async def caller_says(text):
+            await agent.on_user_turn_completed(session.history, lk.ChatMessage(role="user", content=[text]))
+
+        await caller_says("Do you have any CR-Vs in stock?")
+        assert spoken == [agents.QUICK_FILLERS[0]]
+        result = await session.run(user_input="Do you have any CR-Vs in stock?")
+        said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
+        assert "Let me check what we have." not in " ".join(said) and said[-1] == "We have two CR-Vs."
+
+        await caller_says("And what about Saturday times?")  # a lookup again, straight after: no second filler
+        assert len(spoken) == 1
+        await caller_says("Thanks, that's helpful.")  # no lookup: nothing
+        await caller_says("Can I book a test drive Saturday?")
+        assert spoken[1] == agents.QUICK_FILLERS[1]  # a different phrase next time
