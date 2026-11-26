@@ -87,7 +87,8 @@ export function useLiveInbox() {
       timer = setTimeout(() => {
         timer = null
         qc.invalidateQueries({ queryKey: ["conversations"] })
-        conversations.forEach((id) => qc.invalidateQueries({ queryKey: ["conversation", id] }))
+        // A thread spans the client's channels, so any change may belong to an open thread under another id.
+        if (conversations.size) qc.invalidateQueries({ queryKey: ["conversation"] })
         if (tasks) qc.invalidateQueries({ queryKey: ["tasks"] })
         if (calendar) qc.invalidateQueries({ queryKey: ["calendar"] })
         if (calls) qc.invalidateQueries({ queryKey: ["calls"] })

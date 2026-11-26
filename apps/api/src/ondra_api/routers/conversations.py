@@ -55,6 +55,14 @@ def _hidden_vip(caller: Caller, contact: Contact) -> bool:
     return contact.is_vip and not can_see_vips(caller.role) and contact.vip_owner_user_id != caller.user_id
 
 
+async def _client_conversations(db: AsyncSession, conv: Conversation) -> list[Conversation]:
+    """Every open conversation with this client, across channels (always including the one asked for)."""
+    rows = (await db.execute(select(Conversation).where(Conversation.contact_id == conv.contact_id,
+                                                        (Conversation.status != "closed") | (Conversation.id == conv.id))
+                             .order_by(Conversation.created_at))).scalars().all()
+    return list(rows)
+
+
 async def _load(db: AsyncSession, caller: Caller, conversation_id: uuid.UUID) -> tuple[Conversation, Contact]:
     conv = await db.get(Conversation, conversation_id)
     contact = await db.get(Contact, conv.contact_id) if conv else None
@@ -147,22 +155,47 @@ async def list_conversations(
 
     now = datetime.now(UTC)
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
-    items, counts = [], {"needs": 0, "ondra": 0, "team": 0}
+    # One row per client (Inbox threads span channels): group the client's conversations, show their most urgent
+    # reason and their latest activity on any channel. Rows come newest first, so a client's first row is latest.
+    by_contact: dict = {}
     for r in rows:
         last = _last_activity(r, names, now)
         bucket, reason = _bucket(r, last)
+        by_contact.setdefault(r.contact_id, []).append((r, last, bucket, reason))
+    items, counts = [], {"needs": 0, "ondra": 0, "team": 0}
+    for convs in by_contact.values():
+        r0, last, _, _ = convs[0]  # latest activity
+        lead = min(convs, key=lambda c: _urgency(c[0], c[2], c[3], now))  # what needs a person most
+        r, _, bucket, reason = lead
+        if bucket != "needs":
+            r, _, bucket, reason = convs[0]
         counts[bucket] += 1
         if view != "all" and bucket != view:
             continue
         items.append({
-            "id": str(r.id), "channel": r.channel, "status": r.status, "ai_mode": r.ai_mode,
+            "id": str(r.id), "channel": r0.channel, "status": r.status, "ai_mode": r.ai_mode,
+            "conversation_ids": [str(c[0].id) for c in convs],
+            "channels": list(dict.fromkeys(c[0].channel for c in convs)),
             "assigned_user_id": str(r.assigned_user_id) if r.assigned_user_id else None,
             "contact": {"id": str(r.contact_id), "name": r.display_name, "is_vip": r.is_vip},
             "last_message": last,
             "bucket": bucket, "reason": reason,
-            "overdue": bool(r.task_due and r.task_due < now),
+            "overdue": bool(bucket == "needs" and r.task_due and r.task_due < now),
         })
     return {"items": items, "counts": counts}
+
+
+def _urgency(r, bucket: str, reason: str | None, now: datetime) -> tuple:
+    """Lower is more urgent: VIP waiting, then a draft to approve, then an overdue task, a task, waiting for the team."""
+    if bucket != "needs":
+        return (9,)
+    if reason == "VIP waiting for you":
+        return (0,)
+    if reason == "Draft to approve":
+        return (1,)
+    if r.task_title:
+        return (2 if r.task_due and r.task_due < now else 3, r.task_due or now)
+    return (4,)
 
 
 # --- detail ------------------------------------------------------------------------------------------------------
@@ -172,20 +205,32 @@ async def get_conversation(conversation_id: uuid.UUID,
                            ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_READ))) -> dict:
     caller, db = ctx
     conv, contact = await _load(db, caller, conversation_id)
-    messages = (await db.execute(select(Message).where(Message.conversation_id == conv.id)
+    convs = await _client_conversations(db, conv)
+    ids = [c.id for c in convs]
+    channel_of = {c.id: c.channel for c in convs}
+    messages = (await db.execute(select(Message).where(Message.conversation_id.in_(ids))
                                  .order_by(Message.created_at))).scalars().all()
     authors = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
     identities = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == contact.id))).scalars().all()
     deal = (await db.execute(select(Deal).where(Deal.contact_id == contact.id).order_by(Deal.created_at.desc()).limit(1))
             ).scalar_one_or_none()
-    tasks = (await db.execute(select(Task).where(Task.conversation_id == conv.id, Task.status.in_(("open", "in_progress")))
+    tasks = (await db.execute(select(Task).where(Task.conversation_id.in_(ids), Task.status.in_(("open", "in_progress")))
                               .order_by(Task.due_at))).scalars().all()
-    brief = (await db.execute(select(Task.brief).where(Task.conversation_id == conv.id, Task.source == "ai_handoff")
+    brief = (await db.execute(select(Task.brief).where(Task.conversation_id.in_(ids), Task.source == "ai_handoff")
                               .order_by(Task.created_at.desc()).limit(1))).scalar_one_or_none()
-    call_rows = (await db.execute(select(Call).where(Call.conversation_id == conv.id).order_by(Call.started_at))).scalars().all()
+    call_rows = (await db.execute(select(Call).where(Call.conversation_id.in_(ids)).order_by(Call.started_at))).scalars().all()
+    # Reply where the client last wrote to us (never the phone line: it can't send texts).
+    last_in = next((m for m in reversed(messages) if m.direction == "inbound" and channel_of[m.conversation_id] != "phone"), None)
+    text_convs = [c for c in convs if c.channel != "phone"]
+    reply_to = last_in.conversation_id if last_in else (conv.id if conv.channel != "phone" else
+                                                       (text_convs[0].id if text_convs else None))
     now = datetime.now(UTC)
     return {
-        "id": str(conv.id), "channel": conv.channel, "status": conv.status, "ai_mode": conv.ai_mode,
+        "id": str(conv.id), "channel": conv.channel, "status": conv.status,
+        # Ondra is on only if it's on for every channel: a person who took over took over the client.
+        "ai_mode": "off" if any(c.ai_mode == "off" for c in convs) else conv.ai_mode,
+        "channels": [{"id": str(c.id), "channel": c.channel, "ai_mode": c.ai_mode} for c in convs],
+        "reply_to": str(reply_to) if reply_to else None,
         "assigned_user_id": str(conv.assigned_user_id) if conv.assigned_user_id else None,
         "contact": {
             "id": str(contact.id), "name": contact.display_name, "is_vip": contact.is_vip, "language": contact.language,
@@ -193,7 +238,7 @@ async def get_conversation(conversation_id: uuid.UUID,
             "identities": [{"kind": i.kind, "value": i.value} for i in identities],
         },
         "messages": [{
-            "id": str(m.id), "direction": m.direction, "author": m.author_type,
+            "id": str(m.id), "direction": m.direction, "author": m.author_type, "channel": channel_of[m.conversation_id],
             "author_name": authors.get(m.author_user_id) if m.author_user_id else None,
             "body": m.body, "status": m.status, "is_draft": m.is_draft, "at": m.created_at.isoformat(),
         } for m in messages],
@@ -304,7 +349,8 @@ async def discard(message_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depe
 async def takeover(conversation_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_REPLY))) -> dict:
     caller, db = ctx
     conv, _ = await _load(db, caller, conversation_id)
-    conv.ai_mode, conv.assigned_user_id = "off", caller.user_id
+    for c in await _client_conversations(db, conv):  # the person takes over the client, on every channel
+        c.ai_mode, c.assigned_user_id = "off", caller.user_id
     db.add(Event(type="conversation.takeover", payload={"conversation_id": str(conv.id), "by": str(caller.user_id)}))
     return {"id": str(conv.id), "ai_mode": conv.ai_mode, "assigned_user_id": str(caller.user_id)}
 
@@ -315,6 +361,8 @@ async def handback(conversation_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] 
     conv, contact = await _load(db, caller, conversation_id)
     if contact.is_vip:
         raise HTTPException(409, "VIP conversations stay with a person.")
+    for c in await _client_conversations(db, conv):
+        c.ai_mode = "auto"
     conv.ai_mode = "auto"
     db.add(Event(type="conversation.handback", payload={"conversation_id": str(conv.id), "by": str(caller.user_id)}))
     return {"id": str(conv.id), "ai_mode": conv.ai_mode}
@@ -329,7 +377,8 @@ async def assign(conversation_id: uuid.UUID, body: AssignIn,
         u = await db.get(User, body.user_id)
         if u is None or not u.active:
             raise HTTPException(422, "Choose an active teammate.")
-    conv.assigned_user_id = body.user_id
+    for c in await _client_conversations(db, conv):
+        c.assigned_user_id = body.user_id
     db.add(Event(type="conversation.assigned", payload={"conversation_id": str(conv.id), "to": str(body.user_id),
                                                         "by": str(caller.user_id)}))
     return {"id": str(conv.id), "assigned_user_id": str(body.user_id) if body.user_id else None}

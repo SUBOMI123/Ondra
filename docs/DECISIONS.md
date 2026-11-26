@@ -294,3 +294,15 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **A call counts as live for at most 2 hours.** If the voice worker dies mid-call, the record would otherwise say
   "on a call now" forever.
 - **The Inbox orders by the latest message or call,** and a phone thread's preview is its latest call in words.
+
+## 2026-11-26: The Inbox shows one thread per client, across channels
+
+- **Storage stays one conversation per channel** (each channel has its own delivery rules: the WhatsApp 24-hour
+  window, email threading, a phone line that can't text). **The Inbox shows one thread per client** on top: the
+  list has one row per client with their most urgent reason (VIP waiting, then a draft, then an overdue task, a
+  task, waiting for the team) and their latest activity on any channel; the thread merges messages and calls from
+  every channel in time order, each labelled with its channel.
+- **Replies go where the client last wrote** (never the phone line), with a channel picker when there's more than one.
+- **Take over, hand back and assign apply to the client on every channel.** Someone handling Jordan by text must not
+  find Ondra answering Jordan's WhatsApp. Alternative rejected: merging conversations in the database, which loses
+  per-channel delivery state and would need a migration of every message.

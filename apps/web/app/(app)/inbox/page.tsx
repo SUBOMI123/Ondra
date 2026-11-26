@@ -37,6 +37,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -54,18 +55,22 @@ type Summary = {
   status: string
   ai_mode: "auto" | "draft" | "off"
   contact: { id: string; name: string; is_vip: boolean }
+  conversation_ids: string[]
+  channels: Channel[]
   last_message: { body: string; direction: string | null; author: string | null; at: string | null; is_draft: boolean }
   bucket: Bucket
   reason: string | null
   overdue: boolean
 }
 type ListData = { items: Summary[]; counts: Record<Bucket, number> }
-type Msg = { id: string; direction: string; author: "customer" | "ai" | "user" | "system"; author_name: string | null; body: string | null; status: string; is_draft: boolean; at: string }
+type Msg = { id: string; direction: string; author: "customer" | "ai" | "user" | "system"; author_name: string | null; body: string | null; status: string; is_draft: boolean; at: string; channel: Channel }
 type Detail = {
   id: string
   channel: Channel
   status: string
   ai_mode: "auto" | "draft" | "off"
+  channels: { id: string; channel: Channel; ai_mode: string }[]
+  reply_to: string | null
   contact: { id: string; name: string; is_vip: boolean; language: string | null; opted_out: boolean; identities: { kind: string; value: string }[] }
   messages: Msg[]
   deal: { type: string; stage: string; vehicle_of_interest: Record<string, unknown>; budget_max: number | null; payment_method: string | null; timeline: string | null } | null
@@ -236,7 +241,7 @@ function Draft({ m, conversationId }: { m: Msg; conversationId: string }) {
   )
 }
 
-function Bubbled({ m }: { m: Msg }) {
+function Bubbled({ m, showChannel }: { m: Msg; showChannel: boolean }) {
   const end = m.direction === "outbound"
   const ai = m.author === "ai"
   return (
@@ -252,6 +257,7 @@ function Bubbled({ m }: { m: Msg }) {
             </span>
           )}
           {m.author === "user" && <span>{m.author_name}</span>}
+          {showChannel && <span>{CHANNEL[m.channel]?.label}</span>}
           {m.status === "failed" && <span>Not delivered</span>}
           <span className="tabular-nums">{when(m.at)}</span>
         </MessageFooter>
@@ -303,7 +309,7 @@ function PhoneReply({ d }: { d: Detail }) {
   return (
     <div className="flex flex-wrap items-center gap-3 border-t p-4 text-sm">
       <p className="min-w-0 flex-1 text-muted-foreground">
-        {d.contact.is_vip ? `${first}'s calls ring you directly.` : `Reply to ${first} by calling back. Texts go in their texting thread.`}
+        {d.contact.is_vip ? `${first}'s calls ring you directly.` : `${first} has only called so far. Reply by calling back.`}
       </p>
       {number && (
         <Button asChild size="sm">
@@ -319,12 +325,15 @@ function PhoneReply({ d }: { d: Detail }) {
 function Composer({ d }: { d: Detail }) {
   const qc = useQueryClient()
   const [text, setText] = useState("")
+  const textChannels = d.channels.filter((c) => c.channel !== "phone")
+  const [via, setVia] = useState<string | null>(null)
+  const target = via && textChannels.some((c) => c.id === via) ? via : d.reply_to
   const first = d.contact.name.split(" ")[0]
   const reply = useMutation({
-    mutationFn: () => send("POST", `/conversations/${d.id}/reply`, { body: text }),
+    mutationFn: () => send("POST", `/conversations/${target}/reply`, { body: text }),
     onSuccess: () => {
       setText("")
-      qc.invalidateQueries({ queryKey: ["conversation", d.id] })
+      qc.invalidateQueries({ queryKey: ["conversation"] })
       qc.invalidateQueries({ queryKey: ["conversations"] })
     },
     onError: (e) => toast(errorText(e)),
@@ -338,6 +347,20 @@ function Composer({ d }: { d: Detail }) {
     )
   return (
     <form className="flex items-end gap-2 border-t p-3" onSubmit={(e) => { e.preventDefault(); if (text.trim()) reply.mutate() }}>
+      {textChannels.length > 1 && (
+        <Select value={target ?? undefined} onValueChange={setVia}>
+          <SelectTrigger className="w-32 shrink-0" aria-label="Reply by">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {textChannels.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {CHANNEL[c.channel]?.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -354,7 +377,12 @@ function Composer({ d }: { d: Detail }) {
   )
 }
 
-/** Messages and calls in the order they happened. */
+function channelList(chs: Channel[]) {
+  const names = [...new Set(chs)].map((c) => CHANNEL[c]?.label ?? c)
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1].toLowerCase()}` : names[0]
+}
+
+/** Messages and calls in the order they happened, across the client's channels. */
 function timeline(d: Detail): ({ type: "message"; at: string; m: Msg } | { type: "call"; at: string; c: CallItem })[] {
   const items = [
     ...d.messages.map((m) => ({ type: "message" as const, at: m.at, m })),
@@ -417,7 +445,7 @@ function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
           </h2>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Ch className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{vip ? "VIP. Rings you directly, and Ondra stays out." : CHANNEL[d.channel]?.label}</span>
+            <span className="truncate">{vip ? "VIP. Rings you directly, and Ondra stays out." : channelList(d.channels.map((c) => c.channel))}</span>
           </p>
         </div>
         {!vip && !d.contact.opted_out && (
@@ -458,13 +486,13 @@ function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
           ) : item.m.is_draft && item.m.status === "queued" ? (
             <Draft key={item.m.id} m={item.m} conversationId={d.id} />
           ) : item.m.is_draft ? null : (
-            <Bubbled key={item.m.id} m={item.m} />
+            <Bubbled key={item.m.id} m={item.m} showChannel={d.channels.length > 1} />
           ),
         )}
         <div ref={end} />
       </div>
 
-      {d.channel === "phone" ? <PhoneReply d={d} /> : <Composer d={d} />}
+      {d.reply_to ? <Composer d={d} /> : <PhoneReply d={d} />}
     </section>
   )
 }
@@ -632,7 +660,7 @@ export default function InboxPage() {
                 </p>
               ) : (
                 items.map((c) => (
-                  <Row key={c.id} c={c} active={c.id === currentId} onSelect={() => { setSelected(c.id); setMobileThread(true) }} />
+                  <Row key={c.id} c={c} active={c.id === currentId || (!!currentId && c.conversation_ids.includes(currentId))} onSelect={() => { setSelected(c.id); setMobileThread(true) }} />
                 ))
               )}
             </div>

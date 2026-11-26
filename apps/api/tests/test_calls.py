@@ -150,18 +150,29 @@ async def test_calls_api_hides_vips_from_sales_and_records_call_backs(client, da
 
 
 
-async def test_phone_threads_show_their_latest_call_in_the_inbox(client, database):
+async def test_the_inbox_has_one_thread_per_client_across_channels(client, database):
     owner = await login(client, "owner@prestigemotors.example")
     rows = (await client.get("/conversations", headers=owner)).json()["items"]
-    phone = {r["contact"]["name"]: r for r in rows if r["channel"] == "phone"}
-    # Ondra handled it: in Ondra's view, with the summary as the preview.
-    assert phone["Grace Kim"]["bucket"] == "ondra" and "oil change" in phone["Grace Kim"]["last_message"]["body"]
-    assert phone["Grace Kim"]["last_message"]["kind"] == "call"
-    # Missed: needs a person, saying why.
-    assert phone["Jordan Price"]["bucket"] == "needs" and phone["Jordan Price"]["reason"] == "Call Jordan back"
-    # A VIP who reached the owner isn't "waiting", and the row carries no AI content.
-    vip = phone["Robert Hale"]
-    assert vip["bucket"] == "team" and vip["last_message"]["body"] == "Rang you directly" and vip["last_message"]["author"] != "ai"
+    names = [r["contact"]["name"] for r in rows]
+    assert len(names) == len(set(names))  # nobody twice
+    row = {r["contact"]["name"]: r for r in rows}
+    # Ondra answered Grace's call: her thread is in Ondra's view, previewing the call.
+    assert row["Grace Kim"]["bucket"] == "ondra" and row["Grace Kim"]["last_message"]["kind"] == "call"
+    # Jordan texted (opted out) and then called: one thread, the most specific reason a person is needed.
+    assert row["Jordan Price"]["reason"] == "Call Jordan back" and set(row["Jordan Price"]["channels"]) == {"sms", "phone"}
+    # Robert, a VIP: his waiting text outranks the call that reached the owner.
+    assert row["Robert Hale"]["reason"] == "VIP waiting for you" and row["Robert Hale"]["bucket"] == "needs"
+
+    # Jordan's thread holds his texts and his call; replies go where he last wrote; take over covers both channels.
+    d = (await client.get(f"/conversations/{row['Jordan Price']['id']}", headers=owner)).json()
+    sms = next(c["id"] for c in d["channels"] if c["channel"] == "sms")
+    assert {m["channel"] for m in d["messages"]} == {"sms"} and d["calls"] and d["reply_to"] == sms
+    await client.post(f"/conversations/{row['Jordan Price']['id']}/takeover", headers=owner)
+    d = (await client.get(f"/conversations/{sms}", headers=owner)).json()
+    assert d["ai_mode"] == "off" and all(c["ai_mode"] == "off" for c in d["channels"])
+    await client.post(f"/conversations/{sms}/handback", headers=owner)
+    d = (await client.get(f"/conversations/{sms}", headers=owner)).json()
+    assert all(c["ai_mode"] == "auto" for c in d["channels"])
 
 
 async def test_missed_calls_say_why_no_text_was_sent(client, database):
