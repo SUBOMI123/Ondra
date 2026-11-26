@@ -55,6 +55,7 @@ class UserOut(_Out):
     role: str
     active: bool
     invited: bool = False  # hasn't set a password yet
+    phone: str | None = None  # where Ondra puts calls through to them
 
 
 class Page[T](BaseModel):

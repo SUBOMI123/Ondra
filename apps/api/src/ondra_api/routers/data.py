@@ -76,4 +76,4 @@ async def list_users(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.USE
     _, db = ctx
     rows, total = await _page(db, select(User).order_by(User.active.desc(), User.name), 200, 0)
     return Page(items=[UserOut(id=u.id, email=u.email, name=u.name, role=u.role, active=u.active,
-                               invited=u.password_hash is None) for u in rows], total=total)
+                               invited=u.password_hash is None, phone=u.phone) for u in rows], total=total)

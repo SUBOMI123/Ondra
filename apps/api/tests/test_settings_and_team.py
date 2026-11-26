@@ -152,6 +152,8 @@ async def test_mobiles_for_putting_calls_through(client, database):
     # An admin records a salesperson's mobile; it's stored in E.164.
     r = await client.patch(f"/users/{sales_id}", headers=admin, json={"phone": "(469) 555-0188"})
     assert r.status_code == 200 and r.json()["phone"] == "+14695550188" and r.json()["role"] == "sales"
+    listed = {u["email"]: u for u in (await client.get("/users", headers=admin)).json()["items"]}
+    assert listed[SALES]["phone"] == "+14695550188" and listed[OWNER]["phone"]  # the team list shows them
     assert (await client.patch(f"/users/{sales_id}", headers=admin, json={"phone": "call me"})).status_code == 422
     # Anyone sets their own; nobody changes their own role through it.
     original = (await client.get("/me", headers=owner)).json()["phone"]
