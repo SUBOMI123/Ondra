@@ -69,7 +69,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 | Item | Blocks | Status |
 |---|---|---|
-| Rotate the Anthropic and Voyage keys (both were pasted in chat) and set them in the environment settings | Security | **Do now** |
+| Rotate the Anthropic, Voyage and LiveKit keys (all were pasted in chat) and set them in the environment settings | Security | **After testing, before anything goes live** (founder decision) |
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
