@@ -229,3 +229,17 @@ async def test_a_booking_that_fails_is_kept_on_the_call_record(database, monkeyp
         assert out.item.is_error and "handoff" in out.item.output  # the model is told what to do, not the stack trace
     assert desk.tool_problems[-1] == {"tool": "check_availability", "crashed": "RuntimeError: calendar unavailable"}
     assert desk.metrics()["summary"]["tool_problems"] == desk.tool_problems
+
+
+async def test_goodbye_is_said_once(database):
+    """From the first real call: "Thanks for calling" was said twice, once in the reply that ended the call and
+    again because the end-call tool asked the model for another reply."""
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    model = ScriptedLLM([Step(text="Thanks for calling Prestige Motors. Have a good day.", calls=[("end_call", {})]),
+                         Step(text="Thanks for calling! Goodbye.")])
+    async with AgentSession(llm=model, userdata=desk, tools=[worker.end_call_tool()]) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="That's all, thanks.")
+        said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
+    assert said == ["Thanks for calling Prestige Motors. Have a good day."]
+    assert len(model.requests) == 1  # no second reply after hanging up

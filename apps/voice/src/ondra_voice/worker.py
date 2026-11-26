@@ -99,8 +99,15 @@ def build_session(desk: CallDesk) -> AgentSession[CallDesk]:
             interruption={"mode": "adaptive"},
             preemptive_generation={"enabled": True},
         ),
-        tools=[EndCallTool(end_instructions="Say a short goodbye if you haven't, then end the call.")],
+        tools=[end_call_tool()],
     )
+
+
+def end_call_tool() -> EndCallTool:
+    """Hang up after the reply that calls it. No end instructions: with them LiveKit has the model reply again after
+    the tool, and callers heard "Thanks for calling" twice on the first real call. The voice rules already make the
+    model say goodbye in the same reply that ends the call."""
+    return EndCallTool(end_instructions=None)
 
 
 def record_conversation(session: AgentSession, desk: CallDesk) -> None:
