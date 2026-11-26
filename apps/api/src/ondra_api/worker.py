@@ -37,7 +37,24 @@ async def _reminder(tenant_id: uuid.UUID, p: dict) -> None:
     log.info("reminder %s: %s", p.get("appointment_id"), await send_reminder(tenant_id, p))
 
 
-HANDLERS = {"agent_turn": _agent_turn, "appointment_reminder": _reminder}
+async def _call_summary(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.calls import summarize
+
+    await summarize(tenant_id, p)
+
+
+async def _send_message(tenant_id: uuid.UUID, p: dict) -> None:
+    """Send an already-stored outbound message (e.g. a missed-call text-back) through the one send path."""
+    from ondra_api.services.outbound import Blocked, deliver
+
+    try:
+        await deliver(tenant_id, uuid.UUID(p["message_id"]))
+    except Blocked as b:
+        log.info("message %s blocked: %s", p["message_id"], b.reason)
+
+
+HANDLERS = {"agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
+            "send_message": _send_message}
 
 
 async def run_once(limit: int = 10) -> int:

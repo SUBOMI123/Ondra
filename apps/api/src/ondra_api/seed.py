@@ -194,7 +194,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                           handoff_triggers=["discount", "trade-in value", "delivery date", "complaint"]))
 
             # The dealer's own number, WhatsApp and email. They use the mock adapters until a provider flag is on.
-            for channel, address in (("sms", DEALER_PHONE), ("whatsapp", DEALER_PHONE), ("email", DEALER_EMAIL)):
+            for channel, address in (("sms", DEALER_PHONE), ("whatsapp", DEALER_PHONE), ("email", DEALER_EMAIL),
+                                     ("phone", DEALER_PHONE)):
                 db.add(ChannelAddress(tenant_id=t, channel=channel, address=address, provider="mock"))
             # Booking: the templates as this dealer's appointment types, three service bays and two loaners.
             from ondra_api.services.booking import DEFAULT_REMINDERS, TEMPLATES

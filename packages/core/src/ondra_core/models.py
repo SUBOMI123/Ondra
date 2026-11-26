@@ -188,6 +188,16 @@ class Call(Base, TenantScoped):
     summary: Mapped[str | None] = mapped_column(Text)
     sentiment: Mapped[str | None] = mapped_column(String(20))
     outcome: Mapped[str | None] = mapped_column(String(40))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), index=True)
+    from_number: Mapped[str | None] = mapped_column(String(32))
+    to_number: Mapped[str | None] = mapped_column(String(32))
+    # Who took it: ai, staff, owner (a VIP rang through), or missed.
+    handled_by: Mapped[str | None] = mapped_column(String(10))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    transferred_to_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    # Per-turn timings from the voice agent (end of caller speech to first audio), for the latency report.
+    metrics: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    callback_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Deal(Base, TenantScoped):

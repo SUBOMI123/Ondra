@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 4 done, waiting for review. **Next:** Step 5, Voice
+**Last updated:** 2026-11-26. **Now:** Step 5, Voice: call handling done (5b); voice worker next (5c)
 
 ## Build steps
 
@@ -13,7 +13,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
-| 5 | Voice | Not started; Calls designed with example data |
+| 5 | Voice | In progress: call records, VIP routing, missed calls and summaries done. Voice worker, Calls screen, real phone line to come |
 | 6 | Routing, follow-ups, learning loop | Not started |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
@@ -61,9 +61,10 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
   - tasks with deadlines in opening hours, and escalation;
   - live updates (server-sent events).
 - **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
+- **Calls (API, Step 5):** call records, routing before anyone speaks (VIP rings the owner, never the AI), missed-call text-back only with recorded consent (otherwise a call-back task), summaries after the call, calls in the Inbox thread and client timeline. No voice agent or phone line yet.
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data: sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), and sidebar counts. Today, Deals and Calls still show **example data** until their steps (Today and Deals: Step 9 analytics and pipeline; Calls: Step 5).
-- **Quality:** 140 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
+- **Quality:** 141 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 12 pages.
 
 ## Waiting on the founders
 
@@ -72,6 +73,8 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Rotate the Anthropic, Voyage and LiveKit keys (all were pasted in chat) and set them in the environment settings | Security | **After testing, before anything goes live** (founder decision) |
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
+| Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
+| Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |
 | A2P 10DLC registration; pick Twilio or Telnyx | Live SMS, voice | Not started (weeks) |
 | Postmark account (also needed to email invites) | Live email, invite emails | Not started |

@@ -81,7 +81,7 @@ class RepliesIn(BaseModel):
 
 
 class ChannelIn(BaseModel):
-    channel: Literal["sms", "whatsapp", "email"]
+    channel: Literal["sms", "whatsapp", "email", "phone"]
     address: str = Field(min_length=3, max_length=320)
 
 

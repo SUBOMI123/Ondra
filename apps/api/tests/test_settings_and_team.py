@@ -22,7 +22,7 @@ async def test_everyone_reads_settings_but_only_owner_and_admin_can_edit(client,
     body = r.json()
     assert body["can_edit"] is False and body["business"]["name"] == "Prestige Motors"
     assert body["business"]["hours"]["sun"] is None and body["business"]["hours"]["mon"] == ["09:00", "19:00"]
-    assert {c["channel"] for c in body["channels"]} == {"sms", "whatsapp", "email"}
+    assert {c["channel"] for c in body["channels"]} == {"sms", "whatsapp", "email", "phone"}
     assert (await client.put("/settings/business", headers=sales, json=body["business"])).status_code == 403
     admin = await login(client, ADMIN)
     assert (await client.get("/settings", headers=admin)).json()["can_edit"] is True

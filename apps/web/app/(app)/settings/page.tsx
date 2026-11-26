@@ -15,6 +15,7 @@ import {
   IconMail,
   IconMessage,
   IconBrandWhatsapp,
+  IconPhone,
   IconPlus,
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -54,7 +55,7 @@ type Replies = {
   never_say: string[]
   ai_disclosure: "when_asked" | "upfront"
 }
-type Channel = { id: string; channel: "sms" | "whatsapp" | "email"; address: string; provider: string; active: boolean; live: boolean }
+type Channel = { id: string; channel: "sms" | "whatsapp" | "email" | "phone"; address: string; provider: string; active: boolean; live: boolean }
 type SettingsData = { business: Business; replies: Replies; channels: Channel[]; can_edit: boolean; timezones: string[] }
 type User = { id: string; email: string; name: string; role: string; active: boolean; invited: boolean }
 
@@ -83,6 +84,7 @@ const CHANNEL_META = {
   sms: { label: "Text", icon: IconMessage, placeholder: "(214) 555-0100" },
   whatsapp: { label: "WhatsApp", icon: IconBrandWhatsapp, placeholder: "(214) 555-0100" },
   email: { label: "Email", icon: IconMail, placeholder: "sales@yourdealership.com" },
+  phone: { label: "Calls", icon: IconPhone, placeholder: "(214) 555-0100" },
 } as const
 
 function formatAddress(c: Pick<Channel, "channel" | "address">) {
@@ -619,7 +621,10 @@ function ChannelsSection({ data, canEdit }: { data: SettingsData; canEdit: boole
         ) : (
           <Button variant="outline" className="self-start" onClick={() => setAdding(true)}><IconPlus /> Connect a channel</Button>
         ))}
-        <p className="max-w-prose text-sm text-muted-foreground">Phone calls connect with voice, in a later update.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          For calls, forward your number to Ondra at your phone carrier, always or when nobody picks up. Ondra answers
+          on it, and VIPs ring you directly.
+        </p>
       </div>
     </Section>
   )

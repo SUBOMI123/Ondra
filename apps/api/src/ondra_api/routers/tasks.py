@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ondra_core.models import Appointment, Contact, Conversation, Deal, Event, Message, Task, User
+from ondra_core.models import Appointment, Call, Contact, Conversation, Deal, Event, Message, Task, User
 from ondra_core.permissions import Perm, can_see_vips
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
@@ -154,6 +154,10 @@ async def timeline(contact_id: uuid.UUID, limit: int = Query(100, le=300),
                                .order_by(Appointment.starts_at.desc()).limit(50))).scalars():
         items.append({"kind": "appointment", "at": a.starts_at.isoformat(), "status": a.status,
                       "service_type": a.service_type, "source": a.source})
+    for k in (await db.execute(select(Call).where(Call.contact_id == c.id).order_by(Call.started_at.desc()).limit(50))).scalars():
+        items.append({"kind": "call", "at": (k.started_at or k.created_at).isoformat(), "handled_by": k.handled_by,
+                      "outcome": k.outcome, "duration_s": k.duration_s, "conversation_id": str(k.conversation_id),
+                      "summary": None if c.is_vip else k.summary})  # VIPs never get AI content
     items.sort(key=lambda i: i["at"], reverse=True)
 
     from ondra_api.services.inbound import contact_opted_out

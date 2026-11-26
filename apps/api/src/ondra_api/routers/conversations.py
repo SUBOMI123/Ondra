@@ -21,6 +21,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ondra_core.models import (
+    Call,
     Contact,
     ContactIdentity,
     Conversation,
@@ -145,6 +146,7 @@ async def get_conversation(conversation_id: uuid.UUID,
                               .order_by(Task.due_at))).scalars().all()
     brief = (await db.execute(select(Task.brief).where(Task.conversation_id == conv.id, Task.source == "ai_handoff")
                               .order_by(Task.created_at.desc()).limit(1))).scalar_one_or_none()
+    call_rows = (await db.execute(select(Call).where(Call.conversation_id == conv.id).order_by(Call.started_at))).scalars().all()
     now = datetime.now(UTC)
     return {
         "id": str(conv.id), "channel": conv.channel, "status": conv.status, "ai_mode": conv.ai_mode,
@@ -166,6 +168,13 @@ async def get_conversation(conversation_id: uuid.UUID,
         },
         "tasks": [{"id": str(t.id), "title": t.title, "urgency": t.urgency, "due_at": t.due_at.isoformat() if t.due_at else None,
                    "overdue": bool(t.due_at and t.due_at < now), "assignee": authors.get(t.assignee_user_id)} for t in tasks],
+        "calls": [{
+            "id": str(c.id), "at": (c.started_at or c.created_at).isoformat(), "handled_by": c.handled_by,
+            "outcome": c.outcome, "duration_s": c.duration_s,
+            "summary": None if contact.is_vip else c.summary,  # VIPs never get AI content
+            "transferred_to": authors.get(c.transferred_to_user_id),
+            "needs_callback": c.handled_by == "missed" and c.callback_done_at is None,
+        } for c in call_rows],
         # VIPs never get AI content (product rule), so no brief either.
         "brief": None if contact.is_vip else brief,
     }

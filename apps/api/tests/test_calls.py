@@ -1,0 +1,150 @@
+"""Calls: routing before anyone speaks, missed calls under the consent rule, summaries, and the calls API."""
+
+import uuid
+
+import pytest
+from ondra_api import channels, worker
+from ondra_api.db import tenant_session
+from ondra_api.services import calls
+from ondra_core.models import Call, Event, Job, Task, Tenant, User
+from sqlalchemy import select, text, update
+
+from .conftest import login
+
+DEALER = "+12145550100"
+NEW_CALLERS = ("+14695550142", "+12145559998")  # callers these tests create; removed after each test
+
+
+@pytest.fixture(autouse=True)
+async def _remove_new_callers(database):
+    yield
+    async with tenant_session(database["a"]) as db:
+        await db.execute(text("DELETE FROM contacts WHERE display_name = ANY(:n)"), {"n": list(NEW_CALLERS)})
+
+
+async def _phone_of(tenant_id, name):
+    async with tenant_session(tenant_id) as db:
+        return (await db.execute(text(
+            "SELECT i.value FROM contacts c JOIN contact_identities i ON i.contact_id = c.id AND i.kind = 'phone' "
+            "WHERE c.display_name = :n"), {"n": name})).scalar_one()
+
+
+def _sid():
+    return f"CA{uuid.uuid4().hex}"
+
+
+async def test_regular_caller_goes_to_the_ai_and_the_call_is_recorded_once(database):
+    phone = await _phone_of(database["a"], "Ben Carter")
+    sid = _sid()
+    plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=sid)
+    assert plan.route == "ai" and plan.known and plan.caller_name == "Ben Carter" and not plan.is_vip
+    again = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=sid)
+    assert again.call_id == plan.call_id  # the provider retried: same call
+    async with tenant_session(database["a"]) as db:
+        call = await db.get(Call, plan.call_id)
+        assert call.direction == "inbound" and call.from_number == phone and call.conversation_id == plan.conversation_id
+
+
+async def test_vip_calls_ring_the_owner_and_never_reach_the_ai(database):
+    phone = await _phone_of(database["a"], "Robert Hale")
+    plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=_sid())
+    async with tenant_session(database["a"]) as db:
+        owner = (await db.execute(select(User).where(User.role == "owner"))).scalar_one()
+    assert plan.route == "ring_owner" and plan.is_vip and plan.ring_number == owner.phone
+
+
+async def test_unknown_dealer_number_is_ignored_and_voice_off_rings_the_team(database):
+    assert await calls.start_call(from_number="+12145559999", to_number="+19995550000", provider_call_sid=_sid()) is None
+    async with tenant_session(database["a"]) as db:
+        t = (await db.execute(select(Tenant))).scalar_one()
+        t.settings = {**(t.settings or {}), "voice_ai": False}
+    plan = await calls.start_call(from_number="+12145559998", to_number=DEALER, provider_call_sid=_sid())
+    assert plan.route == "ring_team" and plan.ring_number
+    async with tenant_session(database["a"]) as db:
+        t = (await db.execute(select(Tenant))).scalar_one()
+        t.settings = {k: v for k, v in (t.settings or {}).items() if k != "voice_ai"}
+
+
+async def test_missed_call_texts_back_only_with_recorded_consent(database):
+    channels.mock("sms").outbox.clear()
+    # Seeded contact with a recorded SMS opt-in: text-back plus a call-back task.
+    phone = await _phone_of(database["a"], "Ethan Walker")
+    plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=_sid())
+    await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="missed", outcome="no answer")
+    await worker.run_once()
+    assert len(channels.mock("sms").outbox) == 1 and "Sorry we missed your call" in channels.mock("sms").outbox[0].body
+
+    # A new caller with no recorded consent: no automated text, only a task for a person.
+    stranger = "+14695550142"
+    plan2 = await calls.start_call(from_number=stranger, to_number=DEALER, provider_call_sid=_sid())
+    await calls.finish_call(plan2.tenant_id, plan2.call_id, handled_by="missed", outcome="no answer")
+    await worker.run_once()
+    assert len(channels.mock("sms").outbox) == 1
+    async with tenant_session(database["a"]) as db:
+        tasks = (await db.execute(select(Task).where(Task.contact_id.in_([plan.contact_id, plan2.contact_id])))).scalars().all()
+        assert len(tasks) == 2 and all("Call" in t.title for t in tasks)
+        skipped = (await db.execute(select(Event).where(Event.type == "call.text_back_skipped"))).scalars().all()
+        assert any(e.payload["call_id"] == str(plan2.call_id) for e in skipped)
+        await db.execute(update(Task).where(Task.id.in_([t.id for t in tasks])).values(status="done"))
+
+
+async def test_missed_vip_call_alerts_the_owner_and_sends_no_text(database):
+    channels.mock("sms").outbox.clear()
+    phone = await _phone_of(database["a"], "Robert Hale")
+    plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=_sid())
+    await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="missed", outcome="owner didn't answer")
+    await worker.run_once()
+    assert channels.mock("sms").outbox == []
+    async with tenant_session(database["a"]) as db:
+        task = (await db.execute(select(Task).where(Task.contact_id == plan.contact_id, Task.title.like("%(VIP)%"))
+                                 .order_by(Task.created_at.desc()))).scalars().first()
+        assert task.urgency == "high"
+        task.status = "done"
+
+
+async def test_answered_call_gets_a_summary_but_never_for_a_vip(database):
+    phone = await _phone_of(database["a"], "Grace Kim")
+    plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=_sid())
+    transcript = [{"who": "agent", "text": "Prestige Motors, this is Ondra."},
+                  {"who": "caller", "text": "I'd like to book an oil change for my Camry on Tuesday."}]
+    await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="ai", outcome="booked",
+                            transcript=transcript, metrics={"summary": {"turns": 3, "avg_ms": 820}})
+    async with tenant_session(database["a"]) as db:
+        job = (await db.execute(select(Job).where(Job.kind == "call_summary", Job.payload["call_id"].astext == str(plan.call_id)))).scalar_one()
+    await worker.run_once()
+    async with tenant_session(database["a"]) as db:
+        call = await db.get(Call, plan.call_id)
+        assert call.summary and "oil change" in call.summary.lower() and (await db.get(Job, job.id)).status == "done"
+        assert call.recording_url is None and call.metrics["summary"]["avg_ms"] == 820
+
+    vip = await _phone_of(database["a"], "Robert Hale")
+    plan2 = await calls.start_call(from_number=vip, to_number=DEALER, provider_call_sid=_sid())
+    await calls.finish_call(plan2.tenant_id, plan2.call_id, handled_by="owner", outcome="talked",
+                            transcript=[{"who": "caller", "text": "It's Robert."}])
+    async with tenant_session(database["a"]) as db:
+        assert (await db.execute(select(Job).where(Job.kind == "call_summary", Job.payload["call_id"].astext == str(plan2.call_id)))).first() is None
+
+
+async def test_calls_api_hides_vips_from_sales_and_records_call_backs(client, database):
+    for name, handled in (("Robert Hale", "owner"), ("Grace Kim", "missed")):
+        plan = await calls.start_call(from_number=await _phone_of(database["a"], name), to_number=DEALER, provider_call_sid=_sid())
+        await calls.finish_call(plan.tenant_id, plan.call_id, handled_by=handled, outcome="test")
+    await worker.run_once()  # send the text-back now, so no queued job leaks into other tests
+    owner, sales = await login(client, "owner@prestigemotors.example"), await login(client, "daniel@prestigemotors.example")
+    items = (await client.get("/calls", headers=owner)).json()["items"]
+    assert any(c["contact"] and c["contact"]["is_vip"] for c in items)
+    assert not any(c["contact"] and c["contact"]["is_vip"] for c in (await client.get("/calls", headers=sales)).json()["items"])
+    vip_call = next(c for c in items if c["contact"] and c["contact"]["is_vip"])
+    assert vip_call["summary"] is None
+    assert (await client.get(f"/calls/{vip_call['id']}", headers=sales)).status_code == 404
+    missed = next(c for c in items if c["needs_callback"] and c["contact"] and not c["contact"]["is_vip"])
+    r = await client.post(f"/calls/{missed['id']}/called-back", headers=sales)
+    assert r.status_code == 200 and r.json()["needs_callback"] is False
+    detail = (await client.get(f"/calls/{items[0]['id']}", headers=owner)).json()
+    assert "transcript" in detail and "latency" in detail
+    # Calls show in the client's thread and timeline; a VIP's carries no summary.
+    conv = (await client.get(f"/conversations/{vip_call['conversation_id']}", headers=owner)).json()
+    assert conv["calls"] and all(c["summary"] is None for c in conv["calls"])
+    tl = (await client.get(f"/contacts/{missed['contact']['id']}/timeline", headers=owner)).json()["items"]
+    assert any(i["kind"] == "call" and i["handled_by"] == "missed" for i in tl)
+

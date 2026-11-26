@@ -242,3 +242,14 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 - **Loaners** are held if one is free; otherwise the appointment notes that the service team will arrange transport.
 - **Reminders:** jobs at 24 h and 2 h before (per type), only between 8 am and 8 pm dealer time. One that would fall earlier moves to 7 pm the evening before; one that would fall later moves to just before 8 pm. A reminder that would land in the past is skipped. Each job re-checks status, time and whether it was already sent, and sends through the one outbound path, so opt-outs block reminders too.
 - **Seeded types** come from templates: test drive, showroom visit, trade-in appraisal, oil change, service and repairs, vehicle delivery. Service types use service hours (7 am to 6 pm weekdays, 8 am to 2 pm Saturday). Plus three bays and two loaners.
+
+## 2026-11-26: Calls: routing is decided before anyone speaks; missed-call texts need recorded consent
+
+- **`start_call` runs the moment a call arrives, before the AI says a word.** It finds the dealer from the dialled number (`channel_find_tenant('phone', ...)`), finds or creates the caller, and opens the call record. The provider's call ID is unique per dealer, so a retried webhook gives the same call, not a second one. Then it picks the route:
+  - a VIP rings the owner, or the VIP's assigned person if they're active, and the AI never answers;
+  - voice AI switched off for the dealer, or a conversation a person has taken over, rings the team;
+  - otherwise the AI answers.
+  The voice worker follows the route; it doesn't make the decision. Alternative rejected: let the voice agent check VIP status itself. That puts a product rule in a second place where it can drift.
+- **A missed call is texted back only if the caller has recorded consent to texts.** That means the latest SMS transactional consent is `opted_in`, with no opt-out on any channel. Without it, no text: a `call.text_back_skipped` event and a call-back task for a person. "They just called us" is not recorded consent, and CLAUDE.md forbids automated texts without it. This means most first-time callers get no text-back. Counsel may decide a reply to a missed call is allowed (it's commonly argued as customer-initiated), and changing it is one function (`_has_text_consent`). Added to the founder list.
+- **A missed VIP call** creates a high-urgency task for the owner and an owner alert. It never sends an automated text.
+- **Summaries** come from the fast model after the call, as a job, and never for VIP calls. Recordings are kept only when the caller consented. Per-turn latency goes in `calls.metrics` for the latency report.
