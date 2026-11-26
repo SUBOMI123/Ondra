@@ -14,12 +14,12 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from ondra_core.models import Job
 from sqlalchemy import text
 
 from ondra_api.db import no_tenant_session, tenant_session
 from ondra_api.services import inbound
 from ondra_api.services.tasks import escalate_overdue
-from ondra_core.models import Job
 
 log = logging.getLogger("ondra.worker")
 LEASE_SECONDS = 120
@@ -43,7 +43,7 @@ async def run_once(limit: int = 10) -> int:
         error = None
         try:
             await HANDLERS[j["kind"]](j["tenant_id"], j["payload"])
-        except Exception as exc:  # noqa: BLE001  one bad job must not stop the worker
+        except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"[:2000]
             log.exception("job %s (%s) failed", j["id"], j["kind"])
         async with tenant_session(j["tenant_id"]) as db:
@@ -81,7 +81,7 @@ async def main() -> None:
                 if (n := await sweep()):
                     log.info("escalated %d overdue tasks", n)
                 last_sweep = loop.time()
-        except Exception:  # noqa: BLE001  a database blip must not kill the worker
+        except Exception:
             log.exception("worker loop error")
             ran = 0
         if not ran:

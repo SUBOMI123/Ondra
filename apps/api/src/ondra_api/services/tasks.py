@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from ondra_core.models import Event, Task, Tenant, User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.services.agent_tools import assignee_for
 from ondra_api.services.sla import due_for
-from ondra_core.models import Event, Task, Tenant, User
 
 
 async def new_task(db: AsyncSession, **fields) -> Task:

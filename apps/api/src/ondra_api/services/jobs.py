@@ -5,9 +5,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ondra_core.models import Job
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def enqueue(db: AsyncSession, kind: str, payload: dict, run_at: datetime | None = None) -> Job:

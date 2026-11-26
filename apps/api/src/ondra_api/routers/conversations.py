@@ -20,14 +20,6 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from ondra_api.db import tenant_session
-from ondra_api.deps import Caller, require
-from ondra_api.services.inbound import contact_opted_out
-from ondra_api.services.outbound import Blocked, deliver
 from ondra_core.models import (
     Contact,
     ContactIdentity,
@@ -39,6 +31,14 @@ from ondra_core.models import (
     User,
 )
 from ondra_core.permissions import Perm, can_see_vips
+from pydantic import BaseModel, Field
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ondra_api.db import tenant_session
+from ondra_api.deps import Caller, require
+from ondra_api.services.inbound import contact_opted_out
+from ondra_api.services.outbound import Blocked, deliver
 
 router = APIRouter(tags=["inbox"])
 

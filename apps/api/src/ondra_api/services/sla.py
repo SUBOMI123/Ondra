@@ -31,8 +31,7 @@ def add_business_time(tenant: Tenant, start: datetime, duration: timedelta) -> d
         span = _spans(tenant, t)
         if span:
             open_, close = span
-            if t < open_:
-                t = open_
+            t = max(t, open_)
             if t < close:
                 if t + left <= close:
                     return (t + left).astimezone(UTC)

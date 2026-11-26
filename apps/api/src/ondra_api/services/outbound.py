@@ -10,13 +10,13 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from ondra_core.agent.policy import may_send_outbound
+from ondra_core.channels.base import OutboundMessage
+from ondra_core.models import ChannelAddress, Contact, ContactIdentity, Conversation, Event, Message
 from sqlalchemy import select
 
 from ondra_api.channels import adapter_for
 from ondra_api.db import tenant_session
-from ondra_core.agent.policy import may_send_outbound
-from ondra_core.channels.base import OutboundMessage
-from ondra_core.models import ChannelAddress, Contact, ContactIdentity, Conversation, Event, Message
 
 
 class Blocked(Exception):
