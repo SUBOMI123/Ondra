@@ -100,7 +100,9 @@ async def _clerk_caller(token: str) -> tuple[Caller, AsyncSession]:
         raise
     session.info["cm"] = cm
     needs_mfa = user.role in {r.strip() for r in get_settings().clerk_mfa_roles.split(",")}
-    return Caller(user.id, user.tenant_id, user.role, mfa_missing=needs_mfa and not cs.second_factor), session
+    # Both: MFA set up on their account, and a second factor used in this session (see clerk.has_mfa_set_up).
+    mfa_missing = needs_mfa and (not cs.second_factor or not await asyncio.to_thread(clerk.has_mfa_set_up, cs.user_id))
+    return Caller(user.id, user.tenant_id, user.role, mfa_missing=mfa_missing), session
 
 
 async def get_db(request: Request) -> AsyncIterator[tuple[Caller, AsyncSession]]:

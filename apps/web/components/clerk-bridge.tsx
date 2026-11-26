@@ -8,7 +8,7 @@
 
 import { SignIn, SignUp, useAuth as useClerkAuth, useClerk, useOrganizationList, UserProfile } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { setTokenSource } from "@/lib/api"
 
@@ -79,6 +79,14 @@ export function ClerkSignUp() {
   return <SignUp routing="hash" appearance={clerkAppearance} />
 }
 
+/** Clerk's account screen, opened on Security (two-step sign-in). API keys are hidden: nothing for a dealer there. */
 export function ClerkSecurity() {
-  return <UserProfile routing="hash" appearance={clerkAppearance} />
+  // Before Clerk's component first reads the address, point it at Security (once).
+  useState(() => {
+    if (typeof window !== "undefined" && ["", "#", "#/"].includes(window.location.hash)) {
+      window.history.replaceState(null, "", "#/security")
+    }
+    return null
+  })
+  return <UserProfile routing="hash" appearance={clerkAppearance} apiKeysProps={{ hide: true }} />
 }

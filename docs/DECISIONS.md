@@ -322,6 +322,10 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
   user. Ondra reads the token's `fva` claim: an owner or admin without a verified second factor gets 403
   (`mfa_required`) everywhere except `/me`, and the dashboard shows the setup screen. MFA needs a paid Clerk plan in
   production.
+- **MFA means set up and used.** Found in the end-to-end test: Clerk's one-time email code for a new device also
+  shows as a verified second factor in `fva` (an owner with no MFA set up got `fva: [0,0]` and walked in). So an
+  owner or admin needs two-step sign-in set up on their Clerk account (`two_factor_enabled`, read from Clerk's API,
+  cached a minute) and a second factor used in the session.
 - **Invite-only.** Team invites are Clerk Organization invitations (Clerk sends the email); deactivating someone
   removes their Organization membership and Ondra refuses them at once. Ondra's own password sign-in is switched
   off when `AUTH_PROVIDER=clerk`, so nobody can skip Clerk's two-step sign-in with an old password.

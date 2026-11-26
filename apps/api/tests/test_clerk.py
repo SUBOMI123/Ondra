@@ -24,7 +24,11 @@ ORG_A, ORG_B, APP = "org_prestige", "org_lonestar", "https://app.ondra.example"
 class FakeClerk:
     def __init__(self) -> None:
         self.emails: dict[str, str] = {}
+        self.mfa: set[str] = {"user_ada"}  # Clerk users with two-step sign-in set up
         self.calls: list[tuple] = []
+
+    def two_factor_enabled(self, user_id):
+        return user_id in self.mfa
 
     def primary_email(self, user_id):
         self.calls.append(("email", user_id))
@@ -102,12 +106,17 @@ async def test_owners_and_admins_need_two_step_sign_in(client, clerk_mode):
     assert r.status_code == 403 and r.headers["x-ondra-reason"] == "mfa_required"
     assert (await client.get("/me", headers=no_mfa)).json()["mfa_required"] is True  # so the screen can explain
     assert (await client.get("/live", headers=no_mfa)).status_code == 403
+    # Clerk's new-device email code also shows as a verified second factor: not enough without MFA set up.
+    assert (await client.get("/conversations", headers=token("user_owner", fva=(0, 0)))).status_code == 403
+    clerk_mode.mfa.add("user_owner")
+    clerk.set_client(clerk_mode)  # clears the one-minute cache
     assert (await client.get("/conversations", headers=token("user_owner", fva=(2, 0)))).status_code == 200
     # Sales doesn't need it.
     assert (await client.get("/conversations", headers=token("user_daniel", fva=(2, -1)))).status_code == 200
 
 
 async def test_an_invited_person_is_linked_on_first_sign_in(client, clerk_mode, database):
+    clerk_mode.mfa.add("user_owner")
     owner = token("user_owner", fva=(1, 1))
     r = await client.post("/users/invite", headers=owner, json={"name": "Ada Obi", "email": "ada@prestigemotors.example",
                                                                 "role": "admin"})

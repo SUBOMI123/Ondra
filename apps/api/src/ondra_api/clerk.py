@@ -112,6 +112,9 @@ class ClerkClient:
         primary = u.get("primary_email_address_id")
         return next((e["email_address"] for e in u.get("email_addresses", []) if e["id"] == primary), None)
 
+    def two_factor_enabled(self, user_id: str) -> bool:
+        return bool(self._call("GET", f"/users/{user_id}").get("two_factor_enabled"))
+
     def create_organization(self, name: str) -> str:
         return self._call("POST", "/organizations", json={"name": name})["id"]
 
@@ -143,6 +146,23 @@ def set_client(c) -> None:
     """Tests swap in a fake."""
     global _client
     _client = c
+    _mfa_cache.clear()
+
+
+_mfa_cache: dict[str, tuple[bool, float]] = {}
+
+
+def has_mfa_set_up(user_id: str) -> bool:
+    """Whether the person has two-step sign-in set up on their Clerk account (an authenticator app, passkey or
+    backup codes). The session token can't tell: Clerk's new-device email code also counts as a verified second
+    factor in `fva`, so `fva` alone would let an owner in who never set up MFA (found in the end-to-end test).
+    Cached for a minute per person."""
+    hit = _mfa_cache.get(user_id)
+    if hit and time.monotonic() - hit[1] < 60:
+        return hit[0]
+    value = client().two_factor_enabled(user_id)
+    _mfa_cache[user_id] = (value, time.monotonic())
+    return value
 
 
 # Clerk Organization roles mirror Ondra's for Clerk's own screens; Ondra's database is what's enforced.
