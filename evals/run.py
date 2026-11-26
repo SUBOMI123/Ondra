@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 import json
 import os
 import re
@@ -39,7 +40,7 @@ from ondra_core.embeddings import MIN_SIMILARITY, VoyageEmbedder, cosine
 ROOT = Path(__file__).parent
 GOLDEN = ROOT / "golden"
 RESULTS = ROOT / "results"
-STEP = 2
+STEP = 4
 LATENCY_BUDGET_MS = 5000
 
 
@@ -55,6 +56,8 @@ def _words(s: str) -> set[str]:
 
 class FixtureBackend:
     def __init__(self, scenario: dict) -> None:
+        # A private copy: bookings change the fixtures, and repeats of a scenario must start from the same state.
+        scenario = copy.deepcopy(scenario)
         self.s = scenario
         ctx = scenario.get("context") or {}
         self.inventory: list[dict] = ctx.get("inventory", [])
@@ -62,11 +65,61 @@ class FixtureBackend:
         self.price_disclosure = scenario["dealer"]["policy"].get("price_disclosure", "listed")
         self.fields: dict = {}
         self.handoffs: list[dict] = []
+        self.availability: dict[str, list[str]] = ctx.get("availability", {})
+        self.appointments: list[dict] = list(ctx.get("appointments", []))
+        self.bookings: list[dict] = []
 
     async def get_contact_context(self) -> dict:
         c = self.s["contact"]
         return {"name": c.get("name"), "language": c.get("language"), "vehicles_on_file": c.get("vehicles_on_file", []),
-                "open_deals": [], "upcoming_appointments": []}
+                "open_deals": [],
+                "upcoming_appointments": [{"appointment_id": a["id"], "kind": a["kind"], "when": a["slot"], "status": "booked"}
+                                          for a in self.appointments]}
+
+    # --- booking (fixture slots are their own ids, e.g. "Sat 10:00 am" or "Wed 7:30 am, Bay 3") ---
+
+    def _key(self, kind: str) -> str | None:
+        k = kind.lower()
+        if any(w in k for w in ("service", "oil", "repair", "brake", "inspection", "maintenance", "tire")):
+            return "service" if "service" in self.availability else None
+        if any(w in k for w in ("test", "drive", "showroom", "visit")):
+            return "test_drive" if "test_drive" in self.availability else None
+        return k if k in self.availability else None
+
+    async def check_availability(self, kind, day=None, part_of_day=None):
+        key = self._key(kind)
+        if key is None:
+            return {"error": f"No appointment type called '{kind}'.", "types_offered": list(self.availability)}
+        slots = self.availability[key]
+        picked = [s for s in slots
+                  if (not day or s.lower().startswith(day.lower()[:3]) or day.lower() in ("today", "tomorrow"))
+                  and (not part_of_day or (part_of_day == "morning") == (" am" in s))]
+        out = picked or slots
+        return {"kind": key.replace("_", " "), "slots": [{"slot_id": s, "when": s} for s in out],
+                **({} if picked else {"note": "Nothing matched that exactly; these are the next openings."})}
+
+    async def book_appointment(self, slot_id, details=None):
+        key = next((k for k, v in self.availability.items() if slot_id in v), None)
+        if key is None:
+            return {"error": "That time isn't one I offered. Check availability again."}
+        details = details or {}
+        self.bookings.append({"kind": key, "slot": slot_id, "loaner": details.get("transport") == "loaner"})
+        self.availability[key] = [s for s in self.availability[key] if s != slot_id]
+        return {"booked": {"appointment_id": f"apt-{len(self.bookings)}", "kind": key, "when": slot_id,
+                           "loaner": "Loaner 1" if details.get("transport") == "loaner" else None}}
+
+    async def reschedule_or_cancel(self, appointment_id, action, new_slot_id=None):
+        apt = next((a for a in self.appointments if a["id"] == appointment_id), None)
+        if apt is None:
+            return {"error": "No upcoming appointment with that id for this customer."}
+        if action == "cancel":
+            self.bookings.append({"kind": apt["kind"], "slot": None, "cancelled": True})
+            return {"cancelled": {"appointment_id": appointment_id}}
+        if not new_slot_id or new_slot_id not in self.availability.get(apt["kind"], []):
+            return {"error": "Check availability and pass a new_slot_id it returned."}
+        self.bookings.append({"kind": apt["kind"], "slot": new_slot_id, "loaner": False})
+        apt["slot"] = new_slot_id
+        return {"moved": {"appointment_id": appointment_id, "kind": apt["kind"], "when": new_slot_id}}
 
     async def search_inventory(self, query=None, make=None, model=None, max_price=None, min_year=None, min_seats=None):
         out = []
@@ -162,6 +215,7 @@ class TurnReport:
     latency_ms: int | None = None
     blocked_first_draft: list[str] = field(default_factory=list)
     calls: list[dict] = field(default_factory=list)  # per model call: ms, tools requested, tokens
+    tool_io: list[dict] = field(default_factory=list)  # each tool call's input and output (truncated)
 
 
 @dataclass
@@ -184,7 +238,7 @@ def _check_policy_turn(expect: dict, decision) -> list[str]:
 
 
 def _check_ai_turn(expect: dict, result, backend: FixtureBackend, ctx: ReplyContext, decision,
-                   handoffs_before: int) -> list[str]:
+                   handoffs_before: int, bookings_before: int = 0) -> list[str]:
     f = []
     if expect.get("ai_invoked") is False:
         f.append(f"AI must not run here, but the policy allowed it ({decision.reason})")
@@ -202,6 +256,15 @@ def _check_ai_turn(expect: dict, result, backend: FixtureBackend, ctx: ReplyCont
     for k, v in (expect.get("fields") or {}).items():
         if not field_matches(v, backend.fields.get(k)):
             f.append(f"field {k}: expected {v!r}, got {backend.fields.get(k)!r}")
+    if (b := expect.get("booking")):
+        made = backend.bookings[bookings_before:]
+        if not made:
+            f.append(f"expected a booking ({b.get('kind')})")
+        else:
+            got = made[-1]
+            for k, v in b.items():
+                if got.get(k) != v:
+                    f.append(f"booking {k}: expected {v!r}, got {got.get(k)!r}")
     new_handoffs = backend.handoffs[handoffs_before:]
     h = expect.get("handoff")
     if h == "none" and new_handoffs:
@@ -265,12 +328,15 @@ async def run_scenario(s: dict, llm: LLM | None) -> ScenarioReport:
             break  # later turns depend on this reply
 
         handoffs_before = len(backend.handoffs)
+        bookings_before = len(backend.bookings)
         started = time.monotonic()
         result = await run_turn(llm=llm, backend=backend, dealer=dealer, customer=customer, channel=s["channel"],
                                 history=history, known_makes=known_makes)
         latency = int((time.monotonic() - started) * 1000)
         ctx = ReplyContext(price_disclosure=dealer.price_disclosure, known_makes=set(known_makes),
-                           customer_text="\n".join(x.text for x in history if x.role == "customer"))
+                           customer_text="\n".join(x.text for x in history if x.role == "customer"),
+                           booked=[b["slot"] for b in backend.bookings[bookings_before:] if b.get("slot")],
+                           today=s["dealer"]["local_time"][:3])
         for rec in result.tools:  # what the tools returned this turn is what's real
             for v in rec.output if isinstance(rec.output, list) else [rec.output]:
                 if isinstance(v, dict):
@@ -278,9 +344,11 @@ async def run_scenario(s: dict, llm: LLM | None) -> ScenarioReport:
                         ctx.listed_prices.add(int(v["price"]))
                     if v.get("make"):
                         ctx.known_makes.add(v["make"])
-        f = _check_ai_turn(expect, result, backend, ctx, decision, handoffs_before)
+        f = _check_ai_turn(expect, result, backend, ctx, decision, handoffs_before, bookings_before)
         reports.append(TurnReport(i, "fail" if f else "pass", f, result.reply, result.tools_called, latency,
-                                  sorted(result.blocked), result.usage))
+                                  sorted(result.blocked), result.usage,
+                                  [{"tool": r.name, "input": r.input, "output": json.dumps(r.output, default=str)[:600]}
+                                   for r in result.tools]))
         history.append(Turn("assistant", result.reply))
 
     statuses = {r.status for r in reports}

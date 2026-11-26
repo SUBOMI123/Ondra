@@ -140,7 +140,7 @@ scenario(
     turns=[
         {
             "customer": "brakes squeling on my f150 can i bring it tmrw morning",
-            "expect": {"reply": True, "tools_called": ["get_contact_context", "check_availability"], "must": ["asks_one_question"], "must_not": ["promises_date"]},
+            "expect": {"reply": True, "tools_called": ["check_availability"], "must": ["asks_one_question"], "must_not": ["promises_date"]},
         },
         {
             "customer": "730 works. need a loaner tho",
@@ -366,13 +366,13 @@ scenario(
     contact=contact("Fatima Hassan", vehicles_on_file=[{"year": 2022, "make": "Toyota", "model": "RAV4"}]),
     context={"availability": {"service": ["Mon 9:00 am, Bay 2"]}, "inventory": [HIGHLANDER]},
     turns=[
-        {"customer": "need an oil change on the rav4 monday", "expect": {"reply": True, "tools_called": ["check_availability", "book_appointment"], "booking": {"kind": "service"}}},
+        {"customer": "need an oil change on the rav4 monday", "expect": {"reply": True, "tools_called": ["check_availability"], "must": ["asks_one_question"], "must_not": ["promises_date"]}},
         {
             "customer": "also thinking about something bigger, we have a baby coming. do you have any 3 row suvs",
-            "expect": {"reply": True, "tools_called": ["search_inventory", "update_lead_fields"], "fields": {"needs": "third row", "trade_in": "2022 Toyota RAV4"}, "must": ["offers_test_drive"]},
+            "expect": {"reply": True, "tools_called": ["search_inventory", "update_lead_fields"], "fields": {"needs": "third row"}, "must": ["offers_test_drive"]},
         },
     ],
-    notes="A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created with the RAV4 as a likely trade.",
+    notes="A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created. The RAV4 is a likely trade, but they never said so, and Ondra records only what customers say (changed 2026-11-26 from expecting trade_in), so a salesperson asks. Turn 1 asks the time and wait/loaner/drop-off as one question before booking (a deliberate rule: transport can't be changed after booking yet).",
 )
 
 scenario(
@@ -534,10 +534,7 @@ scenario(
 )
 
 # Scenarios that need tools from later steps (booking is Step 4, repair-order status Step 7).
-REQUIRES_STEP = {
-    "002-books-saturday-test-drive": 4, "005-service-typos": 4, "007-reschedule-service": 4,
-    "017-intent-switch-service-to-sales": 4, "006-repair-status": 7,
-}
+REQUIRES_STEP = {"006-repair-status": 7}
 for _s in S:
     if _s["id"] in REQUIRES_STEP:
         _s["requires_step"] = REQUIRES_STEP[_s["id"]]

@@ -95,9 +95,7 @@ class DbToolBackend:
             "language": c.language,
             "open_deals": [{"type": d.type, "stage": d.stage, "vehicle_of_interest": d.vehicle_of_interest} for d in deals],
             "vehicles_on_file": [d.vehicle_of_interest for d in deals if d.type == "service" and d.vehicle_of_interest],
-            "upcoming_appointments": [
-                {"starts_at": a.starts_at.isoformat(), "service_type": a.service_type, "status": a.status} for a in appts
-            ],
+            "upcoming_appointments": [await self._appointment_out(a) for a in appts],
         }
 
     async def search_inventory(self, query: str | None = None, make: str | None = None, model: str | None = None,
@@ -188,6 +186,85 @@ class DbToolBackend:
             await self._record_gap(self.last_question or brief)
         await self.db.flush()
         return {"task_id": str(task.id), "tell_customer": handoff_message(target_role, self.open_now)}
+
+    # --- booking ----------------------------------------------------------------------------------------------
+
+    async def _tenant(self):
+        from ondra_core.models import Tenant
+
+        return (await self.db.execute(select(Tenant).limit(1))).scalar_one()
+
+    async def _appointment_out(self, a) -> dict:
+        from ondra_core.models import AppointmentType, Resource
+
+        from ondra_api.services.booking import slot_label, tz_of
+
+        t = await self.db.get(AppointmentType, a.appointment_type_id)
+        names = [r.name for r in (await self.db.execute(select(Resource).where(Resource.id.in_(a.resource_ids or []),
+                                                                               Resource.kind == "service_bay"))).scalars()]
+        who = await self.db.get(User, a.assigned_user_id) if a.assigned_user_id else None
+        return {"appointment_id": str(a.id), "kind": t.name if t else None, "status": a.status,
+                "when": slot_label(a.starts_at, tz_of(await self._tenant()), names), "with": who.name if who else None,
+                "loaner": (a.details or {}).get("loaner")}
+
+    async def check_availability(self, kind: str, day: str | None = None, part_of_day: str | None = None) -> dict:
+        from ondra_api.services.booking import InternalCalendar, find_type, local_window, resolve_day
+
+        t = await find_type(self.db, kind)
+        if t is None:
+            from ondra_core.models import AppointmentType
+
+            names = (await self.db.execute(select(AppointmentType.name).where(AppointmentType.active.is_(True)))).scalars().all()
+            return {"error": f"No appointment type called '{kind}'.", "types_offered": list(names)}
+        tenant = await self._tenant()
+        d = resolve_day(tenant, day)
+        start, until = local_window(tenant, d, days=7)
+        slots = await InternalCalendar(self.db, tenant).find_slots(t, start_from=start, until=until, limit=6,
+                                                                   part_of_day=part_of_day)
+        if not slots and d is not None:  # nothing that day: offer the next openings instead
+            start, until = local_window(tenant, None, days=10)
+            slots = await InternalCalendar(self.db, tenant).find_slots(t, start_from=start, until=until, limit=6,
+                                                                       part_of_day=part_of_day)
+            return {"kind": t.name, "duration_minutes": t.duration_min, "note": "Nothing open that day; next openings:",
+                    "slots": [s.as_tool() for s in slots]}
+        return {"kind": t.name, "duration_minutes": t.duration_min, "slots": [s.as_tool() for s in slots]}
+
+    async def book_appointment(self, slot_id: str, details: dict | None = None) -> dict:
+        from ondra_api.services import booking
+
+        tenant = await self._tenant()
+        try:
+            a = await booking.book(self.db, tenant, slot_id=slot_id, contact_id=self.contact.id, source="ai",
+                                   conversation_id=self.conversation.id, details=details or {})
+        except booking.SlotTaken:
+            return {"error": "That time was just taken. Check availability again and offer new times."}
+        except booking.NotBookable as exc:
+            return {"error": str(exc)}
+        return {"booked": await self._appointment_out(a)}
+
+    async def reschedule_or_cancel(self, appointment_id: str, action: str, new_slot_id: str | None = None) -> dict:
+        from ondra_core.models import Appointment
+
+        from ondra_api.services import booking
+
+        try:
+            a = await self.db.get(Appointment, uuid.UUID(appointment_id))
+        except ValueError:
+            a = None
+        if a is None or a.contact_id != self.contact.id or a.status not in booking.LIVE:
+            return {"error": "No upcoming appointment with that id for this customer."}
+        if action == "cancel":
+            await booking.set_status(self.db, a, "cancelled", by="ai")
+            return {"cancelled": await self._appointment_out(a)}
+        if not new_slot_id:
+            return {"error": "To move it, check availability and pass new_slot_id."}
+        try:
+            await booking.reschedule(self.db, await self._tenant(), a, new_slot_id)
+        except booking.SlotTaken:
+            return {"error": "That time was just taken. Check availability again."}
+        except booking.NotBookable as exc:
+            return {"error": str(exc)}
+        return {"moved": await self._appointment_out(a)}
 
     async def _record_gap(self, question: str) -> None:
         q = " ".join(question.lower().split())[:500]

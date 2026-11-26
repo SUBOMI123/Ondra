@@ -253,3 +253,25 @@ async def test_opted_out_customers_get_no_reminders(database):
 
 
 __all__ = ["json", "text", "Message", "worker"]
+
+
+async def test_a_days_slots_stay_on_that_day(database):
+    async with tenant_session(database["a"]) as db:
+        tenant = (await db.execute(select(Tenant))).scalar_one()
+        td = await find_type(db, "test_drive")
+        thu = _next(3)
+        start, until = _day_window(tenant, thu)
+        slots = await InternalCalendar(db, tenant).find_slots(td, start_from=start, until=until, limit=100)
+        assert slots and {s.starts_at.astimezone(tz_of(tenant)).date() for s in slots} == {thu}
+
+
+def test_resolve_day_understands_customer_words():
+    t = Tenant(name="T", timezones=["America/Chicago"])
+    today = datetime.now(UTC).astimezone(tz_of(t)).date()
+    assert booking.resolve_day(t, "today") == today
+    assert booking.resolve_day(t, "tomorrow") == today + timedelta(days=1)
+    sat = booking.resolve_day(t, "saturday")
+    assert sat.weekday() == 5 and 0 <= (sat - today).days < 7
+    assert booking.resolve_day(t, "sat") == sat
+    assert booking.resolve_day(t, "2026-12-05") == date(2026, 12, 5)
+    assert booking.resolve_day(t, "whenever") is None

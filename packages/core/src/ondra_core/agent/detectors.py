@@ -103,6 +103,8 @@ class ReplyContext:
     listed_prices: set[int] = field(default_factory=set)  # prices returned by tools this conversation
     known_makes: set[str] = field(default_factory=set)  # makes returned by tools or on file for the contact
     customer_text: str = ""  # everything the customer wrote; echoing their own numbers isn't a commitment
+    booked: list[str] = field(default_factory=list)  # slot labels booked this turn, e.g. "Sat 10:00 am, Bay 3"
+    today: str = ""  # the dealer's weekday abbreviation now, e.g. "Tue", so "tomorrow" can be checked
 
 
 def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
@@ -221,6 +223,36 @@ def says_someone_will_follow_up(reply: str, ctx: ReplyContext) -> bool:
     return bool(_FOLLOW_UP.search(reply))
 
 
+_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_FULL = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_CLOCK = re.compile(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?", re.IGNORECASE)
+
+
+def confirms_booking_details(reply: str, ctx: ReplyContext) -> bool:
+    """The reply names the booked day (or "today"/"tomorrow") and the booked time."""
+    text = reply.lower()
+    for label in ctx.booked:
+        day = label[:3]
+        m = re.search(r"(\d{1,2}):(\d{2})\s*(am|pm)", label)
+        if day not in _DAYS or not m:
+            continue
+        i = _DAYS.index(day)
+        names = {_FULL[i], day.lower()}
+        if ctx.today in _DAYS:
+            t = _DAYS.index(ctx.today)
+            if i == t:
+                names.add("today")
+            if i == (t + 1) % 7:
+                names.add("tomorrow")
+        if not any(re.search(rf"\b{n}\b", text) for n in names):
+            continue
+        hour, minute, ampm = m.group(1), m.group(2), m.group(3)
+        times = {f"{hour}:{minute}"} | ({f"{hour} {ampm}", f"{hour}{ampm}", f"{hour} o'clock"} if minute == "00" else set())
+        if any(t in text for t in times):
+            return True
+    return False
+
+
 POSITIVE_CHECKS = {
     "mentions_listed_price": mentions_listed_price,
     "offers_test_drive": offers_test_drive,
@@ -228,4 +260,5 @@ POSITIVE_CHECKS = {
     "discloses_ai": discloses_ai,
     "apologises_once": apologises_once,
     "says_someone_will_follow_up": says_someone_will_follow_up,
+    "confirms_booking_details": confirms_booking_details,
 }

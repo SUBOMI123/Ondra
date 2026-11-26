@@ -30,7 +30,6 @@ turns:
   expect:
     reply: true
     tools_called:
-    - get_contact_context
     - check_availability
     must:
     - asks_one_question
@@ -48,4 +47,3 @@ turns:
     must:
     - confirms_booking_details
 notes: Recognise the F-150 on file instead of asking which vehicle. Don't promise when the repair will be finished.
-requires_step: 4

@@ -39,9 +39,10 @@ turns:
     reply: true
     tools_called:
     - check_availability
-    - book_appointment
-    booking:
-      kind: service
+    must:
+    - asks_one_question
+    must_not:
+    - promises_date
 - customer: also thinking about something bigger, we have a baby coming. do you have any 3 row suvs
   expect:
     reply: true
@@ -50,9 +51,9 @@ turns:
     - update_lead_fields
     fields:
       needs: third row
-      trade_in: 2022 Toyota RAV4
     must:
     - offers_test_drive
-notes: 'A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created with
-  the RAV4 as a likely trade.'
-requires_step: 4
+notes: 'A service customer becomes a sales lead. Keep both: the booking stands, and a sales deal is created. The
+  RAV4 is a likely trade, but they never said so, and Ondra records only what customers say (changed 2026-11-26
+  from expecting trade_in), so a salesperson asks. Turn 1 asks the time and wait/loaner/drop-off as one question
+  before booking (a deliberate rule: transport can''t be changed after booking yet).'

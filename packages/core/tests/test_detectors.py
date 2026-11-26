@@ -60,3 +60,16 @@ def test_positive_checks():
 def test_spanish_visit_invitation_counts_as_offering_a_test_drive():
     r = "Si quiere verla o probarla, con gusto la esperamos. ¿Qué día le queda bien para venir?"
     assert POSITIVE_CHECKS["offers_test_drive"](r, CTX)
+
+
+def test_confirms_booking_details_needs_the_booked_day_and_time():
+    from ondra_core.agent.detectors import confirms_booking_details
+
+    ctx = ReplyContext(booked=["Sat 10:00 am"], today="Tue")
+    assert confirms_booking_details("You're booked for Saturday at 10 am with Daniel.", ctx)
+    assert confirms_booking_details("All set: Sat 10:00 am.", ctx)
+    assert not confirms_booking_details("You're all set, see you then!", ctx)
+    assert not confirms_booking_details("You're booked for Saturday.", ctx)
+    tomorrow = ReplyContext(booked=["Wed 7:30 am, Bay 3"], today="Tue")
+    assert confirms_booking_details("Booked for tomorrow at 7:30 am in Bay 3, with a loaner.", tomorrow)
+    assert not confirms_booking_details("Booked for tomorrow at 7 am.", tomorrow)

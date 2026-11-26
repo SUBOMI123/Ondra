@@ -133,6 +133,70 @@ TOOL_SPECS: list[dict[str, Any]] = [
     },
 ]
 
+BOOKING_TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "check_availability",
+        "description": (
+            "Open times for an appointment: a test drive, showroom visit, trade-in appraisal, oil change, service "
+            "or repairs, or vehicle delivery. Returns up to 6 slots, each with a slot_id. Only offer times this "
+            "returns. If they asked for a day or a time of day, pass it."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "description": "What they want, e.g. 'test drive', 'oil change', 'service'."},
+                "day": {"type": "string", "description": "'today', 'tomorrow', a weekday ('saturday') or a date (2026-12-05)."},
+                "part_of_day": {"type": "string", "enum": ["morning", "afternoon", "evening"]},
+            },
+            "required": ["kind"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "book_appointment",
+        "description": (
+            "Book one slot that check_availability returned, by its slot_id. Only say a time is booked after this "
+            "succeeds. If it says the slot was taken, check availability again and offer the new times."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "slot_id": {"type": "string"},
+                "details": {
+                    "type": "object",
+                    "properties": {
+                        "vehicle": {"type": "string", "description": "For service: year make model. For a test drive: the car."},
+                        "service_type": {"type": "string", "description": "What the service is for, in their words."},
+                        "transport": {"type": "string", "enum": ["loaner", "shuttle", "wait", "drop_off"]},
+                        "notes": {"type": "string"},
+                    },
+                    "additionalProperties": False,
+                },
+            },
+            "required": ["slot_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "reschedule_or_cancel",
+        "description": (
+            "Move or cancel one of the customer's upcoming appointments (their ids are in get_contact_context). "
+            "To move it, first check_availability for the same kind and pass the new slot_id."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "appointment_id": {"type": "string"},
+                "action": {"type": "string", "enum": ["reschedule", "cancel"]},
+                "new_slot_id": {"type": "string"},
+            },
+            "required": ["appointment_id", "action"],
+            "additionalProperties": False,
+        },
+    },
+]
+TOOL_SPECS.extend(BOOKING_TOOLS)
+
 TOOL_NAMES = frozenset(t["name"] for t in TOOL_SPECS)
 
 
@@ -143,6 +207,9 @@ class ToolBackend(Protocol):
     async def search_knowledge(self, query: str) -> list[dict]: ...
     async def update_lead_fields(self, fields: dict) -> dict: ...
     async def handoff(self, reason: str, brief: str, urgency: str, target_role: str) -> dict: ...
+    async def check_availability(self, kind: str, day: str | None = None, part_of_day: str | None = None) -> dict: ...
+    async def book_appointment(self, slot_id: str, details: dict | None = None) -> dict: ...
+    async def reschedule_or_cancel(self, appointment_id: str, action: str, new_slot_id: str | None = None) -> dict: ...
 
 
 def apply_price_policy(vehicle: dict, price_disclosure: str) -> dict:
@@ -187,4 +254,10 @@ async def run_tool(backend: ToolBackend, name: str, args: dict) -> Any:
         return await backend.update_lead_fields(args.get("fields", {}))
     if name == "handoff":
         return await backend.handoff(args["reason"], args["brief"], args["urgency"], args["target_role"])
+    if name == "check_availability":
+        return await backend.check_availability(args["kind"], args.get("day"), args.get("part_of_day"))
+    if name == "book_appointment":
+        return await backend.book_appointment(args["slot_id"], args.get("details"))
+    if name == "reschedule_or_cancel":
+        return await backend.reschedule_or_cancel(args["appointment_id"], args["action"], args.get("new_slot_id"))
     raise KeyError(name)

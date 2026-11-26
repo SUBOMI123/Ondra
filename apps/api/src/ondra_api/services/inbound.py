@@ -66,7 +66,7 @@ def dealer_clock(tenant: Tenant, now: datetime | None = None) -> tuple[str, bool
     """('Tue 10:48 pm', open_now) in the dealer's first timezone."""
     tz = ZoneInfo((tenant.timezones or ["America/Chicago"])[0])
     local = (now or datetime.now(UTC)).astimezone(tz)
-    label = local.strftime("%a %-I:%M %p").replace("AM", "am").replace("PM", "pm")
+    label = local.strftime("%a %b %-d, %-I:%M %p").replace("AM", "am").replace("PM", "pm")
     hours = (tenant.business_hours or {}).get(local.strftime("%a").lower())
     open_now = bool(hours) and hours[0] <= local.strftime("%H:%M") < hours[1]
     return label, open_now

@@ -183,7 +183,7 @@ class InternalCalendar:
                     hour = cursor.hour
                     wanted = (part_of_day is None or (part_of_day == "morning" and hour < 12)
                               or (part_of_day == "afternoon" and 12 <= hour < 17) or (part_of_day == "evening" and hour >= 17))
-                    if s >= start_from and wanted:
+                    if start_from <= s < until and wanted:
                         who = None
                         if staff:
                             free_staff = [u for u in staff if free(busy_user, u.id, s, block)]
@@ -347,6 +347,25 @@ async def set_status(db: AsyncSession, a: Appointment, status: str, by: str) -> 
     db.add(Event(type=f"appointment.{status}", payload={"appointment_id": str(a.id), "from": before, "by": by}))
     await db.flush()
     return a
+
+
+def resolve_day(tenant: Tenant, day: str | None) -> date | None:
+    """'today', 'tomorrow', a weekday name or abbreviation (the next one, today included), or an ISO date."""
+    if not day:
+        return None
+    today = datetime.now(UTC).astimezone(tz_of(tenant)).date()
+    d = day.strip().lower()
+    if d == "today":
+        return today
+    if d == "tomorrow":
+        return today + timedelta(days=1)
+    for i, name in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")):
+        if d in (name, name[:3]):
+            return today + timedelta(days=(i - today.weekday()) % 7)
+    try:
+        return date.fromisoformat(d[:10])
+    except ValueError:
+        return None
 
 
 def local_window(tenant: Tenant, day: date | None, days: int = 7) -> tuple[datetime, datetime]:
