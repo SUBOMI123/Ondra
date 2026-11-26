@@ -269,10 +269,16 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             for i in range(50):
                 make, model, trims, lo, hi = MODELS[i % len(MODELS)]
                 year = rng.choice([2020, 2021, 2022, 2023, 2024, 2025])
+                # Priced like real stock: new near the top of the model's range, losing value with age and miles
+                # (an example 2025 at zero miles was quoted below used 2022s on the first real call).
+                age = 2025 - year
+                mileage = 0 if age == 0 else min(rng.randint(8000, 13000) * age, 72000)
+                value = hi * 0.87 ** age - mileage * 0.06 + rng.uniform(-0.03, 0.03) * hi
+                price = round(max(value, lo * 0.55) / 100) * 100
                 db.add(Vehicle(
                     tenant_id=t, stock_number=f"{make[:1]}{year % 100:02d}-{1000 + i * 37 % 9000:04d}", vin=_vin(rng),
                     year=year, make=make, model=model, trim=rng.choice(trims),
-                    price=round(rng.uniform(lo, hi) / 100) * 100, mileage=0 if year == 2025 else rng.randint(4000, 68000),
+                    price=price, mileage=mileage,
                     status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed", raw={"body": BODY.get(model, ("car", 5))[0], "seats": BODY.get(model, ("car", 5))[1]},
                 ))
 

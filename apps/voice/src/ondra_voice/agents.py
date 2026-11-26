@@ -109,6 +109,11 @@ class OndraAgent(Agent):
         """The default model step, with every spoken sentence checked first (see `guard`). Tool calls pass
         straight through; only text the caller would hear is held back."""
         desk = self._desk
+        # What the caller has said, from the history this reply answers: always complete, unlike the transcript
+        # events, which can arrive after the reply starts. Without it the checks took the caller's own car ("my
+        # 2021 BMW 330i") for a car Ondra made up, replaced the sentence, and handed the call off (first real call).
+        desk.checks.customer_text = "\n".join(
+            m.text_content or "" for m in chat_ctx.items if getattr(m, "type", None) == "message" and m.role == "user")
 
         def blocked(sentence: str, problems: list[str]) -> None:
             desk.blocked.extend(problems)

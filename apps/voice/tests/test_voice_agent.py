@@ -111,6 +111,8 @@ async def test_greeting_carries_the_dealers_disclosures(database):
     assert "AI assistant" in agents.greeting(desk) and "may be recorded" in agents.greeting(desk)
     # The caller was looked up before the greeting, so the agent starts knowing who they are.
     assert desk.contact_context and "Ben Carter" in agents.instructions(desk)
+    # Speech recognition is told the dealership's name and the stock it may hear about.
+    assert desk.vocabulary[0] == "Prestige Motors" and {"Honda", "CR-V"} <= set(desk.vocabulary)
 
 
 async def test_a_caller_asking_for_a_car_hears_only_the_listed_price(database):
@@ -243,3 +245,22 @@ async def test_goodbye_is_said_once(database):
         said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
     assert said == ["Thanks for calling Prestige Motors. Have a good day."]
     assert len(model.requests) == 1  # no second reply after hanging up
+
+
+async def test_the_callers_own_car_is_not_mistaken_for_an_invented_one(database):
+    """From the first real call: the caller said "2021 BMW 330i", Ondra repeated it, and the made-up-car check
+    replaced the sentence and handed off, because it hadn't seen the caller's words yet."""
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    assert desk.checks.customer_text == ""
+    model = ScriptedLLM([Step(text="Got it, your 2021 BMW 330i. I have Friday at 7:00 in the morning. Does that work?")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="Twenty twenty one BMW three thirty I. Can we do Friday morning?")
+        said = result.expect.next_event().is_message(role="assistant").event().item.text_content
+    assert "BMW 330i" in said and guard.SAFE_LINE not in said and desk.blocked == []
+    # Naming a make nobody mentioned and the tools never returned is still stopped.
+    model = ScriptedLLM([Step(text="We also have a Porsche Cayenne you'd love.")])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="Anything else?")
+        assert guard.SAFE_LINE in result.expect.next_event().is_message(role="assistant").event().item.text_content

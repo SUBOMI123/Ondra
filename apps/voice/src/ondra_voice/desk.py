@@ -22,7 +22,7 @@ from ondra_core.agent.detectors import ReplyContext
 from ondra_core.agent.orchestrator import ToolRecord, _learn
 from ondra_core.agent.prompt import CustomerFacts, DealerFacts
 from ondra_core.agent.tools import run_tool
-from ondra_core.models import Contact, Conversation, Policy, Tenant, User
+from ondra_core.models import Contact, Conversation, Policy, Tenant, User, Vehicle
 from sqlalchemy import select
 
 BLOCK_REASON = {"quotes_final_price": "pricing", "promises_discount": "discount", "values_trade_in": "trade_in",
@@ -50,6 +50,8 @@ class CallDesk:
     # Tools that crashed or refused (e.g. a booking that didn't go through), kept on the call record so staff and
     # engineers can see why without reading the worker's logs.
     tool_problems: list[dict] = field(default_factory=list)
+    # Words speech recognition should expect: the dealership's name and the makes and models in stock.
+    vocabulary: list[str] = field(default_factory=list)
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)
@@ -76,8 +78,12 @@ class CallDesk:
             backend = await _backend(db, plan, dealer)
             # Plan §4.2: look the caller up before the greeting, so the agent starts knowing who they are.
             context = await backend.get_contact_context() if plan.known else None
+            stock = (await db.execute(select(Vehicle.make, Vehicle.model).where(Vehicle.status == "available")
+                                      .distinct().limit(40))).all()
         checks = ReplyContext(price_disclosure=dealer.price_disclosure, today=local_time.split()[0])
-        desk = cls(plan=plan, dealer=dealer, customer=customer, contact_context=context, checks=checks)
+        vocabulary = list(dict.fromkeys([dealer.name] + [w for make, model in stock for w in (make, model)]))[:60]
+        desk = cls(plan=plan, dealer=dealer, customer=customer, contact_context=context, checks=checks,
+                   vocabulary=vocabulary)
         if context:
             _learn(checks, ToolRecord("get_contact_context", {}, context))
         return desk
