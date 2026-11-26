@@ -383,6 +383,25 @@ class ChannelAddress(Base, TenantScoped):
     active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
 
+class Job(Base, TenantScoped):
+    """Durable background work (the AI turn, escalation sweeps). Claimed by workers with SKIP LOCKED through the
+    SECURITY DEFINER function `jobs_claim`; everything else about a job happens inside its tenant's session."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(_in("status", ("queued", "running", "done", "failed")), name="jobs_status"),
+        Index("jobs_ready", "status", "run_at"),
+    )
+    kind: Mapped[str] = mapped_column(String(40))
+    payload: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    status: Mapped[str] = mapped_column(String(10), server_default="queued")
+    run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    max_attempts: Mapped[int] = mapped_column(Integer, server_default="5")
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
 class Event(Base, TenantScoped):
     __tablename__ = "events"
     __table_args__ = (Index("events_type_time", "tenant_id", "type", "occurred_at"),)

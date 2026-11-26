@@ -124,13 +124,13 @@ async def _conversation(db: AsyncSession, contact: Contact, channel: str) -> Con
 
 
 async def _alert(db: AsyncSession, alert: Alert, contact: Contact, conv: Conversation) -> Task:
+    from ondra_api.services.tasks import new_task
+
     preferred = contact.vip_owner_user_id if alert.to == "owner" else conv.assigned_user_id if alert.to == "assigned" else None
     role = "owner" if alert.to == "owner" else "sales" if alert.to == "assigned" else alert.to
-    task = Task(title=f"{contact.display_name}: {alert.reason}", contact_id=contact.id, conversation_id=conv.id,
-                assignee_user_id=await assignee_for(db, role, preferred), source="rule", urgency=alert.urgency,
-                brief=alert.reason)
-    db.add(task)
-    await db.flush()
+    task = await new_task(db, title=f"{contact.display_name}: {alert.reason}", contact_id=contact.id,
+                          conversation_id=conv.id, assignee_user_id=await assignee_for(db, role, preferred),
+                          source="rule", urgency=alert.urgency, brief=alert.reason)
     # The owner's WhatsApp/push notification arrives with Step 8; the event is what the notifier will consume.
     db.add(Event(type="alert.created", payload={"task_id": str(task.id), "to": alert.to, "urgency": alert.urgency,
                                                 "contact_id": str(contact.id), "reason": alert.reason}))
@@ -165,7 +165,9 @@ async def find_tenant(channel: str, address: str) -> uuid.UUID | None:
         return (await db.execute(text("SELECT channel_find_tenant(:c, :a)"), {"c": channel, "a": address})).scalar()
 
 
-async def ingest(msg: InboundMessage) -> IngestResult:
+async def ingest(msg: InboundMessage, *, queue_agent: bool = True) -> IngestResult:
+    """Store the message and apply the pre-policy. When the AI may answer and `queue_agent` is set, the AI turn is
+    queued as a job in the same transaction, so a stored message always has its turn queued."""
     tenant_id = await find_tenant(msg.channel, msg.to_address)
     if tenant_id is None:
         log.warning("inbound to unknown %s address", msg.channel)
@@ -201,6 +203,11 @@ async def ingest(msg: InboundMessage) -> IngestResult:
             await _record_consent(db, contact, decision.consent_change, inserted, msg.channel)
         if decision.alert:
             await _alert(db, decision.alert, contact, conv)
+        if decision.run_ai and queue_agent:
+            from ondra_api.services.jobs import enqueue
+
+            enqueue(db, "agent_turn", {"conversation_id": str(conv.id), "message_id": str(inserted),
+                                       "draft": decision.draft})
         db.add(Event(type="message.received", payload={
             "message_id": str(inserted), "conversation_id": str(conv.id), "channel": msg.channel,
             "decision": decision.reason, "run_ai": decision.run_ai, "draft": decision.draft,
@@ -312,7 +319,7 @@ async def run_agent(tenant_id: uuid.UUID, conversation_id: uuid.UUID, message_id
 
 async def handle(msg: InboundMessage) -> tuple[IngestResult, AgentOutcome | None]:
     """Ingest, then run the agent if the policy allows. Used inline by tests and evals, and as the background job."""
-    res = await ingest(msg)
+    res = await ingest(msg, queue_agent=False)
     if res.status != "stored" or not res.run_ai:
         return res, None
     return res, await run_agent(res.tenant_id, res.conversation_id, res.message_id, res.draft)

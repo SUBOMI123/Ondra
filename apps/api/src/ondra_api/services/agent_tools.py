@@ -152,7 +152,10 @@ class DbToolBackend:
     async def handoff(self, reason: str, brief: str, urgency: str, target_role: str) -> dict:
         c = self.contact
         preferred = c.vip_owner_user_id if target_role == "owner" else None
-        task = Task(
+        from ondra_api.services.tasks import new_task
+
+        task = await new_task(
+            self.db,
             title=f"{c.display_name}: {reason.replace('_', ' ')}",
             contact_id=c.id,
             conversation_id=self.conversation.id,
@@ -161,7 +164,6 @@ class DbToolBackend:
             urgency=urgency if urgency in ("low", "normal", "high") else "normal",
             brief=brief,
         )
-        self.db.add(task)
         self.conversation.status = "waiting_staff"
         if reason == "unknown_answer":
             await self._record_gap(self.last_question or brief)

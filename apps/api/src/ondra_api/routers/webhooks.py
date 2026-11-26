@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from urllib.parse import parse_qsl
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from ondra_core.channels.base import (
     ChannelAdapter,
     InboundMessage,
@@ -41,7 +41,7 @@ async def _request(request: Request) -> WebhookRequest:
                           dict(request.query_params), body, form)
 
 
-async def _process(adapter: ChannelAdapter, req: WebhookRequest, background: BackgroundTasks) -> dict:
+async def _process(adapter: ChannelAdapter, req: WebhookRequest) -> dict:
     try:
         adapter.verify_signature(req)
     except SignatureError as exc:
@@ -59,24 +59,24 @@ async def _process(adapter: ChannelAdapter, req: WebhookRequest, background: Bac
             await inbound.mark_status(ev)
             continue
         assert isinstance(ev, InboundMessage)
-        res = await inbound.ingest(ev)
+        inline = get_settings().agent_inline
+        # Normally the AI turn is queued as a durable job in the same transaction (the worker runs it). Inline mode
+        # runs it before answering, for local debugging and tests.
+        res = await inbound.ingest(ev, queue_agent=not inline)
         if res.status == "duplicate":
             duplicates += 1
             continue
         stored += res.status == "stored"
-        if res.run_ai:
-            if get_settings().agent_inline:
-                await inbound.run_agent(res.tenant_id, res.conversation_id, res.message_id, res.draft)
-            else:
-                background.add_task(inbound.run_agent, res.tenant_id, res.conversation_id, res.message_id, res.draft)
+        if res.run_ai and inline:
+            await inbound.run_agent(res.tenant_id, res.conversation_id, res.message_id, res.draft)
     return {"stored": stored, "duplicates": duplicates}
 
 
 @router.post("/mock/{channel}")
-async def mock_webhook(channel: str, request: Request, background: BackgroundTasks) -> dict:
+async def mock_webhook(channel: str, request: Request) -> dict:
     if channel not in CHANNELS:
         raise HTTPException(404)
-    return await _process(mock(channel), await _request(request), background)
+    return await _process(mock(channel), await _request(request))
 
 
 def _enabled(channel: str) -> ChannelAdapter:
@@ -95,17 +95,17 @@ async def whatsapp_verify(request: Request) -> Response:
 
 
 @router.post("/whatsapp")
-async def whatsapp_webhook(request: Request, background: BackgroundTasks) -> dict:
-    return await _process(_enabled("whatsapp"), await _request(request), background)
+async def whatsapp_webhook(request: Request) -> dict:
+    return await _process(_enabled("whatsapp"), await _request(request))
 
 
 @router.post("/twilio/sms")
-async def twilio_webhook(request: Request, background: BackgroundTasks) -> Response:
-    await _process(_enabled("sms"), await _request(request), background)
+async def twilio_webhook(request: Request) -> Response:
+    await _process(_enabled("sms"), await _request(request))
     # Twilio expects TwiML. An empty response means "don't reply here"; replies go out through the REST API.
     return Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', media_type="text/xml")
 
 
 @router.post("/postmark/inbound")
-async def postmark_webhook(request: Request, background: BackgroundTasks) -> dict:
-    return await _process(_enabled("email"), await _request(request), background)
+async def postmark_webhook(request: Request) -> dict:
+    return await _process(_enabled("email"), await _request(request))

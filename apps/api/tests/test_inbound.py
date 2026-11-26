@@ -11,6 +11,7 @@ import uuid
 import pytest
 from ondra_api import channels
 from ondra_api.db import tenant_session
+from ondra_api import worker
 from ondra_api.services import inbound
 from ondra_core.agent.llm import ScriptedLLM
 from ondra_core.models import (
@@ -64,7 +65,9 @@ async def contact_named(tenant_id, name):
 
 async def post(client, channel, frm, body, msg_id=None, to=DEALER):
     payload = {"id": msg_id or f"m-{uuid.uuid4().hex[:10]}", "from": frm, "to": to, "text": body}
-    return await client.post(f"/webhooks/mock/{channel}", content=json.dumps(payload), headers=SIG)
+    r = await client.post(f"/webhooks/mock/{channel}", content=json.dumps(payload), headers=SIG)
+    await worker.run_once()  # the production path: the webhook queues the AI turn, the worker runs it
+    return r
 
 
 async def messages_for(tenant_id, contact_id):

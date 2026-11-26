@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 2 done, waiting for review. **Next:** Step 3, Inbox
+**Last updated:** 2026-11-26. **Now:** Step 3, Inbox, clients and tasks (API first). **Next:** Step 4, Booking
 
 ## Build steps
 
@@ -11,7 +11,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 |---|---|---|
 | 1 | Foundations: monorepo, Docker Compose, Postgres with row-level security, auth and roles, dashboard shell, seed data | **Done** (accepted 2026-11-25) |
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
-| 3 | Inbox, clients, tasks (API first, then screens) | Not started; screens designed with example data |
+| 3 | Inbox, clients, tasks (API first, then screens) | **In progress**: job queue and worker done; conversations, tasks and live-update APIs next, then screens |
 | 4 | Booking | Not started; Calendar designed with example data |
 | 5 | Voice | Not started; Calls designed with example data |
 | 6 | Routing, follow-ups, learning loop | Not started |
@@ -58,7 +58,6 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 ## Known gaps (honest list)
 
-- The AI turn runs as a background task, not a durable queue: an API restart mid-reply loses that reply (Step 3 moves it to the worker).
 - Delivery receipts from providers are logged, not stored.
 - Team invites are shown as a link to copy; nothing is emailed yet.
 - Connecting a channel registers the address; provider onboarding (Meta Embedded Signup, Twilio numbers) is Step 11.

@@ -207,3 +207,15 @@ Team management (`users:manage`): invite, change role, deactivate or reactivate.
 
 **Result** over 100 model turns: median 3.2 s, p90 4.6 s, and one email reply at 5.6 s. Quality held: 110 of 110 conversations passed.
 **Not done:** a faster model for the final reply-writing round. That would change the plan's model choice (§6.1), so it's the founder's call. Revisit if voice needs it.
+
+## 2026-11-26: Background work runs on a job queue in Postgres
+
+**Decision:** durable jobs live in a `jobs` table: RLS-scoped, claimed across tenants by the `SECURITY DEFINER` function `jobs_claim` with `FOR UPDATE SKIP LOCKED` and a 120 s lease. The worker is `python -m ondra_api.worker`, the API image with a different command, run as the `worker` compose service.
+- **The AI turn is a job.** It's queued in the same transaction that stores the inbound message, so a stored message always has its turn queued.
+- **Retries:** failed jobs retry with exponential backoff (10 s, 20 s, 40 s…) up to `max_attempts`, then stay `failed` with the error kept. A job stuck in `running` past its lease (a crashed worker) is claimed again.
+- **Escalation:** every 60 s the worker sweeps for overdue tasks.
+
+**Deadlines:** high urgency 15 min, normal 2 h, low 1 day, counted only in the dealer's opening hours, so overnight leads don't escalate at 1 am. An overdue task escalates once: urgency becomes high, and it goes to a manager, or to the owner if a manager already had it. Both a `task.escalated` and an `alert.created` event are recorded.
+**Why:** the plan calls for a worker (`apps/worker` in §13) but names no queue. Postgres needs no new infrastructure, and RLS covers jobs like any other dealer data. The worker lives in the API package because every job reuses API services; a separate `apps/worker` package would only re-export them.
+**Alternatives:** Redis with RQ or Celery (new infrastructure to run and secure); a cloud queue (ties local dev to an account).
+**Known limit:** if a worker crashes after the provider accepted a send but before the job is marked done, the retry can send that reply twice. Fix with an idempotency key per outbound message when real providers go live.

@@ -77,8 +77,11 @@ class CustomerFacts:
 
 
 CHANNEL_STYLE = {
-    "sms": "This is a text message. Keep it under 320 characters, no links unless asked, no formatting.",
-    "whatsapp": "This is WhatsApp. Keep it under 500 characters, no markdown headings.",
+    "sms": "This is a text message. Keep it under 320 characters, in plain sentences: no lists, bullet points, "
+    "dashes or other formatting, no links unless asked. If several cars match, mention the best one or two in a "
+    "sentence and ask what matters most.",
+    "whatsapp": "This is WhatsApp. Keep it under 500 characters, in plain sentences: no markdown, headings or bullet "
+    "lists. If several cars match, mention the best one or two in a sentence.",
     "email": "This is an email reply. A short greeting with their name if known, two or three short paragraphs at "
     "most, sign off as the dealership's team. No subject line.",
 }
