@@ -31,7 +31,13 @@ async def _agent_turn(tenant_id: uuid.UUID, p: dict) -> None:
     await inbound.run_agent(tenant_id, uuid.UUID(p["conversation_id"]), uuid.UUID(p["message_id"]), p["draft"])
 
 
-HANDLERS = {"agent_turn": _agent_turn}
+async def _reminder(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.reminders import send_reminder
+
+    log.info("reminder %s: %s", p.get("appointment_id"), await send_reminder(tenant_id, p))
+
+
+HANDLERS = {"agent_turn": _agent_turn, "appointment_reminder": _reminder}
 
 
 async def run_once(limit: int = 10) -> int:

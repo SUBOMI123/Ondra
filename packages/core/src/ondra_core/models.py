@@ -232,6 +232,7 @@ class Vehicle(Base, TenantScoped):
 class AppointmentType(Base, TenantScoped):
     __tablename__ = "appointment_types"
     name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)  # what the AI and staff see when choosing a type
     category: Mapped[str] = mapped_column(String(40))
     duration_min: Mapped[int] = mapped_column(Integer)
     buffer_min: Mapped[int] = mapped_column(Integer, server_default="0")
@@ -278,6 +279,24 @@ class Appointment(Base, TenantScoped):
     status: Mapped[str] = mapped_column(String(12), server_default="booked")
     source: Mapped[str] = mapped_column(String(16))
     external_ref: Mapped[str | None] = mapped_column(String(200))
+    # The person/bay is busy until here (end + the type's buffer). Overlaps on this range are refused by an
+    # exclusion constraint, so two bookings can never take the same person or bay, even in a race.
+    blocks_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"))
+    details: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))  # loaner, notes, vehicle
+    reminders_sent: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+
+
+class AppointmentResource(Base, TenantScoped):
+    """A bay, loaner or room held by an appointment. Its own overlap constraint keeps one resource from being
+    double-booked; `active` turns off when the appointment is cancelled or moved."""
+
+    __tablename__ = "appointment_resources"
+    appointment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("appointments.id", ondelete="CASCADE"), index=True)
+    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("resources.id", ondelete="CASCADE"))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    blocks_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
 
 class Task(Base, TenantScoped):

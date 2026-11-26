@@ -8,12 +8,13 @@ example data: 555 phone numbers, example.com emails. Every seeded user's passwor
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 import random
 import sys
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from ondra_core.models import (
+    AppointmentType,
     ChannelAddress,
     Consent,
     Contact,
@@ -23,6 +24,7 @@ from ondra_core.models import (
     KnowledgeDoc,
     Message,
     Policy,
+    Resource,
     Task,
     Tenant,
     User,
@@ -187,6 +189,17 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             # The dealer's own number, WhatsApp and email. They use the mock adapters until a provider flag is on.
             for channel, address in (("sms", DEALER_PHONE), ("whatsapp", DEALER_PHONE), ("email", DEALER_EMAIL)):
                 db.add(ChannelAddress(tenant_id=t, channel=channel, address=address, provider="mock"))
+            # Booking: the templates as this dealer's appointment types, three service bays and two loaners.
+            from ondra_api.services.booking import DEFAULT_REMINDERS, TEMPLATES
+
+            service_hours = {d: ["07:00", "18:00"] for d in ("mon", "tue", "wed", "thu", "fri")} | {"sat": ["08:00", "14:00"]}
+            for key, tpl in TEMPLATES.items():
+                db.add(AppointmentType(tenant_id=t, **tpl, reminder_schedule=DEFAULT_REMINDERS,
+                                       bookable_hours=service_hours if tpl["category"] == "service" else {}))
+            for name in ("Bay 1", "Bay 2", "Bay 3"):
+                db.add(Resource(tenant_id=t, kind="service_bay", name=name))
+            for name in ("Loaner 1", "Loaner 2"):
+                db.add(Resource(tenant_id=t, kind="loaner", name=name))
             for title, body, category in KNOWLEDGE:
                 db.add(KnowledgeDoc(tenant_id=t, title=title, body=body, category=category))
 
