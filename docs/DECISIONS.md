@@ -884,3 +884,21 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   done.
 - **Accuracy:** detection isn't perfect (long business greetings can read as a machine, a terse "yeah?" as a
   person). "Spoke to them" and the menu still correct it by hand. Twilio charges per detection.
+
+## 2026-11-27: Staging on Fly.io (San Jose) and Supabase (Oregon)
+
+- **Fly.io over Render** (founder): cheaper at this size, and the voice worker runs there too, next to the API, so
+  there is one deploy tool, one place for logs and secrets. The voice worker connects out to LiveKit Cloud, which
+  stays the phone exchange (SIP and media); hosting the worker on LiveKit was the alternative.
+- **Supabase over Neon:** the job worker polls and the dashboard holds a LISTEN connection, so the database never
+  idles and Neon's scale-to-zero wouldn't save anything. Supabase's `postgres` role turned out to have CREATEROLE
+  and BYPASSRLS (checked on the project), so the same two-role model as local development works: `ondra_owner`
+  (owns the tables, bypasses RLS, runs migrations and the seed) and `ondra_app` (no bypass). Connection: Supabase's
+  direct connection, which keeps LISTEN/NOTIFY (the transaction pooler doesn't).
+- **San Jose, not Dallas:** the database is in Oregon and the voice worker queries it several times per turn; Fly's
+  Seattle region is deprecated, so San Jose is the closest. Re-site both together (database and machines) if
+  latency to Texas callers matters more than database round-trips; that's a measurement for the first calls.
+- **Free tiers for now** (Supabase Free, LiveKit Build, Fly without a card: 3 machines): about $10-25 a month. Not
+  fit for real dealer data: no backups, call minutes capped.
+- **Public-site safety:** the API refuses to start over https with the repo's development JWT_SECRET or
+  MOCK_WEBHOOK_SECRET, and the seed refuses demo users without a SEED_PASSWORD there.

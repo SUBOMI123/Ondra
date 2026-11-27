@@ -5,7 +5,7 @@
 # the image's CMD; [[vm]] with `processes` sizes each group.
 
 app = "ondra-api-staging"
-primary_region = "sea"  # Seattle: next to the Supabase project (us-west-2, Oregon)
+primary_region = "sjc"  # San Jose: the nearest open region to the Supabase project (us-west-2, Oregon); sea is deprecated
 
 [deploy]
   # Migrations as the owner role, then the demo dealership if the database is empty (SEED_PASSWORD required).

@@ -1,0 +1,9 @@
+// Cloudflare Workers config for the dealer dashboard (staging). NEXT_PUBLIC_* values are baked in at build time:
+// see the deploy:cf script in package.json and docs/DEPLOY.md. Route: app.useondra.com once that zone is on Cloudflare.
+{
+  "name": "ondra-web-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" }
+}

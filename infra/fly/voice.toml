@@ -3,7 +3,7 @@
 # 2 GB: the turn-detection model loads into memory.
 
 app = "ondra-voice-staging"
-primary_region = "sea"
+primary_region = "sjc"
 
 [env]
   APP_BASE_URL = "https://app.useondra.com"

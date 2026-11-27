@@ -153,7 +153,7 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Which DMS the first pilot dealers use, and their partner programme | A live DMS connection | Open (plan §17 Q4) |
 | Choose a speech-to-text service for the owner's voice notes (recorded files, not live calls) | Real voice notes to the assistant | Open |
 | Get `ondra_morning_briefing` and `ondra_alert` approved in each pilot dealer's WhatsApp Business account | Briefings and alerts outside the 24-hour window | Not started (needs the dealer's WhatsApp connected first) |
-| Container host and managed Postgres | First staging deploy | Not decided |
+| Container host and managed Postgres | First staging deploy | **Decided and live (2026-11-27):** Fly.io (API, job worker, voice worker in San Jose) + Supabase (Oregon), see docs/DEPLOY.md. The dashboard waits on useondra.com being on Cloudflare |
 
 ## Known gaps (honest list)
 
