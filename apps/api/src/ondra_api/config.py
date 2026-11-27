@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_messaging_service_sid: str = ""
+    # Calling a missed caller back through the dealer's line (services/bridge.py). Off: a mock that places nothing;
+    # with MOCK_BRIDGE_AUTOPLAY it plays a call out against the local webhooks so the flow can be seen.
+    feature_call_bridge: bool = False
+    mock_bridge_autoplay: bool = False
     feature_email: bool = False
     postmark_server_token: str = ""
     postmark_inbound_user: str = ""

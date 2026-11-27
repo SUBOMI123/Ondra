@@ -7,6 +7,8 @@
     POST /calls/{id}/called-back     {result: reached|left_message}. Reached: all their waiting calls are done and the
                                      call-back task is finished. Left a message: noted on the call, it stays on the list.
     POST /calls/{id}/reopen          undo "reached": the calls and the task go back to waiting
+    POST /calls/{id}/bridge          call them back through the dealer's line: Ondra rings your phone, you press 1,
+                                     it dials them showing the number they rang (services/bridge.py)
 
 VIP calls show who called but never an AI summary (VIPs never get AI content), and are hidden from roles that can't
 see VIPs, like everywhere else.
@@ -15,7 +17,7 @@ see VIPs, like everywhere else.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -28,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.routers.conversations import LIVE_FOR, call_line
+from ondra_api.services import bridge
 from ondra_api.services.calls import CALLBACK_BRIEFS, first_try, mark_called_back, waiting_calls
 
 router = APIRouter(tags=["calls"])
@@ -54,7 +57,29 @@ def _stamp(s: dict | None, names: dict) -> dict | None:
     if not s:
         return None
     by = s.get("by")
-    return {"by": names.get(uuid.UUID(by)) if by else None, "at": s.get("at")}
+    # how: left_message (marked by hand), short (a call through Ondra under a minute), no_answer (it rang out)
+    return {"by": names.get(uuid.UUID(by)) if by else None, "at": s.get("at"), "how": s.get("how", "left_message"),
+            "seconds": s.get("seconds")}
+
+
+LIVE_BRIDGE = ("ringing_you", "asked", "dialing_them")
+
+
+def _bridge_live(state: str | None, started: datetime | None) -> bool:
+    """Still under way. Ringing or waiting for a key gives up after a few minutes even if a webhook never comes, so
+    a lost callback can't block calling them again; a connected call can run as long as any call."""
+    if state not in LIVE_BRIDGE or started is None:
+        return False
+    return datetime.now(UTC) - started < (LIVE_FOR if state == "dialing_them" else timedelta(minutes=3))
+
+
+def _bridge_out(b: dict | None, names: dict) -> dict | None:
+    """An outbound call-back through the dealer's line: who made it, where it's got to, and how it ended."""
+    if not b:
+        return None
+    by = b.get("user_id")
+    return {"by": names.get(uuid.UUID(by)) if by else None, "by_id": by, "state": b.get("state"), "result": b.get("result"),
+            "for_call": b.get("for_call")}
 
 
 SHOW = {"missed": ("missed",), "ondra": ("ai",), "people": ("staff", "owner")}
@@ -66,7 +91,9 @@ def _out(call: Call, c: Contact | None, names: dict, full: bool = False, text_ba
     out = {
         "id": str(call.id), "direction": call.direction, "handled_by": call.handled_by, "outcome": call.outcome,
         "started_at": call.started_at.isoformat() if call.started_at else None, "duration_s": call.duration_s,
-        "live": call.ended_at is None and call.started_at is not None and datetime.now(UTC) - call.started_at < LIVE_FOR,
+        # Ondra on a call right now. A call-back a person is making through the line isn't that (see "bridge").
+        "live": call.direction != "outbound" and call.ended_at is None and call.started_at is not None
+                and datetime.now(UTC) - call.started_at < LIVE_FOR,
         "line": call_line(call.handled_by, call.ended_at is None and call.started_at is not None
                           and datetime.now(UTC) - call.started_at < LIVE_FOR, vip, names.get(call.transferred_to_user_id), None),
         "recording_notice": bool((call.metrics or {}).get("recording_notice")),
@@ -76,9 +103,15 @@ def _out(call: Call, c: Contact | None, names: dict, full: bool = False, text_ba
         "transferred_to": names.get(call.transferred_to_user_id),
         "summary": None if vip else call.summary,
         "text_back": text_back,
+        "bridge": _bridge_out((call.metrics or {}).get("bridge"), names),
         "called_back": _stamp((call.metrics or {}).get("callback"), names) if call.callback_done_at else None,
         "attempts": [_stamp(a, names) for a in (call.metrics or {}).get("callback_attempts") or []],
     }
+    if call.direction == "outbound" and out["bridge"]:
+        b = out["bridge"]
+        who = (b["by"] or "Someone").split(" ")[0]
+        out["line"] = {"spoke": f"{who} called them back", "short": f"{who} called them back, a short call",
+                       "no_answer": f"{who} called them back, no answer"}.get(b["result"] or "", f"{who} is calling them back")
     if full:
         out["transcript"] = call.transcript or []
         out["recording_url"] = call.recording_url if call.recording_consent else None
@@ -115,10 +148,20 @@ async def list_calls(show: Literal["all", "missed", "ondra", "people"] = Query("
             out["callback_by"] = owners.get(call.contact_id)
             waiting[key] = out
         items.append(out)
-    counts = {k: sum(1 for i in items if i["handled_by"] in v and not i["live"]) for k, v in SHOW.items()}
+    # A call-back in progress shows on the caller's waiting row ("Ondra is ringing Daniel").
+    calling = {i["contact"]["id"]: i["bridge"] for i in items if i["direction"] == "outbound" and i["bridge"] and i["contact"]
+               and _bridge_live(i["bridge"]["state"], datetime.fromisoformat(i["started_at"]) if i["started_at"] else None)}
+    for i in items:
+        if i["needs_callback"] and i["contact"]:
+            i["calling"] = calling.get(i["contact"]["id"])
+    # A call-back is a row of its own once it has rung the customer; while it's under way the caller's row says so,
+    # and one the salesperson never connected (didn't pick up, didn't press 1) never reached the customer at all.
+    items = [i for i in items if i["direction"] != "outbound" or (i["bridge"] and i["bridge"]["result"])]
+    inbound = [i for i in items if i["direction"] != "outbound"]
+    counts = {k: sum(1 for i in inbound if i["handled_by"] in v and not i["live"]) for k, v in SHOW.items()}
     counts["all"] = len(items)
     if show != "all":
-        items = [i for i in items if i["handled_by"] in SHOW[show] and not i["live"]]
+        items = [i for i in inbound if i["handled_by"] in SHOW[show] and not i["live"]]
     return {"items": items[:100], "counts": counts}
 
 
@@ -196,3 +239,41 @@ async def reopen(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(
     await db.flush()
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
     return _out(call, c, names)
+
+
+@router.post("/calls/{call_id}/bridge", status_code=201)
+async def call_through_ondra(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_REPLY))) -> dict:
+    """A person returning a missed call, placed through the dealer's line. Never automatic: a person taps it each
+    time, and it rings them first."""
+    caller, db = ctx
+    missed, c = await _visible(db, caller, call_id)
+    if missed.handled_by != "missed" or missed.callback_done_at is not None:
+        raise HTTPException(409, "This caller isn't waiting for a call back.")
+    if not missed.from_number or not missed.to_number:
+        raise HTTPException(409, "There's no number to call them back on.")
+    me = await db.get(User, caller.user_id)
+    if not me or not me.phone:
+        raise HTTPException(409, "Ondra needs your mobile number to ring you first. An owner can add it on Team.")
+    busy = (await db.execute(select(Call).where(Call.direction == "outbound", Call.contact_id == missed.contact_id,
+                                                Call.ended_at.is_(None), Call.started_at > datetime.now(UTC) - LIVE_FOR))).scalars()
+    if any(_bridge_live(((k.metrics or {}).get("bridge") or {}).get("state"), k.started_at) for k in busy):
+        raise HTTPException(409, "Someone is already calling them back.")
+    name = c.display_name if c and not c.display_name.startswith("+") else "the caller"
+    out = Call(conversation_id=missed.conversation_id, contact_id=missed.contact_id, direction="outbound", handled_by="staff",
+               started_at=datetime.now(UTC), from_number=missed.to_number, to_number=missed.from_number,
+               transferred_to_user_id=me.id, provider_call_sid=f"pending-{uuid.uuid4().hex}",
+               metrics={"bridge": {"for_call": str(missed.id), "user_id": str(me.id), "state": "ringing_you"}})
+    db.add(out)
+    await db.flush()
+    base = bridge.webhook_base(caller.tenant_id, out.id)
+    try:
+        out.provider_call_sid = await bridge.dialer().place(to=me.phone, from_=missed.to_number,
+                                                            twiml=bridge.ask_to_connect(base, name),
+                                                            status_callback=f"{base}/status")
+    except bridge.BridgeError as e:
+        out.ended_at, out.outcome = datetime.now(UTC), "failed"
+        out.metrics = {"bridge": {**out.metrics["bridge"], "state": "failed"}}
+        await db.commit()
+        raise HTTPException(502, str(e)) from None
+    db.add(Event(type="call.bridge_started", payload={"call_id": str(out.id), "for_call": str(missed.id), "by": str(me.id)}))
+    return {"id": str(out.id), "state": "ringing_you", "your_phone": me.phone}

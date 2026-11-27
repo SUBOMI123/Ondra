@@ -124,7 +124,7 @@ function describe(e: Trace["events"][number]) {
   const d = e.detail
   if (e.type === "callback.first_try") {
     const rang = typeof d.rings === "number" && d.rings > 1 ? `Rang ${d.rings} times. ` : ""
-    const did = d.result === "reached" ? "Spoke to them" : "Left a message"
+    const did = d.result === "reached" ? "Spoke to them" : d.result === "no_answer" ? "Called, no answer," : d.result === "short" ? "A short call, likely voicemail," : "Left a message"
     return { by: typeof d.by === "string" ? d.by : null, text: `${rang}${did} ${duration(Number(d.seconds))} after the first ring, counting open hours` }
   }
   const by = d.by === "ai" || d.source === "ai" || d.handled_by === "ai" ? "Ondra" : d.by === "user" || d.source === "staff" || d.handled_by === "staff" ? "your team"

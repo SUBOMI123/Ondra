@@ -112,6 +112,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Inventory: days on the lot, buyers asking, make filter and sorts, hold/sold from the row, car panel with buyers | Done |
 | Calls: filters (missed, Ondra answered, put through), one row per waiting caller, call and mark done from the row, who rang back and how long it took, undo | Done |
 | Today: time to call back (median, open hours, per person) and one "callers waiting" line | Done |
+| Calls: call back through the dealer's line (rings you, press 1, dials them from the dealer's number), logged automatically | Built against a mock; needs Twilio live |
 
 ## Voice backlog (parked 2026-11-27)
 
@@ -140,6 +141,8 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Counsel: is a customer's own inbound text consent to a follow-up text a day later? Today it isn't, so most text follow-ups become tasks for a person | How much follow-ups do by text | Open |
 | Counsel: should quiet hours also hold appointment reminders and late-night replies? Today they hold follow-ups only | Quiet hours scope | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
+| Counsel: may a person return a missed call through Ondra's line to someone who texted STOP? Today yes (a person taps it each time, returning their call) | Call-back through the dealer's line | Open |
+| Twilio: the dealer's number as a Twilio number or a verified caller ID, and a public API URL for the call-back webhooks | Call-back through the dealer's line going live | Not started |
 | Counsel: is a caller's recorded spoken yes on a call enough consent to text them the details they asked for? (Ondra records it today) | Texting details from calls | Open |
 | A computer to run the stack for the acceptance call (or a host); your mobile in Settings > Team | First real call | Waiting |
 | Meta Business verification, Tech Provider application | Live WhatsApp | Not started (weeks) |

@@ -11,7 +11,7 @@
  * Data: GET /calls?show=, GET /calls/{id}, POST /calls/{id}/called-back, POST /calls/{id}/reopen; live updates refresh it.
  */
 
-import { IconChevronDown, IconPhone, IconPhoneCall, IconPhoneIncoming, IconPhoneX } from "@tabler/icons-react"
+import { IconChevronDown, IconPhone, IconPhoneCall, IconPhoneIncoming, IconPhoneOutgoing, IconPhoneX } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -20,8 +20,9 @@ import { toast } from "sonner"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
+import { useAuth } from "@/components/providers"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -48,14 +49,19 @@ type Call = {
   text_back: { sent: boolean; reason?: string } | null
   line: string
   recording_notice: boolean
+  direction: "inbound" | "outbound"
   called_back: Stamp | null
   attempts: Stamp[]
+  /** A call-back through the dealer's line: this call is one (outbound), or one is under way for this caller. */
+  bridge: Bridge | null
+  calling?: Bridge | null
   /** On the call-back list only: how many times they rang before anyone rang back, and who's to ring them. */
   rings?: number
   first_rang_at?: string | null
   callback_by?: string | null
 }
-type Stamp = { by: string | null; at: string | null }
+type Stamp = { by: string | null; at: string | null; how?: "left_message" | "short" | "no_answer"; seconds?: number | null }
+type Bridge = { by: string | null; by_id: string | null; state: "ringing_you" | "asked" | "dialing_them" | "ended" | "you_missed" | "not_connected" | "failed"; result: string | null }
 type Show = "all" | "missed" | "ondra" | "people"
 const SHOWS: [Show, string][] = [["all", "All"], ["missed", "Missed"], ["ondra", "Ondra answered"], ["people", "Put through"]]
 type CallDetail = Call & {
@@ -119,7 +125,8 @@ function later(from: string | null, to: string | null) {
 function progress(c: Call) {
   if (c.called_back) return `Called back by ${firstName(c.called_back.by)} ${later(c.started_at, c.called_back.at)}`
   const last = c.attempts[c.attempts.length - 1]
-  const tried = last ? `${firstName(last.by)} left a message ${isToday(last.at!) ? "at" : "on"} ${when(last.at)}` : ""
+  const did = last?.how === "no_answer" ? "called, no answer," : last?.how === "short" ? `called for ${length(last.seconds ?? 0)}, likely voicemail,` : "left a message"
+  const tried = last ? `${firstName(last.by)} ${did} ${isToday(last.at!) ? "at" : "on"} ${when(last.at)}` : ""
   // Who's to ring them, unless it's the same person who already tried ("Daniel left a message" says it).
   const owner = c.callback_by && (!last || last.by !== c.callback_by) ? `For ${firstName(c.callback_by)} to call back` : ""
   return [owner, tried].filter(Boolean).join(". ")
@@ -127,6 +134,7 @@ function progress(c: Call) {
 
 /** Why a call is on the call-back list, or what happened, in plain words. */
 function why(c: Call) {
+  if (c.direction === "outbound") return c.line  // "Daniel called them back", from the API
   if (c.handled_by === "missed") {
     const missed = (c.rings ?? 1) > 1 ? `Rang ${times(c.rings!)} since ${when(c.first_rang_at ?? null)}` : "Missed"
     if (c.contact?.is_vip) return `${missed}. Nobody picked up`
@@ -195,16 +203,45 @@ function useCallBack() {
   })
 }
 
+function useBridge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (c: Call) => send<{ your_phone: string }>("POST", `/calls/${c.id}/bridge`),
+    onSuccess: (r, c) => {
+      toast(`Ondra is ringing you on ${phone(r.your_phone)}. Pick up and press 1 to call ${who(c).split(" ")[0]}.`)
+      qc.invalidateQueries({ queryKey: ["calls"] })
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Couldn't start the call. Try again."),
+  })
+}
+
+/** Where a call-back through Ondra has got to, in words, while it's happening. */
+function Calling({ b, c }: { b: Bridge; c: Call }) {
+  const { me } = useAuth()
+  const mine = !!me && b.by_id === me.id
+  const first = who(c).split(" ")[0]
+  const text =
+    b.state === "dialing_them" ? `${mine ? "You're" : `${firstName(b.by)} is`} on the line to ${first}.`
+      : b.state === "asked" ? (mine ? `Press 1 on your phone to call ${first}.` : `${firstName(b.by)} is about to call ${first}.`)
+        : mine ? "Ondra is ringing your phone. Pick up and press 1." : `Ondra is ringing ${firstName(b.by)} to call ${first} back.`
+  return (
+    <p role="status" className="flex items-center gap-2 text-sm">
+      <IconPhoneCall className="size-4 shrink-0 text-muted-foreground motion-safe:animate-pulse" aria-hidden="true" /> {text}
+    </p>
+  )
+}
+
 function CallBackActions({ c, compact }: { c: Call; compact?: boolean }) {
   const done = useCallBack()
+  const bridge = useBridge()
   const first = who(c).split(" ")[0]
+  if (c.calling) return <Calling b={c.calling} c={c} />
   return (
     <div className="flex flex-wrap items-center gap-2">
       {c.from_number && (
-        <Button variant={compact ? "outline" : "default"} size={compact ? "sm" : "default"} asChild>
-          <a href={`tel:${c.from_number}`} aria-label={`Call ${who(c)} on ${phone(c.from_number)}`}>
-            <IconPhone /> {compact ? <span className="tabular-nums">{phone(c.from_number)}</span> : `Call ${first} back`}
-          </a>
+        <Button variant={compact ? "outline" : "default"} size={compact ? "sm" : "default"} disabled={bridge.isPending}
+          onClick={() => bridge.mutate(c)} aria-label={`Call ${who(c)} back. Ondra rings your phone first`}>
+          <IconPhone /> Call {first} back
         </Button>
       )}
       <DropdownMenu>
@@ -216,6 +253,15 @@ function CallBackActions({ c, compact }: { c: Call; compact?: boolean }) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => done.mutate({ c, result: "reached" })}>Spoke to {first}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => done.mutate({ c, result: "left_message" })}>No answer, left a message</DropdownMenuItem>
+          {c.from_number && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                {/* Not logged, and they'll see your own number. For when the dealership line can't be used. */}
+                <a href={`tel:${c.from_number}`}>Call from your own phone, <span className="tabular-nums">{phone(c.from_number)}</span></a>
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -228,14 +274,15 @@ function CallRow({ c, onOpen }: { c: Call; onOpen: () => void }) {
   const vip = !!c.contact?.is_vip
   const missed = c.handled_by === "missed"
   const ai = c.handled_by === "ai"
-  const Icon = missed ? IconPhoneX : IconPhoneIncoming
+  const out = c.direction === "outbound"
+  const Icon = missed ? IconPhoneX : out ? IconPhoneOutgoing : IconPhoneIncoming
   const note = missed ? progress(c) : ""
   return (
     <li data-vip={vip || undefined} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/50">
       <span className="pt-1">
         <Icon
           className={cn("size-4 shrink-0", missed && vip ? "text-foreground" : ai ? "text-ai" : "text-muted-foreground")}
-          aria-label={missed ? "Missed call" : "Incoming call"}
+          aria-label={missed ? "Missed call" : out ? "Call back" : "Incoming call"}
         />
       </span>
       <button type="button" onClick={onOpen} className="min-w-0 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">

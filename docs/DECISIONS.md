@@ -843,3 +843,25 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Not counted:** callers still waiting (they're in the line above, not in the median, so a team that never calls
   anyone back doesn't get a good median from it: the count of missed calls sits beside it), and call-backs made
   before 2026-11-27 (no event was recorded then).
+
+## 2026-11-27: Calling back goes through the dealership's line (a "bridge" call)
+
+- **How:** "Call Carmen back" makes Ondra ring the salesperson's own mobile (their number on Team). They pick up,
+  hear "Call back Carmen Ortiz from Ondra. Press 1 to connect", press 1, and Twilio dials Carmen with the number she
+  originally rang as caller ID. Two call legs on Twilio per call-back.
+- **Why press 1:** if the salesperson's phone goes to their own voicemail, the voicemail "answers" leg 1. Without a
+  key press, Ondra would dial the customer into the salesperson's voicemail. No key, nobody is called.
+- **Why the dealer's number, not the salesperson's:** customers keep one number for the dealership, the call is
+  logged, and a salesperson's private number doesn't walk out the door with the customer.
+- **The result logs itself:** connected for 60 s or more counts as "spoke to them" (marked called back, task
+  finished, counted on Today). Under 60 s is most likely their voicemail: a try, and they stay on the list. Busy or
+  no answer: a try. Twilio can't tell a short real conversation from a voicemail without answering-machine detection
+  (which delays the connect by a few seconds); "Spoke to them" by hand still works for that case.
+- **Consent:** a person taps this each time, to return a call the customer made, so it isn't an automated
+  outbound call. It's allowed even if they texted STOP (that withdrew consent to texts, not to a returned call).
+  This is a reading of the rule, not legal advice; confirm with counsel before launch.
+- **"Call from your own phone"** stays in the menu for when the line can't be used; it isn't logged.
+- **Mock:** with FEATURE_CALL_BRIDGE off, the mock records the call, and with MOCK_BRIDGE_AUTOPLAY plays it out
+  through the real webhooks locally. Checked against Twilio's docs 2026-11-27 (see services/bridge.py).
+- **Not built:** recording (needs the consent notice), answering-machine detection, verifying the dealer's own number
+  as a caller ID from Ondra (done once in Twilio for now), and a salesperson's choice of which phone to ring.

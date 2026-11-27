@@ -71,8 +71,11 @@ async def _load(db: AsyncSession, caller: Caller, conversation_id: uuid.UUID) ->
     return conv, contact
 
 
-def call_line(handled_by: str | None, live: bool, is_vip: bool, transferred_to: str | None, summary: str | None) -> str:
+def call_line(handled_by: str | None, live: bool, is_vip: bool, transferred_to: str | None, summary: str | None,
+              direction: str = "inbound") -> str:
     """A call, in words, for a list row or a thread."""
+    if direction == "outbound":  # a call-back placed through Ondra; `transferred_to` is who made it
+        return f"{transferred_to.split(' ')[0]} called them back" if transferred_to else "Called them back"
     if live:
         return "On a call now"
     if handled_by == "missed":
@@ -90,9 +93,9 @@ def _last_activity(r, names: dict, now: datetime) -> dict:
            "at": r.last_at.isoformat() if r.last_at else None, "is_draft": bool(r.last_is_draft), "kind": "message"}
     if r.call_at is None or (r.last_at is not None and r.last_at >= r.call_at):
         return msg
-    live = r.call_ended_at is None and now - r.call_at < LIVE_FOR
+    live = r.call_ended_at is None and now - r.call_at < LIVE_FOR and r.call_direction != "outbound"
     author = "ai" if (r.call_handled_by == "ai" or (live and not r.is_vip)) else "user"
-    body = call_line(r.call_handled_by, live, r.is_vip, names.get(r.call_transferred_to), r.call_summary)
+    body = call_line(r.call_handled_by, live, r.is_vip, names.get(r.call_transferred_to), r.call_summary, r.call_direction)
     return {"body": body[:200], "direction": "call", "author": author, "at": r.call_at.isoformat(), "is_draft": False,
             "kind": "call"}
 
@@ -134,7 +137,7 @@ async def list_conversations(
                  AS drafts,
                t.title AS task_title, t.due_at AS task_due, t.urgency AS task_urgency,
                lc.started_at AS call_at, lc.handled_by AS call_handled_by, lc.ended_at AS call_ended_at,
-               lc.summary AS call_summary, lc.transferred_to_user_id AS call_transferred_to
+               lc.summary AS call_summary, lc.transferred_to_user_id AS call_transferred_to, lc.direction AS call_direction
         FROM conversations c
         JOIN contacts ct ON ct.id = c.contact_id
         LEFT JOIN LATERAL (
@@ -142,7 +145,7 @@ async def list_conversations(
           WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1
         ) lm ON true
         LEFT JOIN LATERAL (
-          SELECT started_at, handled_by, ended_at, summary, transferred_to_user_id FROM calls k
+          SELECT started_at, handled_by, ended_at, summary, transferred_to_user_id, direction FROM calls k
           WHERE k.conversation_id = c.id ORDER BY k.started_at DESC NULLS LAST LIMIT 1
         ) lc ON true
         LEFT JOIN LATERAL (
@@ -270,9 +273,10 @@ async def get_conversation(conversation_id: uuid.UUID,
             "summary": None if contact.is_vip else c.summary,  # VIPs never get AI content
             "transferred_to": authors.get(c.transferred_to_user_id),
             "needs_callback": c.handled_by == "missed" and c.callback_done_at is None,
-            "live": c.ended_at is None and c.started_at is not None and now - c.started_at < LIVE_FOR,
+            "live": c.direction != "outbound" and c.ended_at is None and c.started_at is not None and now - c.started_at < LIVE_FOR,
             "line": call_line(c.handled_by, c.ended_at is None and c.started_at is not None and now - c.started_at < LIVE_FOR,
-                              contact.is_vip, authors.get(c.transferred_to_user_id), None),
+                              contact.is_vip, authors.get(c.transferred_to_user_id), None, c.direction),
+            "direction": c.direction,
         } for c in call_rows],
         # VIPs never get AI content (product rule), so no brief either.
         "brief": None if contact.is_vip else brief,
