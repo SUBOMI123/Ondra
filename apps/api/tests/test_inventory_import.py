@@ -105,3 +105,58 @@ async def test_unreadable_files_are_refused_with_the_reason_and_dealers_are_isol
     async with tenant_session(database["b"]) as db:
         assert (await db.execute(select(Vehicle).where(Vehicle.stock_number.like("ZZ-%")))).scalars().all() == []
         assert (await db.execute(select(Integration).where(Integration.kind == "inventory_feed"))).scalars().all() == []
+
+
+async def test_a_hold_placed_in_ondra_survives_an_import_and_only_managers_mark_cars_sold(client, database, lot):
+    t, before, content = lot
+    manager = await login(client, "manager@prestigemotors.example")
+    sales = await login(client, "daniel@prestigemotors.example")
+    async with tenant_session(t) as db:
+        sarah = (await db.execute(select(Contact).where(Contact.display_name == "Sarah King"))).scalar_one()
+    vid = str(before["id"])
+    held = await client.patch(f"/vehicles/{vid}", headers=sales, json={"status": "hold", "for_contact_id": str(sarah.id)})
+    assert held.status_code == 200, held.text
+    assert (held.json()["hold"]["by"], held.json()["hold"]["for"]["name"]) == ("Daniel Okafor", "Sarah King")
+    # The file still says "In Stock": the hold stays until someone releases it.
+    await client.post("/inventory/import", json={"filename": "lot.csv", "content": content, "dry_run": False}, headers=manager)
+    d = (await client.get(f"/vehicles/{vid}", headers=sales)).json()
+    assert (d["status"], d["hold"]["for"]["name"]) == ("hold", "Sarah King")
+    # Selling is a manager's call; releasing a hold isn't.
+    assert (await client.patch(f"/vehicles/{vid}", headers=sales, json={"status": "sold"})).status_code == 403
+    assert (await client.patch(f"/vehicles/{vid}", headers=sales, json={"status": "available"})).json()["hold"] is None
+    assert (await client.patch(f"/vehicles/{vid}", headers=manager, json={"status": "sold"})).json()["status"] == "sold"
+    assert (await client.patch(f"/vehicles/{vid}", headers=sales, json={"status": "available"})).status_code == 403
+
+
+async def test_the_list_shows_days_on_the_lot_and_which_buyers_are_asking(client, database, lot):
+    from datetime import UTC, datetime, timedelta
+
+    from ondra_core.models import Deal
+
+    t, before, _content = lot
+    sales = await login(client, "daniel@prestigemotors.example")
+    async with tenant_session(t) as db:
+        sarah = (await db.execute(select(Contact).where(Contact.display_name == "Sarah King"))).scalar_one()
+        deal = Deal(contact_id=sarah.id, type="sales", stage="qualified", vehicle_of_interest={"stock": before["stock"], "description": "the one online"})
+        db.add(deal)
+        await db.execute(update(Vehicle).where(Vehicle.id == before["id"]).values(created_at=datetime.now(UTC) - timedelta(days=75)))
+        await db.flush()
+        deal_id = deal.id
+    try:
+        page = (await client.get("/vehicles", params={"sort": "asked", "limit": 200}, headers=sales)).json()
+        row = next(v for v in page["items"] if v["id"] == str(before["id"]))
+        assert (row["asked_about"], row["days_on_lot"]) == (1, 75)
+        asked = [v["asked_about"] for v in page["items"]]
+        assert asked == sorted(asked, reverse=True) and asked[0] >= 1
+        assert before["make"] in page["makes"] and page["total"] >= 40
+        oldest = (await client.get("/vehicles", params={"sort": "oldest", "limit": 200}, headers=sales)).json()["items"]
+        assert [v["days_on_lot"] for v in oldest] == sorted((v["days_on_lot"] for v in oldest), reverse=True)
+        by_make = (await client.get("/vehicles", params={"make": before["make"].upper(), "limit": 200}, headers=sales)).json()["items"]
+        assert by_make and {v["make"] for v in by_make} == {before["make"]}
+        d = (await client.get(f"/vehicles/{before['id']}", headers=sales)).json()
+        assert [b["client"]["name"] for b in d["buyers"]][0] == "Sarah King" and d["buyers"][0]["by_stock"] is True
+        assert d["buyers"][0]["said"]["body"].startswith("whats the best")
+        assert (d["can_hold"], d["can_sell"]) == (True, False)
+    finally:
+        async with tenant_session(t) as db:
+            await db.execute(delete(Deal).where(Deal.id == deal_id))

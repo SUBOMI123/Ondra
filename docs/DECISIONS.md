@@ -786,3 +786,21 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **VIP tasks carry the VIP tag** in both views, and never Ondra's mark (a VIP surface shows nothing AI-blue).
 - **Not built:** notifying someone a task was given to them (it lands in their list and the sidebar count),
   workload limits, and filtering the board by team.
+
+## 2026-11-27: Inventory answers "what's sitting, and who wants what"
+
+- **Days on the lot** count from when the car first came in (`created_at`: the first import, or when it was
+  entered). Over 60 days in stock is set in weight, not colour: red means overdue only. Sort "Longest on the lot" is
+  the default, because that's the question a manager brings to this page; "Most asked about" is one click away.
+- **"Asked about"** counts open sales deals that name the car: by stock number when the buyer gave one, else by
+  model (and year and make when they said them). "Lexus RX 350" with no year matches every RX 350, and the car's
+  panel shows what they actually asked for. No guessing from free text beyond that; conversations that never
+  became a deal don't count.
+- **Holds belong to people:** anyone who sells can hold a car, for a named buyer ("Hold for Aisha" from the car's
+  panel) or not, and release it. Marking sold, or un-selling, is a manager's or owner's call because it takes the car
+  away from Ondra's answers. A hold placed in Ondra survives the next inventory file until someone releases it, or
+  the file says it sold. Every change is audited (`vehicle.status`).
+- **Photos only when the feed sends them.** No stock images, and no placeholder column when no car has a photo:
+  forty identical icons are clutter.
+- **Not built:** price changes from the list, aging alerts to the owner, and matching buyers from conversations that
+  haven't become deals.

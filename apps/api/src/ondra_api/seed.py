@@ -394,6 +394,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                     year=year, make=make, model=model, trim=rng.choice(trims),
                     price=price, mileage=mileage,
                     status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed", raw={"body": BODY.get(model, ("car", 5))[0], "seats": BODY.get(model, ("car", 5))[1]},
+                    # On the lot for a realistic spread: most turn within 45 days, a few sit for months.
+                    created_at=datetime.now(UTC) - timedelta(days=rng.choices([rng.randint(1, 30), rng.randint(31, 60), rng.randint(61, 120)], [0.6, 0.28, 0.12])[0]),
                 ))
 
             channels = ["sms", "email", "whatsapp", "phone"]

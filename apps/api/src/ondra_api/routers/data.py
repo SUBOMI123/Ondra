@@ -2,11 +2,12 @@
 
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from ondra_core.models import Contact, ContactIdentity, User, Vehicle
-from ondra_core.permissions import Perm, can_see_vips
+from ondra_core.models import Contact, ContactIdentity, Deal, User, Vehicle
+from ondra_core.permissions import Perm, can_see_vips, has_perm
 from pydantic import BaseModel
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,8 @@ from ondra_api.schemas import (
     TeamPage,
     UserOut,
     VehicleOut,
+    VehiclePage,
+    VehicleRowOut,
 )
 
 router = APIRouter(tags=["data"])
@@ -108,22 +111,148 @@ async def get_contact(contact_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = 
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
 
 
-@router.get("/vehicles", response_model=Page[VehicleOut])
+def _wants_this_car(v: Vehicle, voi: dict) -> bool:
+    """Does a deal's "vehicle of interest" name this car? By stock number when the buyer gave one, else by model (and
+    year and make when they said them): "2021 Toyota Highlander XLE" wants every 2021 Highlander."""
+    if voi.get("stock"):
+        return str(voi["stock"]).lower() == v.stock_number.lower()
+    words = str(voi.get("description") or "").lower()
+    if not words or v.model.lower() not in words:
+        return False
+    years = re.findall(r"\b(?:19|20)\d{2}\b", words)
+    makes = v.make.lower() in words or not any(m in words for m in _MAKES)
+    return makes and (not years or str(v.year) in years)
+
+
+_MAKES = ("toyota", "honda", "ford", "chevrolet", "chevy", "nissan", "hyundai", "kia", "mazda", "lexus", "bmw", "mercedes",
+          "audi", "tesla", "jeep", "ram", "gmc", "subaru", "volkswagen", "dodge")
+
+
+async def _open_deals(db: AsyncSession, caller: Caller) -> list[tuple[Deal, Contact]]:
+    from ondra_core.models import Deal
+
+    rows = (await db.execute(select(Deal, Contact).join(Contact, Contact.id == Deal.contact_id)
+                             .where(Deal.type == "sales", Deal.stage.in_(("new", "qualified", "appointment", "negotiating"))))).all()
+    sees = can_see_vips(caller.role)
+    return [(d, c) for d, c in rows if not c.is_vip or sees or c.vip_owner_user_id == caller.user_id]
+
+
+def _days(v: Vehicle, now: datetime) -> int:
+    return max(0, (now - v.created_at).days) if v.created_at else 0
+
+
+@router.get("/vehicles", response_model=VehiclePage)
 async def list_vehicles(
     ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.VEHICLES_READ)),
-    status: str | None = None, q: str | None = None, limit: int = Query(50, le=200), offset: int = 0,
-) -> Page[VehicleOut]:
-    _, db = ctx
-    stmt = select(Vehicle).order_by(Vehicle.year.desc(), Vehicle.make, Vehicle.model)
+    status: str | None = None, q: str | None = None, make: str | None = None,
+    sort: Literal["newest", "oldest", "asked", "price_low", "price_high"] = "newest",
+    limit: int = Query(50, le=200), offset: int = 0,
+) -> VehiclePage:
+    """Inventory: search, filter by status and make, and sort by what a manager asks of the lot: what's been here
+    longest, what buyers are asking about, what's new, by price."""
+    caller, db = ctx
+    now = datetime.now(UTC)
+    stmt = select(Vehicle)
     if status:
         stmt = stmt.where(Vehicle.status == status)
+    if make:
+        stmt = stmt.where(func.lower(Vehicle.make) == make.lower())
     for word in (q or "").split():
         # Every word must match somewhere: "2022 silverado" finds the 2022 Silverados.
         like = f"%{word}%"
         stmt = stmt.where(or_(Vehicle.make.ilike(like), Vehicle.model.ilike(like), Vehicle.trim.ilike(like),
                               Vehicle.stock_number.ilike(like), Vehicle.vin.ilike(like), cast(Vehicle.year, String).ilike(like)))
-    rows, total = await _page(db, stmt, limit, offset)
-    return Page(items=[VehicleOut.model_validate(v) for v in rows], total=total)
+    cars = (await db.execute(stmt)).scalars().all()  # a lot is hundreds of cars, not millions: sort in one place
+    deals = await _open_deals(db, caller)
+    asked = {v.id: sum(1 for d, _c in deals if _wants_this_car(v, d.vehicle_of_interest or {})) for v in cars}
+    key = {
+        "newest": lambda v: (-(v.created_at.timestamp() if v.created_at else 0), v.make, v.model),
+        "oldest": lambda v: (v.created_at.timestamp() if v.created_at else 0, v.make, v.model),
+        "asked": lambda v: (-asked[v.id], -_days(v, now)),
+        "price_low": lambda v: (float(v.price) if v.price is not None else 1e12, v.make),
+        "price_high": lambda v: (-(float(v.price) if v.price is not None else -1), v.make),
+    }[sort]
+    cars = sorted(cars, key=key)
+    page = cars[offset:offset + limit]
+    makes = sorted({m for (m,) in (await db.execute(select(Vehicle.make).distinct())).all()})
+    items = [VehicleRowOut.model_validate(v).model_copy(update={
+        "days_on_lot": _days(v, now), "asked_about": asked[v.id], "hold": (v.raw or {}).get("hold") if v.status == "hold" else None,
+    }) for v in page]
+    return VehiclePage(items=items, total=len(cars), makes=makes, can_hold=has_perm(caller.role, Perm.DEALS_WRITE),
+                       can_sell=has_perm(caller.role, Perm.VEHICLES_WRITE))
+
+
+@router.get("/vehicles/{vehicle_id}")
+async def vehicle_detail(vehicle_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.VEHICLES_READ))) -> dict:
+    """One car: everything about it, and the buyers asking for it, each with their deal and the last thing they said,
+    so whoever sells it knows who to call first. VIP buyers only for people who may see them."""
+    from ondra_core.models import Conversation, Message
+
+    caller, db = ctx
+    v = await db.get(Vehicle, vehicle_id)
+    if v is None:
+        raise HTTPException(404, "No vehicle with that id.")
+    now = datetime.now(UTC)
+    names = dict((await db.execute(select(User.id, User.name))).all())
+    buyers = []
+    for d, c in await _open_deals(db, caller):
+        if not _wants_this_car(v, d.vehicle_of_interest or {}):
+            continue
+        last = (await db.execute(select(Message, Conversation.channel).join(Conversation, Conversation.id == Message.conversation_id)
+                                 .where(Conversation.contact_id == c.id, Message.is_draft.is_(False), Message.author_type == "customer")
+                                 .order_by(Message.created_at.desc()).limit(1))).first()
+        buyers.append({
+            "deal_id": str(d.id), "client": {"id": str(c.id), "name": c.display_name, "vip": c.is_vip}, "stage": d.stage,
+            "wants": (d.vehicle_of_interest or {}).get("description"), "by_stock": bool((d.vehicle_of_interest or {}).get("stock")),
+            "budget_max": float(d.budget_max) if d.budget_max is not None else None, "salesperson": names.get(d.owner_user_id),
+            "said": None if last is None else {"body": last[0].body, "at": last[0].created_at.isoformat(), "channel": last[1]},
+        })
+    buyers.sort(key=lambda b: (not b["by_stock"], b["said"]["at"] if b["said"] else ""), reverse=False)
+    hold = (v.raw or {}).get("hold") if v.status == "hold" else None
+    return {
+        **VehicleOut.model_validate(v).model_dump(mode="json"), "days_on_lot": _days(v, now),
+        "color": (v.raw or {}).get("color"), "body": (v.raw or {}).get("body"), "seats": (v.raw or {}).get("seats"),
+        "from_feed": v.source_feed is not None, "hold": hold, "buyers": buyers,
+        "can_hold": has_perm(caller.role, Perm.DEALS_WRITE), "can_sell": has_perm(caller.role, Perm.VEHICLES_WRITE),
+    }
+
+
+class VehicleStatusIn(BaseModel):
+    status: Literal["available", "hold", "sold"]
+    for_contact_id: uuid.UUID | None = None  # who it's held for
+
+
+@router.patch("/vehicles/{vehicle_id}")
+async def set_vehicle_status(vehicle_id: uuid.UUID, body: VehicleStatusIn, request: Request,
+                             ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.DEALS_WRITE))) -> dict:
+    """Put a car on hold (anyone who sells), release it, or mark it sold (managers and owners: it takes the car off
+    the lot for Ondra too). A hold records who placed it and for whom, and survives inventory imports until released."""
+    from ondra_core.models import AuditLog
+
+    caller, db = ctx
+    v = await db.get(Vehicle, vehicle_id)
+    if v is None:
+        raise HTTPException(404, "No vehicle with that id.")
+    if (body.status == "sold" or v.status == "sold") and not has_perm(caller.role, Perm.VEHICLES_WRITE):
+        raise HTTPException(403, "Only a manager or the owner can mark a car sold, or put a sold car back.")
+    held_for = None
+    if body.for_contact_id is not None:
+        c = await db.get(Contact, body.for_contact_id)
+        if c is None or (c.is_vip and not can_see_vips(caller.role) and c.vip_owner_user_id != caller.user_id):
+            raise HTTPException(404, "No client with that id.")
+        held_for = {"id": str(c.id), "name": c.display_name}
+    me = await db.get(User, caller.user_id)
+    before = {"status": v.status, "hold": (v.raw or {}).get("hold")}
+    raw = dict(v.raw or {})
+    if body.status == "hold":
+        raw["hold"] = {"by": me.name if me else None, "at": datetime.now(UTC).isoformat(), "for": held_for}
+    else:
+        raw.pop("hold", None)
+    v.status, v.raw = body.status, raw
+    db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="vehicle.status", resource=f"vehicle:{v.id}",
+                    before=before, after={"status": v.status, "hold": raw.get("hold")}, ip=request.client.host if request.client else None))
+    await db.flush()
+    return {"id": str(v.id), "status": v.status, "hold": raw.get("hold")}
 
 
 @router.get("/users", response_model=TeamPage)

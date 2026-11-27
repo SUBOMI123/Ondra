@@ -63,6 +63,23 @@ class VehicleOut(_Out):
     price: Decimal | None
     mileage: int | None
     status: str
+    photos: list[str] = []
+    created_at: datetime | None = None  # first seen: when it came onto the lot (or into Ondra)
+
+
+class VehicleRowOut(VehicleOut):
+    """A row of the Inventory list: the car, plus how long it's sat and how many buyers are asking about it."""
+    days_on_lot: int = 0
+    asked_about: int = 0  # open deals that name this car (by stock number, or year, make and model)
+    hold: dict | None = None  # {by, at, for}: who put it on hold, when, and for which client
+
+
+class VehiclePage(BaseModel):
+    items: list[VehicleRowOut]
+    total: int
+    makes: list[str]  # for the make filter: every make on the lot, not just this page
+    can_hold: bool = False  # put on hold and release: anyone who sells
+    can_sell: bool = False  # mark sold: managers and the owner
 
 
 class UserOut(_Out):

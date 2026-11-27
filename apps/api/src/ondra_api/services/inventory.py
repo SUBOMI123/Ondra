@@ -61,7 +61,8 @@ async def import_inventory(db: AsyncSession, text: str, filename: str = "", *, s
         v.stock_number, v.vin, v.year, v.make, v.model, v.trim = c.stock, c.vin, c.year, c.make, c.model, c.trim
         v.price, v.mileage = c.price, c.mileage
         if c.status:
-            v.status = c.status
+            # A hold placed in Ondra lasts until someone releases it, or the file says the car sold.
+            v.status = "hold" if (v.raw or {}).get("hold") and c.status == "available" else c.status
         if c.photos:
             v.photos = list(c.photos)
         v.raw = {**(v.raw or {}), **dict(c.extra)}  # a hand-entered car stays hand-entered even when a file updates it
