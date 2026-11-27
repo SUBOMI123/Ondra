@@ -420,3 +420,20 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Not done:** rounding prices ("about 25 grand") was considered and rejected: a rounded price is a wrong price,
   and the checks compare exact amounts. Still imperfect after the rewrite: it sometimes tells the caller about
   the handoff both before and after doing it, and now and then says "is there anything else I can help with".
+
+## 2026-11-27: After the first two calls on the new voice
+
+- **"Thursday at 3" said on Thursday evening** got "Nothing's open Thursday afternoon". When the day asked for is
+  today and nothing is left, `check_availability` now says it's today and already past, and gives next week's date
+  to check if that's what they meant.
+- **Best two only above three cars.** "We have three" followed by two names and an offer to text all three sounded
+  odd; with short spoken descriptions three are easy to follow.
+- **Two times offered, "yeah, that works":** Ondra picked the first. The rules now say to ask which. Also: no
+  apology when simply asking the caller to repeat something.
+- **Where the wait goes is now recorded per turn.** The call record had the model's first word and the voice's
+  start, which added up to about 1.2 s of turns that took 3.4-3.8 s. It now also keeps `end_of_turn_ms` (how long
+  LiveKit waited to be sure the caller had finished), `transcription_ms` and `tool_ms`, with averages in the
+  summary. Nothing was tuned: the end-of-turn wait gets changed after it's measured on a call, not before.
+- **The text on the call went to the mock.** Real texts need `FEATURE_SMS=true`, the Twilio Account SID and Auth
+  Token (the adapter signs webhooks with it; the API key pair used for the phone line isn't enough), and A2P 10DLC
+  registration, without which US carriers drop the messages.

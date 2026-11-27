@@ -4,6 +4,7 @@ limits each tool to the current dealer's data whatever the model asks for."""
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ondra_core.agent.tools import apply_price_policy, handoff_message
@@ -255,8 +256,18 @@ class DbToolBackend:
             start, until = local_window(tenant, None, days=10)
             slots = await InternalCalendar(self.db, tenant).find_slots(t, start_from=start, until=until, limit=6,
                                                                        part_of_day=part_of_day)
-            return {"kind": t.name, "duration_minutes": t.duration_min, "searched": searched,
-                    "note": f"Nothing open {searched}{' ' + part_of_day if part_of_day else ''}; next openings:",
+            note = f"Nothing open {searched}{' ' + part_of_day if part_of_day else ''}; next openings:"
+            from ondra_api.services.booking import tz_of
+
+            now = datetime.now(UTC).astimezone(tz_of(tenant))
+            if d == now.date():
+                # "Thursday at 3" said on Thursday evening: don't just call the day full. It's over, and they may
+                # mean next week (a real call: "Nothing's open Thursday afternoon", with no reason given).
+                clock = now.strftime("%-I:%M %p").lower()
+                note = (f"{searched} is today and it's already {clock} here, so nothing is left today"
+                        f"{' in the ' + part_of_day if part_of_day else ''}. Tell them that. If they meant next "
+                        f"{now.strftime('%A')}, check day {(d + timedelta(days=7)).isoformat()}. The next openings:")
+            return {"kind": t.name, "duration_minutes": t.duration_min, "searched": searched, "note": note,
                     "slots": [s.as_tool() for s in slots]}
         return {"kind": t.name, "duration_minutes": t.duration_min, "searched": searched,
                 "slots": [s.as_tool() for s in slots]}

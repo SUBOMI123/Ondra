@@ -149,8 +149,14 @@ def record_conversation(session: AgentSession, desk: CallDesk) -> None:
         if getattr(item, "type", None) != "message" or item.role not in ("user", "assistant"):
             return
         desk.heard("caller" if item.role == "user" else "agent", item.text_content or "")
-        if item.role == "assistant" and item.metrics:
-            desk.turn_metrics.append(turn_metrics_from(dict(item.metrics)))
+        if item.role == "user":
+            desk.caller_side = turn_metrics_from(dict(item.metrics or {}))
+        elif item.metrics:
+            turn = {**desk.caller_side, **turn_metrics_from(dict(item.metrics))}
+            if desk.tool_count:
+                turn |= {"tool_ms": desk.tool_ms, "tools": desk.tool_count}
+            desk.turn_metrics.append(turn)
+            desk.caller_side, desk.tool_ms, desk.tool_count = {}, 0, 0
 
 
 @server.rtc_session(agent_name=AGENT_NAME)

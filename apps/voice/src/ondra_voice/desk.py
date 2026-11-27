@@ -62,6 +62,11 @@ class CallDesk:
     filled_this_turn: bool = False
     filled_last_turn: bool = False
     filler_index: int = 0
+    # Timings waiting to be attached to the next spoken reply: the caller's side of the turn (how long LiveKit
+    # waited to be sure they'd finished, and for the transcript), and time spent inside tools.
+    caller_side: dict = field(default_factory=dict)
+    tool_ms: int = 0
+    tool_count: int = 0
     transferred_to: TransferTarget | None = None
     pending: list[asyncio.Task] = field(default_factory=list)  # follow-ups to finish before the call is stored
     started: float = field(default_factory=time.monotonic)
@@ -110,7 +115,10 @@ class CallDesk:
             backend = await _backend(db, self.plan, self.dealer)
             if self.transcript:
                 backend.last_question = next((t["text"] for t in reversed(self.transcript) if t["who"] == "caller"), "")
+            started = time.monotonic()
             out = await run_tool(backend, name, args)
+            self.tool_ms += round((time.monotonic() - started) * 1000)
+            self.tool_count += 1
         self.tools_called.append(name)
         _learn(self.checks, ToolRecord(name, args, out))  # every price found counts as real, not just the two named
         if name == "search_inventory" and isinstance(out, list):
@@ -122,7 +130,7 @@ class CallDesk:
         was hard to follow on real calls, and an instruction to "name one or two" didn't hold. The cheapest, and the
         newest if that's a different car. The rest are offered by text."""
         self.last_cars = cars
-        if len(cars) <= 2:
+        if len(cars) <= 3:  # "we have three" then naming two sounded odd on a call: three short ones are fine
             return cars
         cheapest = cars[0]  # search results come cheapest first
         newest = max(cars, key=lambda c: (c.get("year") or 0, -(c.get("mileage") or 0)))
@@ -243,12 +251,21 @@ class CallDesk:
     def metrics(self) -> dict:
         """Per-turn latency (plan §6.4 target: under 1 s on average) and a summary for the latency report."""
         e2e = [m["e2e_ms"] for m in self.turn_metrics if m.get("e2e_ms") is not None]
+
+        def avg(key: str) -> int | None:
+            v = [m[key] for m in self.turn_metrics if m.get(key) is not None]
+            return round(sum(v) / len(v)) if v else None
+
         e2e_sorted = sorted(e2e)
         summary = {
             "turns": len(e2e),
             "avg_ms": round(sum(e2e) / len(e2e)) if e2e else None,
             "p90_ms": e2e_sorted[min(len(e2e_sorted) - 1, int(len(e2e_sorted) * 0.9))] if e2e else None,
             "over_1s": sum(1 for x in e2e if x > 1000),
+            # Where the wait goes: deciding the caller has finished, the model's first word, the voice starting,
+            # and tools (per reply that followed one).
+            "avg_end_of_turn_ms": avg("end_of_turn_ms"), "avg_llm_ttft_ms": avg("llm_ttft_ms"),
+            "avg_tts_ttfb_ms": avg("tts_ttfb_ms"), "avg_tool_ms": avg("tool_ms"),
             "tools": self.tools_called,
             "blocked": self.blocked,
             "tool_problems": self.tool_problems,
@@ -285,12 +302,10 @@ def _details_text(dealer: str, cars: list[dict]) -> str:
 
 
 def turn_metrics_from(report: dict) -> dict:
-    """LiveKit's per-message `MetricsReport` (seconds) to milliseconds, keeping the parts we report on."""
+    """LiveKit's per-message `MetricsReport` (seconds) to milliseconds, keeping the parts we report on. A reply's
+    report has the model and voice times; the caller's message has the wait before the reply could start."""
     ms = {k: round(v * 1000) for k, v in report.items() if isinstance(v, (int, float)) and k.endswith(("_delay", "_ttft", "_ttfb", "_latency"))}
-    return {
-        "e2e_ms": ms.get("e2e_latency"),
-        "llm_ttft_ms": ms.get("llm_node_ttft"),
-        "tts_ttfb_ms": ms.get("tts_node_ttfb"),
-        "end_of_turn_ms": ms.get("end_of_turn_delay"),
-        "transcription_ms": ms.get("transcription_delay"),
-    }
+    names = {"e2e_ms": "e2e_latency", "llm_ttft_ms": "llm_node_ttft", "tts_ttfb_ms": "tts_node_ttfb",
+             "end_of_turn_ms": "end_of_turn_delay", "transcription_ms": "transcription_delay",
+             "before_reply_hook_ms": "on_user_turn_completed_delay"}
+    return {ours: ms[theirs] for ours, theirs in names.items() if theirs in ms}

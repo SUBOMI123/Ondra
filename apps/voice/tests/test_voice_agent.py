@@ -196,8 +196,12 @@ async def test_the_call_record_keeps_the_transcript_and_latency(database):
                           turn_metrics_from({"e2e_latency": 1.31, "llm_node_ttft": 0.9})]
     m = desk.metrics()
     assert m["summary"] == {"turns": 2, "avg_ms": 1065, "p90_ms": 1310, "over_1s": 1, "tools": [], "blocked": [],
-                            "tool_problems": []}
+                            "tool_problems": [], "avg_end_of_turn_ms": None, "avg_llm_ttft_ms": 655,
+                            "avg_tts_ttfb_ms": 120, "avg_tool_ms": None}
     assert m["turns"][0]["llm_ttft_ms"] == 410
+    # The caller's side of a turn (the wait to be sure they'd finished) comes from their message's report.
+    assert turn_metrics_from({"end_of_turn_delay": 1.2, "transcription_delay": 0.3}) == {"end_of_turn_ms": 1200, "transcription_ms": 300}
+    assert m["summary"]["avg_llm_ttft_ms"] == 655 and m["summary"]["avg_end_of_turn_ms"] is None
     await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="ai", outcome="handled",
                             transcript=desk.transcript, metrics=m)
     async with tenant_session(database["a"]) as db:

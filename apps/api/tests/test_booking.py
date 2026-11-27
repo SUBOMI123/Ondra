@@ -301,4 +301,10 @@ async def test_days_are_read_the_way_people_say_them_and_never_silently_swapped(
         out = await backend.check_availability("test drive", "the day after the game")
         assert "error" in out and "slots" not in out
         assert (await backend.check_availability("test drive"))["searched"] == "the next 7 days"
+        # A real call: "Thursday at 3", said on Thursday evening, got "Nothing's open Thursday afternoon". When the
+        # day is today and nothing is left, the result says it's today and already late, and names next week's date.
+        out = await backend.check_availability("test drive", "today", "morning")
+        if "note" in out:  # nothing left this morning: true for any run after the morning's last slot
+            assert "is today and it's already" in out["note"] and "next " in out["note"], out["note"]
+            assert any((date.today() + timedelta(days=n)).isoformat() in out["note"] for n in (6, 7, 8)), out["note"]
         await db.delete(conv)
