@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
+from statistics import median
 from zoneinfo import ZoneInfo
 
 from ondra_core import metrics as m
@@ -26,6 +27,7 @@ from ondra_core.models import (
     Message,
     MetricDay,
     Tenant,
+    User,
 )
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,8 +137,6 @@ async def report(db: AsyncSession, period: int = 7, end: date | None = None) -> 
     this = [by_day[start + timedelta(days=i)] for i in range(period)]
     before = [by_day[start - timedelta(days=period) + timedelta(days=i)] for i in range(period)]
     lifetime = await _events(db, datetime(2000, 1, 1, tzinfo=UTC), datetime.now(UTC) + timedelta(days=1), ("lead.captured", "deal.stage_changed"))
-    from ondra_core.models import User
-
     names = {str(u.id): u.name for u in (await db.execute(select(User))).scalars()}
     people = []
     for uid, secs in (m.total(this).get("response_seconds_by_person") or {}).items():
@@ -144,12 +144,18 @@ async def report(db: AsyncSession, period: int = 7, end: date | None = None) -> 
         people.append({"user_id": uid, "name": names.get(uid, "Someone who has left"), "first_replies": len(secs),
                        "median_first_response_seconds": secs[len(secs) // 2] if len(secs) % 2 else (secs[len(secs) // 2 - 1] + secs[len(secs) // 2]) / 2})
     people.sort(key=lambda p: -p["first_replies"])
+    callback_people = []
+    for uid, secs in (m.total(this).get("callback_seconds_by_person") or {}).items():
+        callback_people.append({"user_id": uid, "name": names.get(uid, "Someone who has left"), "callbacks": len(secs),
+                                "median_callback_seconds": median(secs)})
+    callback_people.sort(key=lambda p: -p["callbacks"])
     series = [{"day": (start + timedelta(days=i)).isoformat(), "leads": d["leads"], "responses_by_ai": d["responses_by_ai"],
                "responses_by_team": d["responses_by_team"], "appointments_booked": d["appointments_booked"]} for i, d in enumerate(this)]
     pipe = m.pipeline(lifetime)
     return {"from": start.isoformat(), "to": end.isoformat(), "days": period, "timezone": tz, "totals": m.total(this),
             "previous": m.total(before), "series": series, "pipeline": {k: v for k, v in pipe.items() if k != "deal_ids_in_play_by_ai"},
-            "labels": {k: label for k, (label, _t) in m.METRICS.items()}, "people": people}
+            "labels": {k: label for k, (label, _t) in m.METRICS.items()}, "people": people,
+            "callback_people": callback_people}
 
 
 async def trace(db: AsyncSession, metric: str, period: int = 7, end: date | None = None, limit: int = 200) -> dict:
@@ -173,12 +179,15 @@ async def trace(db: AsyncSession, metric: str, period: int = 7, end: date | None
     if contact_ids:
         for c in (await db.execute(select(Contact).where(Contact.id.in_([uuid.UUID(c) for c in contact_ids])))).scalars():
             names[str(c.id)] = c.display_name
+    people = {str(u.id): u.name for u in (await db.execute(select(User))).scalars()} if metric == "callbacks" else {}
     items = []
     for e in reversed(events[-limit:]):
         contact = e.payload.get("contact_id") or names.get(e.payload.get("conversation_id") or "")
         items.append({"event_id": e.id, "type": e.type, "at": e.at.isoformat(), "who": names.get(contact or ""),
-                      "detail": {k: v for k, v in e.payload.items() if k in ("channel", "by", "seconds", "after_hours", "source", "type", "handled_by", "step")},
+                      "detail": {k: v for k, v in e.payload.items() if k in ("channel", "by", "seconds", "after_hours", "source", "type", "handled_by", "step", "result", "rings")},
                       "backfilled": bool(e.payload.get("backfilled"))})
+        if people:  # a call-back is by a person: name them, not their id
+            items[-1]["detail"]["by"] = people.get(e.payload.get("by") or "", "Someone who has left")
     return {"metric": metric, "label": label, "count": len(events), "from": start.isoformat(), "to": end.isoformat(), "events": items}
 
 

@@ -119,3 +119,16 @@ def test_every_metric_names_the_events_behind_it():
     assert len([e for e in FIXTURE if METRICS["responses_by_team"][1](e)]) == 2
     for name, (label, test) in METRICS.items():
         assert label and day_summary(FIXTURE)[name] == sum(1 for e in FIXTURE if test(e)), name
+
+
+def test_time_to_call_back_is_the_median_first_try_and_ignores_undone_ones():
+    at = datetime(2026, 11, 25, 16, tzinfo=UTC)
+    evs = [Ev("callback.first_try", at, {"by": "dan", "seconds": 600, "result": "reached"}),
+           Ev("callback.first_try", at, {"by": "dan", "seconds": 1800, "result": "left_message"}),
+           Ev("callback.first_try", at, {"by": "ana", "seconds": 300, "result": "reached"}),
+           Ev("callback.first_try", at, {"by": "ana", "seconds": 60, "result": "reached", "undone": True})]
+    day = day_summary(evs)
+    assert day["callbacks"] == 3 and day["callback_seconds"] == [300, 600, 1800]
+    t = total([day, day_summary([])])
+    assert t["median_callback_seconds"] == 600 and t["callback_seconds_by_person"] == {"dan": [600, 1800], "ana": [300]}
+    assert total([day_summary([])])["median_callback_seconds"] is None

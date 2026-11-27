@@ -6,7 +6,7 @@
  * Blue is Ondra's work and nothing else; red is a VIP or something overdue.
  */
 
-import { IconAlertTriangle } from "@tabler/icons-react"
+import { IconAlertTriangle, IconPhoneX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
@@ -32,13 +32,17 @@ type Overnight = {
 }
 type Today = {
   timezone: string
-  needs: { vips: NeedItem[]; drafts: number; overdue: NeedItem[]; overdue_count: number; hot: NeedItem[]; scope: "everyone" | "mine" }
+  needs: {
+    vips: NeedItem[]; drafts: number; overdue: NeedItem[]; overdue_count: number; hot: NeedItem[]; scope: "everyone" | "mine"
+    callbacks: { count: number; overdue: number; oldest: { client: string; since: string } | null }
+  }
   overnight: Overnight | null
   appointments: { id: string; starts_at: string; kind: string; client: string; with: string | null; by_ondra: boolean; vip: boolean }[]
 }
 type Totals = Record<string, number> & {
   leads_by_channel: Record<string, number>; handled_by: { ai: number; team: number }
   median_first_response_seconds: number | null; median_first_response_seconds_ai: number | null
+  median_callback_seconds: number | null
 }
 type Report = {
   from: string; to: string; days: number; timezone: string; totals: Totals; previous: Totals
@@ -46,6 +50,7 @@ type Report = {
   pipeline: { by_stage: Record<string, number>; in_play: number; in_play_by_ai: number }
   labels: Record<string, string>
   people: { user_id: string; name: string; first_replies: number; median_first_response_seconds: number }[]
+  callback_people: { user_id: string; name: string; callbacks: number; median_callback_seconds: number }[]
 }
 type Trace = {
   label: string; count: number
@@ -72,6 +77,17 @@ function duration(seconds: number | null | undefined) {
 
 function clock(iso: string, tz: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }).toLowerCase()
+}
+
+/** "1:08 pm" today, "yesterday, 1:08 pm", or "Nov 24, 1:08 pm". */
+function since(iso: string, tz: string) {
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz })
+  const then = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today.getTime() - 86_400_000)
+  if (day(then) === day(today)) return clock(iso, tz)
+  if (day(then) === day(yesterday)) return `yesterday, ${clock(iso, tz)}`
+  return `${then.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz })}, ${clock(iso, tz)}`
 }
 
 function dayLabel(iso: string, long = false) {
@@ -106,6 +122,11 @@ function SplitBar({ ondra, team }: { ondra: number; team: number }) {
 
 function describe(e: Trace["events"][number]) {
   const d = e.detail
+  if (e.type === "callback.first_try") {
+    const rang = typeof d.rings === "number" && d.rings > 1 ? `Rang ${d.rings} times. ` : ""
+    const did = d.result === "reached" ? "Spoke to them" : "Left a message"
+    return { by: typeof d.by === "string" ? d.by : null, text: `${rang}${did} ${duration(Number(d.seconds))} after the first ring, counting open hours` }
+  }
   const by = d.by === "ai" || d.source === "ai" || d.handled_by === "ai" ? "Ondra" : d.by === "user" || d.source === "staff" || d.handled_by === "staff" ? "your team"
     : d.by === "owner" || d.handled_by === "owner" ? "the owner" : d.handled_by === "missed" ? "nobody (missed)" : null
   const parts: string[] = []
@@ -238,6 +259,53 @@ function RepliesChart({ r }: { r: Report }) {
   )
 }
 
+/* ------------------------------------------------------------ calling back missed callers */
+
+/** How fast missed callers get a call back: from the first ring to the first try (a voicemail counts; reaching them
+ * is up to them), counted only while the dealership is open. Per person for owners and managers. */
+function CallBacks({ r, everyone, onOpen }: { r: Report; everyone: boolean; onOpen: () => void }) {
+  const t = r.totals
+  if (t.calls_missed === 0 && t.callbacks === 0) {
+    return (
+      <div className="rounded-xl border p-5">
+        <h3 className="font-medium">Calling back missed calls</h3>
+        <p className="mt-1 text-sm text-muted-foreground">No missed calls in the last {r.days} days.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="grid overflow-hidden rounded-xl border md:grid-cols-[18rem_minmax(0,1fr)]">
+      <div className="border-b md:border-r md:border-b-0">
+        <Tile label="Time to call back" value={duration(t.median_callback_seconds)} onOpen={onOpen}
+          context={<span className="text-muted-foreground">Median, from the first ring to the first try, counted while you&apos;re open</span>}
+          delta={<Delta now={t.median_callback_seconds} before={r.previous.median_callback_seconds} days={r.days} lowerIsBetter />} />
+      </div>
+      <div className="p-5">
+        <h3 className="font-medium">Calling back missed calls</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {n(t.calls_missed, "missed call")} in the last {r.days} days. {n(t.callbacks, "caller")} rung back; someone who rang three times counts once.
+        </p>
+        {everyone && r.callback_people.length > 0 && (
+          <table className="w-full text-sm">
+            <thead className="text-left text-muted-foreground">
+              <tr><th className="pb-2 font-normal">Who</th><th className="pb-2 text-right font-normal">Rung back</th><th className="pb-2 text-right font-normal">Median wait</th></tr>
+            </thead>
+            <tbody className="divide-y">
+              {r.callback_people.map((p) => (
+                <tr key={p.user_id}>
+                  <td className="py-2">{p.name}</td>
+                  <td className="py-2 text-right tabular-nums">{p.callbacks}</td>
+                  <td className="py-2 text-right tabular-nums">{duration(p.median_callback_seconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------ page */
 
 export default function TodayPage() {
@@ -251,7 +319,7 @@ export default function TodayPage() {
   const r = report.data
   const tz = t?.timezone ?? r?.timezone ?? "America/Chicago"
   const needs = t?.needs
-  const needCount = needs ? needs.vips.length + (needs.drafts > 0 ? 1 : 0) + (needs.overdue_count > 0 ? 1 : 0) + needs.hot.length : 0
+  const needCount = needs ? needs.vips.length + (needs.drafts > 0 ? 1 : 0) + (needs.overdue_count > 0 ? 1 : 0) + needs.hot.length + (needs.callbacks.count > 0 ? 1 : 0) : 0
 
   return (
     <>
@@ -267,7 +335,7 @@ export default function TodayPage() {
           {today.isPending ? <Skeleton className="mt-3 h-36 w-full rounded-xl" /> : today.isError ? (
             <div className="mt-3"><LoadError message={today.error.message} onRetry={() => today.refetch()} /></div>
           ) : needCount === 0 ? (
-            <p className="mt-3 rounded-xl border p-5 text-sm text-muted-foreground">Nothing is waiting. VIPs, drafts to approve and overdue tasks show here the moment there are any.</p>
+            <p className="mt-3 rounded-xl border p-5 text-sm text-muted-foreground">Nothing is waiting. VIPs, drafts to approve, missed callers and overdue tasks show here the moment there are any.</p>
           ) : (
             <ul className="mt-3 divide-y rounded-xl border">
               {needs!.vips.map((v) => (
@@ -288,6 +356,23 @@ export default function TodayPage() {
                     <p className="text-sm text-muted-foreground">Ondra wrote {needs!.drafts === 1 ? "it" : "them"} and is waiting for a person to send {needs!.drafts === 1 ? "it" : "them"}.</p>
                   </div>
                   <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/inbox">Review</Link></Button>
+                </li>
+              )}
+              {needs!.callbacks.count > 0 && (
+                <li className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true"><IconPhoneX className="size-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {n(needs!.callbacks.count, "caller")} waiting for a call back
+                      {needs!.callbacks.overdue > 0 && <span className="text-overdue">, {needs!.callbacks.overdue} overdue</span>}
+                    </p>
+                    {needs!.callbacks.oldest && (
+                      <p className="truncate text-sm text-muted-foreground">
+                        {needs!.callbacks.count > 1 ? "Longest: " : ""}{needs!.callbacks.oldest.client}, since {since(needs!.callbacks.oldest.since, tz)}.
+                      </p>
+                    )}
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/calls?show=missed">Call back</Link></Button>
                 </li>
               )}
               {needs!.overdue_count > 0 && (
@@ -416,6 +501,8 @@ export default function TodayPage() {
                   </table>
                 </div>
               )}
+
+              <CallBacks r={r} everyone={needs?.scope === "everyone"} onOpen={() => setTracing("callbacks")} />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border p-5">

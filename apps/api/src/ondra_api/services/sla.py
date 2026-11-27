@@ -41,5 +41,26 @@ def add_business_time(tenant: Tenant, start: datetime, duration: timedelta) -> d
     return (start + duration).astimezone(UTC)
 
 
+def business_seconds(tenant: Tenant, start: datetime, end: datetime) -> int:
+    """How much of `start`..`end` the dealership was open, in seconds. A call missed at 11 pm and returned at 9:10 am
+    waited 10 open minutes, not 10 hours. With no opening hours set, plain clock time."""
+    if end <= start:
+        return 0
+    if not tenant.business_hours:
+        return int((end - start).total_seconds())
+    tz = ZoneInfo((tenant.timezones or ["America/Chicago"])[0])
+    t, stop, total = start.astimezone(tz), end.astimezone(tz), 0.0
+    for _ in range(400):
+        if t >= stop:
+            break
+        span = _spans(tenant, t)
+        if span:
+            a, b = max(t, span[0]), min(stop, span[1])
+            if b > a:
+                total += (b - a).total_seconds()
+        t = (t + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(total)
+
+
 def due_for(tenant: Tenant, urgency: str, now: datetime | None = None) -> datetime:
     return add_business_time(tenant, now or datetime.now(UTC), SLA.get(urgency, SLA["normal"]))

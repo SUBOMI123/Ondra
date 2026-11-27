@@ -15,19 +15,20 @@ see VIPs, like everywhere else.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ondra_core.models import Call, Contact, Event, Task, User
+from ondra_core.models import Call, Contact, Event, MetricDay, Task, Tenant, User
 from ondra_core.permissions import Perm, can_see_vips
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.routers.conversations import LIVE_FOR, call_line
-from ondra_api.services.calls import CALLBACK_BRIEFS, mark_called_back
+from ondra_api.services.calls import CALLBACK_BRIEFS, first_try, mark_called_back, waiting_calls
 
 router = APIRouter(tags=["calls"])
 
@@ -140,6 +141,11 @@ async def get_call(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depend
     return out
 
 
+async def _local_day(db: AsyncSession, at: datetime) -> date:
+    tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    return at.astimezone(ZoneInfo((tenant.timezones or ["America/Chicago"])[0])).date()
+
+
 class CalledBackIn(BaseModel):
     result: Literal["reached", "left_message"] = "reached"
 
@@ -153,6 +159,7 @@ async def called_back(call_id: uuid.UUID, body: CalledBackIn | None = None,
         raise HTTPException(409, "Only a missed call needs a call-back.")
     if (body or CalledBackIn()).result == "left_message":
         # They didn't pick up: note the try, keep them on the list.
+        await first_try(db, await waiting_calls(db, call), caller.user_id, "left_message")
         attempt = {"by": str(caller.user_id), "at": datetime.now(UTC).isoformat()}
         call.metrics = {**(call.metrics or {}), "callback_attempts": [*(call.metrics or {}).get("callback_attempts", []), attempt]}
         db.add(Event(type="call.callback_attempt", payload={"call_id": str(call.id), "by": str(caller.user_id)}))
@@ -179,6 +186,12 @@ async def reopen(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(
         t = await db.get(Task, uuid.UUID(tid))
         if t is not None and t.status == "done":
             t.status = "open"
+    if stamp.get("first_try"):
+        # The call-back didn't happen after all: it leaves Today's time-to-call-back until the real one.
+        e = await db.get(Event, uuid.UUID(stamp["first_try"]))
+        if e is not None:
+            e.payload = {**e.payload, "undone": True}
+            await db.execute(delete(MetricDay).where(MetricDay.day == await _local_day(db, e.occurred_at)))
     db.add(Event(type="call.callback_reopened", payload={"call_id": str(call.id), "by": str(caller.user_id)}))
     await db.flush()
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}

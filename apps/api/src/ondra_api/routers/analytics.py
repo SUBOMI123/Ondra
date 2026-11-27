@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.services import metrics
+from ondra_api.services.calls import CALLBACK_BRIEFS
 
 router = APIRouter(tags=["analytics"])
 OPEN = ("open", "in_progress")
@@ -303,8 +304,12 @@ async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_RE
     if not everything:
         q = q.where(Task.assignee_user_id == caller.user_id)
     rows = (await db.execute(q.order_by(Task.due_at.nulls_last()).limit(300))).all()
-    vips, overdue, hot = [], [], []
+    vips, overdue, hot, callbacks = [], [], [], []
     for t, c in rows:
+        if c is not None and not c.is_vip and t.source == "rule" and t.brief in CALLBACK_BRIEFS:
+            # Missed callers get their own line ("3 callers waiting"), not one overdue task each.
+            callbacks.append({"client": c.display_name, "since": t.created_at.isoformat(), "overdue": bool(t.due_at and t.due_at < now)})
+            continue
         if c is not None and c.is_vip:
             if sees_vips or c.vip_owner_user_id == caller.user_id:
                 vips.append({"task_id": str(t.id), "client": c.display_name, "title": t.title, "since": t.created_at.isoformat(),
@@ -327,7 +332,9 @@ async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_RE
     return {
         "timezone": str(tz),
         "needs": {"vips": vips[:10], "drafts": drafts if caller.role != "viewer" else 0, "overdue": overdue[:10], "overdue_count": len(overdue),
-                  "hot": hot[:10], "scope": "everyone" if everything else "mine"},
+                  "hot": hot[:10], "scope": "everyone" if everything else "mine",
+                  "callbacks": {"count": len(callbacks), "overdue": sum(1 for x in callbacks if x["overdue"]),
+                                "oldest": min(callbacks, key=lambda x: x["since"]) if callbacks else None}},
         "overnight": await metrics.overnight(db),
         "appointments": [{"id": str(a.id), "starts_at": a.starts_at.isoformat(), "kind": kind,
                           "client": "A VIP client" if c.is_vip and not (sees_vips or c.vip_owner_user_id == caller.user_id) else c.display_name,

@@ -9,7 +9,7 @@ from sqlalchemy import select, text, update
 from ondra_api import worker
 from ondra_api.db import tenant_session
 from ondra_api.services.jobs import enqueue
-from ondra_api.services.sla import add_business_time
+from ondra_api.services.sla import add_business_time, business_seconds
 from ondra_api.services.tasks import new_task
 from ondra_core.models import Event, Job, Task, Tenant, User
 
@@ -38,6 +38,18 @@ def test_no_hours_means_plain_clock_time():
     t = Tenant(name="T", business_hours={})
     start = datetime(2026, 11, 24, 22, tzinfo=UTC)
     assert add_business_time(t, start, timedelta(minutes=15)) == start + timedelta(minutes=15)
+
+
+@pytest.mark.parametrize("start,end,minutes", [
+    ("2026-11-24T23:00:00-06:00", "2026-11-25T09:10:00-06:00", 10),  # missed at 11 pm, rung back 9:10 am: 10 open minutes
+    ("2026-11-25T10:00:00-06:00", "2026-11-25T10:35:00-06:00", 35),  # open the whole time
+    ("2026-11-28T17:50:00-06:00", "2026-11-30T09:05:00-06:00", 15),  # Sat 10 min before close, closed Sun, Mon 9:05
+    ("2026-11-25T10:00:00-06:00", "2026-11-25T09:00:00-06:00", 0),  # end before start
+])
+def test_waiting_time_counts_only_open_hours(start, end, minutes):
+    assert business_seconds(_tenant(), datetime.fromisoformat(start), datetime.fromisoformat(end)) == minutes * 60
+    assert business_seconds(Tenant(name="T", business_hours={}), datetime(2026, 11, 24, 23, tzinfo=UTC),
+                            datetime(2026, 11, 25, 1, tzinfo=UTC)) == 7200
 
 
 # --- the queue ---------------------------------------------------------------------------------------------------

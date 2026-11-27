@@ -826,3 +826,20 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Filters:** All, Missed, Ondra answered, Put through (to staff or the owner), with `?show=` in the URL.
 - **Not built:** click-to-call through the dealer's line, logging call-backs automatically from that call, and a
   time-to-call-back figure on Today.
+
+## 2026-11-27: Time to call back, on Today
+
+- **What it measures:** from a missed caller's first ring to the team's first try at ringing them back, as a median
+  over the period, with the per-person split for owners and managers. A voicemail counts as the try: how fast the
+  team picks up the phone is theirs; whether the customer answers isn't. Someone who rang three times is one wait,
+  timed from their first ring.
+- **Open hours only.** A call missed at 11 pm and returned at 9:10 am waited 10 minutes, not 10 hours
+  (`sla.business_seconds`). Clock time is kept on the event too (`clock_seconds`) if we ever want to show it.
+- **Recorded as an event** (`callback.first_try`), like every other number on Today, so "See what's behind this"
+  lists each call-back. Undo marks the event undone and drops that day's cached numbers, so an undone call-back
+  doesn't count.
+- **The waiting callers are one line under "Needs someone"** ("2 callers waiting for a call back, 1 overdue. Longest:
+  Jordan, since yesterday"), and their tasks no longer also appear one by one as overdue or urgent tasks.
+- **Not counted:** callers still waiting (they're in the line above, not in the median, so a team that never calls
+  anyone back doesn't get a good median from it: the count of missed calls sits beside it), and call-backs made
+  before 2026-11-27 (no event was recorded then).

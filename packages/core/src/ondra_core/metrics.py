@@ -13,6 +13,7 @@ Events and the fields the metrics read:
     appointment.showed / appointment.no_show   {appointment_id}
     call.ended          {call_id, handled_by: ai|staff|owner|missed}
     message.received    {message_id, conversation_id, channel}
+    callback.first_try  {call_ids, by: user id, result: reached|left_message, seconds (open hours), clock_seconds, undone?}
 """
 
 from __future__ import annotations
@@ -57,9 +58,10 @@ METRICS: dict[str, tuple[str, Callable[[Ev], bool]]] = {
     "calls_by_ai": ("Calls answered by Ondra", _is("call.ended", lambda p: p.get("handled_by") == "ai")),
     "calls_missed": ("Missed calls", _is("call.ended", lambda p: p.get("handled_by") == "missed")),
     "messages_in": ("Messages from customers", _is("message.received")),
+    "callbacks": ("Missed callers rung back", _is("callback.first_try", lambda p: not p.get("undone"))),
 }
 EVENT_TYPES = ("lead.captured", "deal.stage_changed", "response.sent", "follow_up.sent", "appointment.booked", "appointment.showed",
-               "appointment.no_show", "call.ended", "message.received")
+               "appointment.no_show", "call.ended", "message.received", "callback.first_try")
 
 
 def local_day(at: datetime, tz: str) -> date:
@@ -83,6 +85,13 @@ def day_summary(events: list[Ev]) -> dict:
     out["response_seconds_by_person"] = {k: sorted(v) for k, v in by_person.items()}
     out["response_seconds_ai"] = sorted(int(e.payload["seconds"]) for e in events
                                         if e.type == "response.sent" and e.payload.get("by") == "ai" and e.payload.get("seconds") is not None)
+    tries = [e for e in events if METRICS["callbacks"][1](e) and e.payload.get("seconds") is not None]
+    out["callback_seconds"] = sorted(int(e.payload["seconds"]) for e in tries)
+    cb_people: dict[str, list[int]] = {}
+    for e in tries:
+        if e.payload.get("by"):
+            cb_people.setdefault(e.payload["by"], []).append(int(e.payload["seconds"]))
+    out["callback_seconds_by_person"] = {k: sorted(v) for k, v in cb_people.items()}
     return out
 
 
@@ -99,6 +108,13 @@ def total(days: list[dict]) -> dict:
         for k, v in (d.get("response_seconds_by_person") or {}).items():
             people.setdefault(k, []).extend(v)
     out["response_seconds_by_person"] = people
+    cb_people: dict[str, list[int]] = {}
+    for d in days:
+        for k, v in (d.get("callback_seconds_by_person") or {}).items():
+            cb_people.setdefault(k, []).extend(v)
+    out["callback_seconds_by_person"] = cb_people
+    cb = [s for d in days for s in d.get("callback_seconds") or []]
+    out["median_callback_seconds"] = median(cb) if cb else None
     seconds = [s for d in days for s in d.get("response_seconds") or []]
     ai = [s for d in days for s in d.get("response_seconds_ai") or []]
     out["median_first_response_seconds"] = median(seconds) if seconds else None

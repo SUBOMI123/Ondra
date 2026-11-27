@@ -6,8 +6,8 @@ import pytest
 from ondra_api import channels, worker
 from ondra_api.db import tenant_session
 from ondra_api.services import calls
-from ondra_core.models import Call, Event, Job, Task, Tenant, User
-from sqlalchemy import select, text, update
+from ondra_core.models import Call, Event, Job, MetricDay, Task, Tenant, User
+from sqlalchemy import delete, select, text, update
 
 from .conftest import login
 
@@ -218,9 +218,16 @@ async def test_a_caller_who_rings_again_is_one_call_back_one_task_and_one_text(c
     assert all(c["handled_by"] == "missed" for c in body["items"]) and body["counts"]["missed"] >= 1
     assert {"all", "missed", "ondra", "people"} <= set(body["counts"])
 
-    # Rang back, voicemail: noted, still waiting.
+    today = (await client.get("/today", headers=owner)).json()["needs"]
+    assert today["callbacks"]["count"] >= 1 and not any(stranger in o["title"] for o in today["overdue"] + today["hot"])
+
+    # Rang back, voicemail: noted, still waiting. The first try is what Today's time-to-call-back measures.
     r = (await client.post(f"/calls/{mine[0]['id']}/called-back", json={"result": "left_message"}, headers=owner)).json()
     assert r["needs_callback"] and r["attempts"][0]["by"]
+    async with tenant_session(database["a"]) as db:
+        tries = (await db.execute(select(Event).where(Event.type == "callback.first_try",
+                                                      Event.payload["contact_id"].astext == str(plan.contact_id)))).scalars().all()
+        assert len(tries) == 1 and tries[0].payload["result"] == "left_message" and tries[0].payload["rings"] == 3
     # Reached: all three calls and the task are done, with who did it.
     r = (await client.post(f"/calls/{mine[0]['id']}/called-back", json={"result": "reached"}, headers=owner)).json()
     assert not r["needs_callback"] and r["called_back"]["by"]
@@ -228,6 +235,10 @@ async def test_a_caller_who_rings_again_is_one_call_back_one_task_and_one_text(c
     assert [c for c in after if c["from_number"] == stranger and c["needs_callback"]] == []
     async with tenant_session(database["a"]) as db:
         assert (await db.get(Task, tasks[0].id)).status == "done"
+    async with tenant_session(database["a"]) as db:  # reaching them after a voicemail isn't a second first try
+        assert len((await db.execute(select(Event).where(Event.type == "callback.first_try",
+                                                         Event.payload["contact_id"].astext == str(plan.contact_id)))).all()) == 1
+    assert (await client.get("/analytics", params={"days": 1}, headers=owner)).json()["totals"]["callbacks"] >= 1
     # Undo puts all of it back.
     r = (await client.post(f"/calls/{mine[0]['id']}/reopen", headers=owner)).json()
     assert r["needs_callback"]
@@ -242,3 +253,23 @@ async def test_a_caller_who_rings_again_is_one_call_back_one_task_and_one_text(c
     # Only missed calls take a call-back.
     answered = next(c for c in after if c["handled_by"] == "ai")
     assert (await client.post(f"/calls/{answered['id']}/called-back", headers=owner)).status_code == 409
+
+
+async def test_undoing_a_call_back_takes_it_off_todays_time_to_call_back(client, database):
+    stranger = NEW_CALLERS[0]
+    plan = await calls.start_call(from_number=stranger, to_number=DEALER, provider_call_sid=_sid())
+    await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="missed", outcome="no answer")
+    await worker.run_once()
+    owner = await login(client, "owner@prestigemotors.example")
+    before = (await client.get("/analytics", params={"days": 1}, headers=owner)).json()["totals"]["callbacks"]
+    await client.post(f"/calls/{plan.call_id}/called-back", json={"result": "reached"}, headers=owner)
+    async with tenant_session(database["a"]) as db:  # today's numbers are cached for 5 minutes; skip the wait
+        await db.execute(delete(MetricDay))
+    assert (await client.get("/analytics", params={"days": 1}, headers=owner)).json()["totals"]["callbacks"] == before + 1
+    await client.post(f"/calls/{plan.call_id}/reopen", headers=owner)
+    assert (await client.get("/analytics", params={"days": 1}, headers=owner)).json()["totals"]["callbacks"] == before
+    trace = (await client.get("/analytics/trace", params={"metric": "callbacks", "days": 1}, headers=owner))
+    assert trace.status_code == 200
+    await client.post(f"/calls/{plan.call_id}/called-back", json={"result": "reached"}, headers=owner)
+    t = (await client.get("/analytics/trace", params={"metric": "callbacks", "days": 1}, headers=owner)).json()
+    assert t["events"][0]["detail"]["by"] == "Samuel Adeyemi" and t["events"][0]["who"] == stranger

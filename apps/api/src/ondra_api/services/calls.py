@@ -173,14 +173,38 @@ async def waiting_calls(db: AsyncSession, call: Call) -> list[Call]:
                                                      Call.callback_done_at.is_(None)))).scalars())
 
 
+async def first_try(db: AsyncSession, calls: list[Call], by: uuid.UUID | None, result: str) -> Event | None:
+    """Time to call back, for Today: recorded once per wait, at the first try (a voicemail counts: it's the team
+    answering; reaching the customer is up to them). Measured from the first ring, in open hours and on the clock."""
+    if not calls or any((c.metrics or {}).get("callback_attempts") for c in calls):
+        return None
+    from ondra_api.services.sla import business_seconds
+
+    tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    first = min((c.started_at for c in calls if c.started_at), default=None)
+    if first is None:
+        return None
+    now = datetime.now(UTC)
+    contact = calls[0].contact_id
+    vip = bool(contact and (await db.get(Contact, contact)).is_vip)
+    e = Event(type="callback.first_try", payload={
+        "call_ids": [str(c.id) for c in calls], "contact_id": str(contact) if contact else None, "by": str(by) if by else None,
+        "result": result, "rings": len(calls), "vip": vip,
+        "seconds": business_seconds(tenant, first, now), "clock_seconds": int((now - first).total_seconds())})
+    db.add(e)
+    await db.flush()
+    return e
+
+
 async def mark_called_back(db: AsyncSession, call: Call, by: uuid.UUID | None, *, finished: tuple[Task, ...] = ()) -> dict:
     """Mark the caller's waiting missed calls as called back and finish the call-back task. Returns what changed, so
     it can be undone."""
     now = datetime.now(UTC)
     calls = await waiting_calls(db, call)
+    tried = await first_try(db, calls, by, "reached")
     tasks = await open_callback_tasks(db, call.contact_id) if call.contact_id else []
     stamp = {"by": str(by) if by else None, "at": now.isoformat(), "calls": [str(c.id) for c in calls],
-             "tasks": [str(t.id) for t in (*finished, *tasks)]}
+             "tasks": [str(t.id) for t in (*finished, *tasks)], "first_try": str(tried.id) if tried else None}
     for c in calls:
         c.callback_done_at = now
         c.metrics = {**(c.metrics or {}), "callback": stamp}

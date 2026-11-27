@@ -41,6 +41,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ondra_api.config import get_settings
 from ondra_api.security import hash_password
+from ondra_api.services.sla import business_seconds
 
 DEV_PASSWORD = "ondra-dev-password"
 
@@ -280,7 +281,7 @@ async def _seed_after_hours_lead(db, t, contacts: dict, users: dict) -> None:
                 vehicle_of_interest={"description": "Lexus RX 350"}, created_at=night.astimezone(UTC)))
 
 
-async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
+async def _seed_calls(db, t, contacts: dict, users: dict, tenant=None) -> None:
     """Example calls, one per state the Calls screen shows. Example data, like the rest of the seed."""
     now = datetime.now(UTC)
 
@@ -337,6 +338,16 @@ async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
     _, second = await call("Carmen Ortiz", 70, 0, "missed", "no answer", status="waiting_staff", sid="seed-Carmen Ortiz-2",
                            metrics={"callback_attempts": [{"by": sales, "at": at(40).isoformat()}]})
     db.add(Event(tenant_id=t, type="call.text_back_skipped", payload={"call_id": str(second.id), "reason": "texted recently"}))
+
+    def tried(calls, when, result):
+        # Today's time-to-call-back reads these, as the Calls screen writes them.
+        first = min(c.started_at for c in calls)
+        secs = business_seconds(tenant, first, when) if tenant else int((when - first).total_seconds())
+        db.add(Event(tenant_id=t, type="callback.first_try", occurred_at=when, payload={
+            "call_ids": [str(c.id) for c in calls], "contact_id": str(calls[0].contact_id), "by": sales, "result": result,
+            "rings": len(calls), "vip": False, "seconds": secs, "clock_seconds": int((when - first).total_seconds())}))
+
+    tried([first_ring, second], at(40), "left_message")
     db.add(Task(tenant_id=t, title="Carmen Ortiz: Call Carmen back (called 2 times)", contact_id=contacts["Carmen Ortiz"].id,
                 conversation_id=conv.id, assignee_user_id=users["sales"].id, source="rule", urgency="high",
                 brief="Missed call.", due_at=at(-30)))
@@ -344,6 +355,7 @@ async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
     _, k = await call("Andre Jackson", 26 * 60, 0, "missed", "no answer", status="waiting_customer")
     k.callback_done_at = at(26 * 60 - 35)
     k.metrics = {"callback": {"by": sales, "at": k.callback_done_at.isoformat(), "calls": [str(k.id)], "tasks": []}}
+    tried([k], k.callback_done_at, "reached")
     db.add(Event(tenant_id=t, type="call.text_back_skipped", payload={"call_id": str(k.id), "reason": "no recorded consent"}))
 
 
@@ -445,7 +457,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                 print(f"seed: couldn't embed knowledge answers ({type(exc).__name__}); "
                       "run `python -m ondra_api.services.knowledge` later")
             await _seed_conversations(db, t, by_name, {u.role: u for u in users})
-            await _seed_calls(db, t, by_name, {u.role: u for u in users})
+            await _seed_calls(db, t, by_name, {u.role: u for u in users}, tenant)
             await _seed_pipeline(db, t, by_name, {u.role: u for u in users})
             # The seeded history gets its events, so the dashboard has numbers to show (marked as backfilled).
             from ondra_api.services.metrics import backfill
