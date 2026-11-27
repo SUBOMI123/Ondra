@@ -168,6 +168,10 @@ class DbToolBackend:
         if deal is None:
             deal = Deal(contact_id=self.contact.id, type="sales", stage="new", source_channel=self.conversation.channel)
             self.db.add(deal)
+            await self.db.flush()
+            from ondra_api.services.metrics import lead_captured
+
+            lead_captured(self.db, deal, by="ai", after_hours=not self.open_now)
         voi = dict(deal.vehicle_of_interest or {})
         for k, v in fields.items():
             if k in _DEAL_COLUMNS:

@@ -221,6 +221,10 @@ class OwnerDesk:
         if deal is None:
             deal = Deal(contact_id=c.id, type="sales", stage="new", source_channel="owner", owner_user_id=self.owner.id)
             self.db.add(deal)
+            await self.db.flush()
+            from ondra_api.services.metrics import lead_captured
+
+            lead_captured(self.db, deal, by="owner", after_hours=False)
         changed = []
         if vehicle_interest:
             deal.vehicle_of_interest = {**(deal.vehicle_of_interest or {}), "description": vehicle_interest[:200]}

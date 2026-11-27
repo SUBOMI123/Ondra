@@ -86,6 +86,8 @@ async def on_sent(db: AsyncSession, m: Message, conv: Conversation, contact: Con
     mine = (await db.execute(select(FollowUp).where(FollowUp.message_id == m.id))).scalar_one_or_none()
     if mine is not None:  # this message was a follow-up: note it and line up the next one
         mine.status, mine.sent_at = "sent", now
+        db.add(Event(type="follow_up.sent", payload={"follow_up_id": str(mine.id), "channel": conv.channel, "step": mine.step,
+                                                     "message_id": str(m.id)}))
         seq = await db.get(FollowUpSequence, mine.sequence_id)
         if seq is not None and seq.active:
             await _schedule(db, seq, conv, mine.step + 1, now)

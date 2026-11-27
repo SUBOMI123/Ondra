@@ -278,7 +278,7 @@ async def book(db: AsyncSession, tenant: Tenant, *, slot_id: str, contact_id: uu
         if "no_double_booking" in str(exc.orig):
             raise SlotTaken("That time was just taken.") from None
         raise
-    db.add(Event(type="appointment.booked", payload={"appointment_id": str(a.id), "source": source,
+    db.add(Event(type="appointment.booked", payload={"appointment_id": str(a.id), "source": source, "contact_id": str(a.contact_id),
                                                      "type": t.name, "starts_at": start.isoformat()}))
     from ondra_api.services.reminders import schedule_reminders
 
@@ -345,7 +345,7 @@ async def set_status(db: AsyncSession, a: Appointment, status: str, by: str) -> 
     if status in ("cancelled",):
         await db.execute(update(AppointmentResource).where(and_(AppointmentResource.appointment_id == a.id))
                          .values(active=False))
-    db.add(Event(type=f"appointment.{status}", payload={"appointment_id": str(a.id), "from": before, "by": by}))
+    db.add(Event(type=f"appointment.{status}", payload={"appointment_id": str(a.id), "from": before, "by": by, "contact_id": str(a.contact_id)}))
     await db.flush()
     return a
 

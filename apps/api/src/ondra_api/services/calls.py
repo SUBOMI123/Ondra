@@ -131,6 +131,7 @@ async def finish_call(tenant_id: uuid.UUID, call_id: uuid.UUID, *, handled_by: L
         call.metrics = metrics or {}
         call.transferred_to_user_id = transferred_to_user_id
         db.add(Event(type="call.ended", payload={"call_id": str(call.id), "handled_by": handled_by, "outcome": outcome,
+                                                 "contact_id": str(call.contact_id) if call.contact_id else None,
                                                  "duration_s": call.duration_s, "latency": (metrics or {}).get("summary")}))
         contact = await db.get(Contact, call.contact_id) if call.contact_id else None
         if handled_by == "missed":

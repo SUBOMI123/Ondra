@@ -8,12 +8,13 @@ CHECK constraints rather than Postgres enums, so adding a value is a one-line mi
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -428,6 +429,18 @@ class FollowUp(Base, TenantScoped):
     reason: Mapped[str | None] = mapped_column(String(60))
     message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL"))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MetricDay(Base, TenantScoped):
+    """One day of the dashboard's numbers, computed from that day's events (ondra_core.metrics.day_summary). A
+    cache: it can be thrown away and rebuilt from `events` at any time."""
+
+    __tablename__ = "metric_days"
+    __table_args__ = (UniqueConstraint("tenant_id", "day", name="metric_days_day"),)
+    day: Mapped[date] = mapped_column(Date)
+    data: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    events: Mapped[int] = mapped_column(Integer, server_default="0")
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AssistantMessage(Base, TenantScoped):

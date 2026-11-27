@@ -70,6 +70,9 @@ async def deliver(tenant_id: uuid.UUID, message_id: uuid.UUID) -> Delivery:
         if res.ok:
             conv = await db.get(Conversation, m.conversation_id)
             conv.status = "waiting_customer"
+            from ondra_api.services.metrics import response_sent
+
+            await response_sent(db, m, conv)  # if a customer was waiting, how long they waited and who answered
             from ondra_api.services.follow_ups import on_sent
 
             await on_sent(db, m, conv, await db.get(Contact, conv.contact_id))  # start or advance their follow-ups
