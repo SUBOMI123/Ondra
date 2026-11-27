@@ -114,6 +114,9 @@ def _bucket(row, last: dict) -> tuple[str, str | None]:
 
 # --- list --------------------------------------------------------------------------------------------------------
 
+AFTER_HOURS_WINDOW = timedelta(days=7)
+
+
 @router.get("/conversations")
 async def list_conversations(
     view: View = "all",
@@ -155,6 +158,11 @@ async def list_conversations(
 
     now = datetime.now(UTC)
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
+    # Clients who first came in as a lead while the dealership was closed, in the last week ("After-hours leads").
+    after_hours = {r[0] for r in (await db.execute(text("""
+        SELECT DISTINCT payload->>'contact_id' FROM events
+        WHERE type = 'lead.captured' AND (payload->>'after_hours')::boolean AND occurred_at > :since
+    """), {"since": now - AFTER_HOURS_WINDOW})).all()}
     # One row per client (Inbox threads span channels): group the client's conversations, show their most urgent
     # reason and their latest activity on any channel. Rows come newest first, so a client's first row is latest.
     by_contact: dict = {}
@@ -181,6 +189,8 @@ async def list_conversations(
             "last_message": last,
             "bucket": bucket, "reason": reason,
             "overdue": bool(bucket == "needs" and r.task_due and r.task_due < now),
+            "drafts": sum(c[0].drafts for c in convs),
+            "after_hours_lead": str(r.contact_id) in after_hours,
         })
     return {"items": items, "counts": counts}
 

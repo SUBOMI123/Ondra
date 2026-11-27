@@ -4,25 +4,23 @@ import { useQuery } from "@tanstack/react-query"
 import * as React from "react"
 
 import { api } from "@/lib/api"
+import type { ViewRow } from "@/lib/saved-views"
 import {
   IconCalendarEvent,
   IconCar,
   IconChecklist,
-  IconCrown,
   IconHelp,
   IconLayoutDashboard,
   IconLayoutKanban,
   IconMessages,
-  IconMoonStars,
   IconPhone,
   IconSearch,
-  IconPencilCheck,
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
 
 import { useAuth } from "@/components/providers"
-import { NavDocuments } from "@/components/dashboard/nav-documents"
+import { NavSavedViews } from "@/components/dashboard/nav-saved-views"
 import { NavMain } from "@/components/dashboard/nav-main"
 import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
@@ -55,18 +53,13 @@ const data = {
     { title: "Help", url: "#", icon: IconHelp },
     { title: "Search", url: "#", icon: IconSearch },
   ],
-  views: [
-    { name: "VIPs waiting", url: "#", icon: IconCrown },
-    { name: "Drafts to approve", url: "#", icon: IconPencilCheck },
-    { name: "After-hours leads", url: "#", icon: IconMoonStars },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { me } = useAuth()
   // Real counts: conversations that need a person, and my open tasks. Same queries as those pages, so live
   // updates refresh both. No badge when the count is zero or unknown.
-  const inbox = useQuery({ queryKey: ["conversations"], queryFn: () => api<{ counts: { needs: number } }>("/conversations?view=all"), enabled: !!me })
+  const inbox = useQuery({ queryKey: ["conversations"], queryFn: () => api<{ counts: { needs: number }; items: ViewRow[] }>("/conversations?view=all"), enabled: !!me })
   const tasks = useQuery({ queryKey: ["tasks", "mine", "open"], queryFn: () => api<{ items: unknown[] }>("/tasks?scope=mine&status=open"), enabled: !!me })
   const badge = (n?: number) => (n ? String(n) : undefined)
   const navMain = data.navMain.map((item) =>
@@ -89,8 +82,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
-        <NavDocuments items={data.views} />
+        <React.Suspense fallback={null}>
+          <NavMain items={navMain} />
+          <NavSavedViews rows={inbox.data?.items} seesVips={me?.role === "owner" || me?.role === "manager"} />
+        </React.Suspense>
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

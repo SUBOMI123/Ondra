@@ -103,8 +103,8 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Screen | State |
 |---|---|
 | VIPs: made from the client, ink tag and ring, out of Settings | Done |
-| Saved views as working Inbox filters | Next |
-| Settings as an index of pages in four groups | To do |
+| Saved views as working Inbox filters (drafts, VIPs waiting, after-hours leads) | Done |
+| Settings as an index of pages in four groups | Next |
 | Clients list, Deals detail, Tasks team board, Inventory, Calls actions | To do |
 
 ## Voice backlog (parked 2026-11-27)

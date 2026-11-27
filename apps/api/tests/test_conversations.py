@@ -6,13 +6,12 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select, text, update
-
 from ondra_api import channels, worker
 from ondra_api.db import tenant_session
 from ondra_api.services import inbound
 from ondra_core.agent.llm import ScriptedLLM
 from ondra_core.models import Conversation, Event, Message, Policy
+from sqlalchemy import select, text, update
 
 from .conftest import login
 
@@ -165,3 +164,30 @@ async def test_another_dealers_conversations_do_not_exist(client, database):
     assert (await client.get(f"/conversations/{conv_id}", headers=b_owner)).status_code == 404
     assert all(c["id"] != str(conv_id) for c in (await client.get("/conversations", headers=b_owner)).json()["items"])
     assert (await client.post(f"/conversations/{conv_id}/reply", headers=b_owner, json={"body": "hi"})).status_code == 404
+
+
+async def test_saved_view_facts_drafts_and_after_hours_leads(client, database, monkeypatch, outbox):
+    """The sidebar's saved views filter on these: drafts waiting, and leads that came in while the dealer was closed
+    (in the last week only)."""
+    from datetime import UTC, datetime, timedelta
+
+    async with tenant_session(database["a"]) as db:
+        await db.execute(update(Policy).values(draft_mode=True))
+    name, phone = await _regular_contact(database["a"])
+    await _customer_writes(client, monkeypatch, phone, "do you have any trucks under 30k?")
+    owner = await login(client, OWNER)
+    row = await _conversation_for(client, owner, name)
+    assert row["drafts"] == 1 and row["after_hours_lead"] is False
+
+    async with tenant_session(database["a"]) as db:
+        db.add(Event(type="lead.captured", occurred_at=datetime.now(UTC) - timedelta(days=9),
+                     payload={"contact_id": row["contact"]["id"], "after_hours": True}))
+    assert (await _conversation_for(client, owner, name))["after_hours_lead"] is False  # too old
+
+    async with tenant_session(database["a"]) as db:
+        db.add(Event(type="lead.captured", payload={"contact_id": row["contact"]["id"], "after_hours": False}))
+    assert (await _conversation_for(client, owner, name))["after_hours_lead"] is False  # came in while open
+
+    async with tenant_session(database["a"]) as db:
+        db.add(Event(type="lead.captured", payload={"contact_id": row["contact"]["id"], "after_hours": True}))
+    assert (await _conversation_for(client, owner, name))["after_hours_lead"] is True

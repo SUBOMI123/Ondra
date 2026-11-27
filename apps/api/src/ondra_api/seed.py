@@ -13,6 +13,7 @@ import random
 import sys
 import uuid
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from ondra_core.models import (
     AppointmentType,
@@ -107,7 +108,7 @@ KNOWLEDGE = [
 
 
 async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
-    """Five example conversations, one for each state the Inbox has to show. Example data, like the rest of the seed."""
+    """Six example conversations, one for each state the Inbox has to show. Example data, like the rest of the seed."""
     now = datetime.now(UTC)
 
     def at(minutes_ago: int) -> datetime:
@@ -168,6 +169,43 @@ async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
     msg(jordan, "inbound", "customer", "is the civic sport still for sale", 600, "received")
     msg(jordan, "outbound", "ai", "Yes, the 2021 Civic Sport is here, listed at $21,900. Want to come see it?", 599, "sent")
     msg(jordan, "inbound", "customer", "STOP", 590, "received")
+
+    await _seed_after_hours_lead(db, t, contacts, users)
+
+
+async def _seed_after_hours_lead(db, t, contacts: dict, users: dict) -> None:
+    """6. An after-hours lead: a buyer in Lagos writes at 2 am Dallas time; Ondra answers and books sales for the
+    morning. The Inbox's "After-hours leads" view shows it."""
+    now = datetime.now(UTC)
+    tz = ZoneInfo("America/Chicago")
+    night = datetime.now(tz).replace(hour=2, minute=10, second=0, microsecond=0)
+    if night > datetime.now(tz) - timedelta(minutes=30):
+        night -= timedelta(days=1)
+    night_ago = int((now - night.astimezone(UTC)).total_seconds() // 60)
+    db.add(ContactIdentity(tenant_id=t, contact_id=contacts["Aisha Bello"].id, kind="whatsapp", value="+12145551005"))
+    aisha = Conversation(tenant_id=t, contact_id=contacts["Aisha Bello"].id, channel="whatsapp", status="waiting_staff",
+                         ai_mode="auto", last_inbound_at=night.astimezone(UTC))
+    db.add(aisha)
+    await db.flush()
+
+    def msg(c, direction, body, minutes_ago, status):
+        db.add(Message(tenant_id=t, conversation_id=c.id, direction=direction, author_type="customer" if direction == "inbound" else "ai",
+                       body=body, status=status, created_at=now - timedelta(minutes=minutes_ago),
+                       provider="mock" if direction == "inbound" else None,
+                       provider_message_id=f"seed-whatsapp-{minutes_ago}-{direction}" if direction == "inbound" else None))
+
+    msg(aisha, "inbound", "Good morning from Lagos. Is the Lexus RX 350 still available, and can you ship it to "
+        "Nigeria?", night_ago, "received")
+    msg(aisha, "outbound", "Good morning Aisha. Yes, we have the Lexus RX 350 in stock. We arrange shipping through "
+        "partner carriers, and a salesperson confirms the cost, documents and timing for each order. I've asked our sales "
+        "team to message you when we open at 9 am Dallas time, which is 4 pm in Lagos.", night_ago - 1, "sent")
+    open_at = night.replace(hour=9, minute=30).astimezone(UTC)
+    db.add(Task(tenant_id=t, title="Aisha Bello: Shipping a Lexus RX 350 to Lagos", contact_id=contacts["Aisha Bello"].id,
+                conversation_id=aisha.id, assignee_user_id=users["sales"].id, source="ai_handoff", urgency="normal",
+                due_at=open_at, brief="Buyer in Lagos wants the Lexus RX 350 shipped to Nigeria. Needs shipping cost, "
+                "documents and timing. Prefers WhatsApp; Lagos is 7 hours ahead of Dallas in winter, 6 in summer."))
+    db.add(Deal(tenant_id=t, contact_id=contacts["Aisha Bello"].id, type="sales", stage="new", source_channel="whatsapp",
+                vehicle_of_interest={"description": "Lexus RX 350"}, created_at=night.astimezone(UTC)))
 
 
 async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
@@ -260,7 +298,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             from ondra_api.services.booking import DEFAULT_REMINDERS, TEMPLATES
 
             service_hours = {d: ["07:00", "18:00"] for d in ("mon", "tue", "wed", "thu", "fri")} | {"sat": ["08:00", "14:00"]}
-            for key, tpl in TEMPLATES.items():
+            for tpl in TEMPLATES.values():
                 db.add(AppointmentType(tenant_id=t, **tpl, reminder_schedule=DEFAULT_REMINDERS,
                                        bookable_hours=service_hours if tpl["category"] == "service" else {}))
             for name in ("Bay 1", "Bay 2", "Bay 3"):

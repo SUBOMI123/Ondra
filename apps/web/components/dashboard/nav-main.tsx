@@ -2,7 +2,7 @@
 
 import { IconMessages, IconPencilPlus, type Icon } from "@tabler/icons-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { ACTIVE_ITEM, isActivePath } from "@/lib/nav"
@@ -27,6 +27,9 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  // On a saved view (/inbox?filter=…) the view is the highlighted item, not Inbox: one place you are, one highlight.
+  const onSavedView = !!useSearchParams().get("filter")
+  const active = (url: string) => isActivePath(pathname, url) && !(url === "/inbox" && onSavedView)
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -58,8 +61,8 @@ export function NavMain({
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               ) : (
-                <SidebarMenuButton asChild tooltip={item.title} isActive={isActivePath(pathname, item.url)} className={ACTIVE_ITEM}>
-                  <Link href={item.url} aria-current={isActivePath(pathname, item.url) ? "page" : undefined}>
+                <SidebarMenuButton asChild tooltip={item.title} isActive={active(item.url)} className={ACTIVE_ITEM}>
+                  <Link href={item.url} aria-current={active(item.url) ? "page" : undefined}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </Link>

@@ -678,3 +678,17 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   cancelled, so nothing AI-written reaches them after the switch. Recorded as `contact.vip_changed` and in the
   audit log. Alternative considered: let queued drafts through for approval. Rejected: the product rule is no AI
   content for VIPs at all, and a person approving a draft by habit would break it.
+
+## 2026-11-27: Saved views are fixed Inbox filters, not user-made views
+
+- **Three views, defined in code** (`apps/web/lib/saved-views.ts`): Drafts to approve, VIPs waiting (owners and
+  managers only), After-hours leads. Each opens `/inbox?filter=…`; the sidebar count and the Inbox filter use the
+  same test, so the number is always what opens. The old links went nowhere, and the Open / Share / Delete menu and
+  "More" did nothing; both are gone.
+- **A view replaces the Inbox tabs while it's on**, with its name, count and Clear. Two filters stacked (a tab and a
+  view) would make "why isn't Kevin here?" a puzzle.
+- **After-hours lead** = a lead captured while the dealership was closed (the `after_hours` flag on `lead.captured`)
+  in the last 7 days. Older ones have been dealt with or belong to the pipeline, not the Inbox.
+- **Not built: making your own views.** Nobody has asked for it, and three good ones beat a builder nobody uses.
+  Revisit if dealers ask for "my leads" or "Spanish speakers".
+- The seed gains an after-hours conversation (a buyer in Lagos at 2 am Dallas time) so the view isn't empty in demos.

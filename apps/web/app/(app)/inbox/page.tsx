@@ -14,6 +14,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconHandStop,
+  IconX,
   IconLayoutSidebarRight,
   IconMail,
   IconMessage,
@@ -25,7 +26,8 @@ import {
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
@@ -43,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
+import { viewById } from "@/lib/saved-views"
 import { cn } from "@/lib/utils"
 import { ClientAvatar, VipTag } from "@/components/vip"
 
@@ -62,6 +65,8 @@ type Summary = {
   bucket: Bucket
   reason: string | null
   overdue: boolean
+  drafts: number
+  after_hours_lead: boolean
 }
 type ListData = { items: Summary[]; counts: Record<Bucket, number> }
 type Rating = "good" | "wrong" | "tone"
@@ -626,7 +631,18 @@ function Details({ id, inSheet = false }: { id: string; inSheet?: boolean }) {
 /* ---------------------------------------------------------------- page */
 
 export default function InboxPage() {
+  return (
+    <Suspense fallback={null}>
+      <Inbox />
+    </Suspense>
+  )
+}
+
+function Inbox() {
   useLiveInbox()
+  const router = useRouter()
+  // A saved view from the sidebar (/inbox?filter=drafts). It replaces the tabs while it's on, so filters never stack.
+  const saved = viewById(useSearchParams().get("filter"))
   const [view, setView] = useState<View>("needs")
   const [q, setQ] = useState("")
   const [selected, setSelected] = useState<string | null>(null)
@@ -649,14 +665,14 @@ export default function InboxPage() {
 
   const items = useMemo(() => {
     const all = list.data?.items ?? []
-    const byView = all.filter((c) => (view === "all" ? true : c.bucket === view))
+    const byView = saved ? all.filter(saved.matches) : all.filter((c) => (view === "all" ? true : c.bucket === view))
     const needle = q.trim().toLowerCase()
     const found = needle ? byView.filter((c) => `${c.contact.name} ${c.last_message.body}`.toLowerCase().includes(needle)) : byView
     // VIPs first among what needs you: their waiting costs the most. Then overdue.
-    return view === "needs"
+    return view === "needs" || saved
       ? [...found].sort((a, b) => Number(b.contact.is_vip) - Number(a.contact.is_vip) || Number(b.overdue) - Number(a.overdue))
       : found
-  }, [list.data, view, q])
+  }, [list.data, view, q, saved])
   // Open on the most urgent thing until the user picks one.
   const currentId = selected ?? items[0]?.id ?? list.data?.items[0]?.id ?? null
   const current = list.data?.items.find((c) => c.id === currentId)
@@ -676,6 +692,18 @@ export default function InboxPage() {
       <div className="@container/inbox flex min-h-0 flex-1 md:h-[calc(100svh-var(--header-height)-3.25rem)] md:flex-none md:overflow-hidden">
         <div className={cn("min-h-0 w-full flex-col border-r @2xl/inbox:flex @2xl/inbox:w-72 @2xl/inbox:shrink-0 @5xl/inbox:w-80", mobileThread ? "hidden" : "flex")}>
           <div className="flex flex-col gap-3 p-3">
+            {saved ? (
+              <div className="flex h-9 items-center justify-between gap-2 rounded-lg bg-muted px-3">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <saved.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="truncate font-medium">{saved.name}</span>
+                  <span className="text-muted-foreground tabular-nums">{list.data ? items.length : ""}</span>
+                </span>
+                <Button variant="ghost" size="sm" className="-mr-2 h-7 px-2 text-muted-foreground" onClick={() => router.replace("/inbox")}>
+                  <IconX aria-hidden="true" /> Clear
+                </Button>
+              </div>
+            ) : (
             <Tabs value={view} onValueChange={(v) => setView(v as View)}>
               <TabsList className="w-full">
                 <TabsTrigger value="needs">
@@ -687,6 +715,7 @@ export default function InboxPage() {
                 <TabsTrigger value="all">All</TabsTrigger>
               </TabsList>
             </Tabs>
+            )}
             <div className="relative">
               <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search conversations" className="pl-8" />
@@ -703,7 +732,7 @@ export default function InboxPage() {
             <div role="listbox" aria-label="Conversations" className="min-h-0 flex-1 divide-y overflow-y-auto border-t">
               {items.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground">
-                  {view === "needs" && !q ? "Nothing needs you right now. Ondra is handling everything else." : "No conversations match."}
+                  {saved && !q ? saved.empty : view === "needs" && !q ? "Nothing needs you right now. Ondra is handling everything else." : "No conversations match."}
                 </p>
               ) : (
                 items.map((c) => (
