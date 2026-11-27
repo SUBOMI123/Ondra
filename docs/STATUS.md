@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 7 is built and its three acceptance checks are met; waiting for the founder to accept it before Step 8. Step 6 is built with its checks met. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Steps 6, 7 and 8 are built with their acceptance checks met; waiting for the founder to accept them before Step 9 (analytics). Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -16,7 +16,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
 | 6 | Routing, follow-ups, learning loop | **Built; all 3 acceptance checks met** (2026-11-27). Two parts of the plan's learning loop are not built: exporting ratings into the eval set, and automatic pattern-finding across draft edits (see Known gaps) |
 | 7 | Integrations (ADF, inventory feed, DMS) | **Built; all 3 acceptance checks met** (2026-11-27). No real CRM, feed or DMS has been connected: everything is proven against mocks and files |
-| 8 | Owner WhatsApp layer | Not started |
+| 8 | Owner WhatsApp layer | **Built; both acceptance checks met** (2026-11-27), on the mock WhatsApp channel. Real voice notes need a transcription service (founder decision) and real delivery needs the dealer's WhatsApp connected and two templates approved |
 | 9 | Analytics | Not started |
 | 10 | Hardening and compliance | Not started |
 | 11 | Instagram and self-serve onboarding | Not started |
@@ -67,6 +67,13 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
 - **Quality:** 166 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 13 pages.
+
+### Step 8 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| Briefing arrives at the configured local time with correct counts | Met in tests | `test_the_briefing_arrives_at_the_configured_time_with_correct_counts`: each of the five numbers moves by exactly what was added; the job is lined up for 7:30 in the dealership's zone (also across a clock change), sends the template with those numbers, and lines up the next day. Sent from Settings in a real browser too |
+| A voice note updates the right client and creates a task | Met with the real model, mock transcription | "Sara Kling ... wants the white Highlander now, budget's forty thousand. Have Daniel give her a call tomorrow": Sarah King's deal updated, a task for Daniel Okafor due the next day at 5 pm, and the owner told what was done. The words came from a mock transcriber, not real audio |
 
 ### Step 7 acceptance
 
@@ -121,15 +128,19 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Real conversations: mystery-shop dealers, pilot exports | Replacing the synthetic golden set | Not started |
 | Each pilot dealer's CRM lead address, and a test lead confirmed arriving in that CRM | Leads reaching the CRM for real | Not started |
 | Which DMS the first pilot dealers use, and their partner programme | A live DMS connection | Open (plan §17 Q4) |
+| Choose a speech-to-text service for the owner's voice notes (recorded files, not live calls) | Real voice notes to the assistant | Open |
+| Get `ondra_morning_briefing` and `ondra_alert` approved in each pilot dealer's WhatsApp Business account | Briefings and alerts outside the 24-hour window | Not started (needs the dealer's WhatsApp connected first) |
 | Container host and managed Postgres | First staging deploy | Not decided |
 
 ## Known gaps (honest list)
+
+- **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) the dashboard doesn't show the assistant thread; (5) owners only, not managers.
 
 - **Integrations, not proven or not built:** (1) no real CRM has received an ADF lead, and how each CRM wants the email (body or attachment, subject) is unverified; (2) scheduled feed fetching doesn't stop DNS rebinding and can't use feeds that need a login; (3) no real DMS vendor adapter exists (partner programs); (4) the CSV repair-order upload is manual and replaces the last one; (5) XML feeds that put data in attributes only aren't read.
 
 - **Learning loop, not built:** (1) ratings aren't exported into the eval set (needs redaction of customer data and a home for such cases); (2) no automatic pattern-finding across draft edits, each edit is listed for the dealer to act on; (3) no note field when rating in the Inbox; (4) prices inside a dealer's own answers ("remote starter, $450") aren't repeated by Ondra, because only listed vehicle prices are allowed.
 - **Follow-ups by text mostly become tasks** until counsel says whether an inbound text is consent to a later follow-up; WhatsApp follow-ups after 24 hours need templates, which aren't built.
-- **Routing alerts are records only** (VIP re-alert, urgent rules) until the owner's WhatsApp layer in Step 8.
+- **Alerts addressed to the owner now go to their WhatsApp** (Step 8). Alerts for managers and other teams are still records only.
 
 - **In draft mode, a booking happens at once; only the reply waits for approval.** The slot is held, so nobody else takes it, but the customer isn't told until a person approves. That's arguably right (holding the slot), but it's your call.
 - **Transport can't be changed after booking** (for example, adding a loaner later). Ondra asks wait, loaner or drop-off before booking a service. A person can edit it from the calendar in a later step.

@@ -222,3 +222,76 @@ async def delete_channel(channel_id: uuid.UUID, request: Request,
         raise HTTPException(404)
     _audit(db, caller, request, "settings.channel_remove", f"channel:{row.id}", _channel_out(row), None)
     await db.delete(row)
+
+
+# --- the owner's WhatsApp assistant (BUILD_PLAN.md §4.4) ------------------------------------------------------------
+
+class OwnerAssistantIn(BaseModel):
+    briefing_on: bool
+    briefing_time: str  # "HH:MM", 24h, in the dealership's time zone
+    alerts_on: bool = True
+
+    @field_validator("briefing_time")
+    @classmethod
+    def _time(cls, v: str) -> str:
+        if not _HHMM.match(v):
+            raise ValueError("Choose a time for the briefing.")
+        return v
+
+
+async def _owner_assistant(db: AsyncSession, t: Tenant) -> dict:
+    from ondra_core.models import User
+
+    from ondra_api.services.owner import TEMPLATES, settings_of
+
+    owners = (await db.execute(select(User).where(User.role == "owner", User.active.is_(True)).order_by(User.created_at))).scalars().all()
+    wa = (await db.execute(select(ChannelAddress).where(ChannelAddress.channel == "whatsapp", ChannelAddress.active.is_(True)).limit(1))).scalar_one_or_none()
+    return {**settings_of(t), "owners": [{"name": u.name, "has_mobile": bool(u.phone)} for u in owners],
+            "whatsapp": None if wa is None else {"address": wa.address, "live": wa.provider != "mock"},
+            "templates": [{"name": k, "text": v} for k, v in TEMPLATES.items()]}
+
+
+@router.get("/owner-assistant")
+async def get_owner_assistant(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    return {**await _owner_assistant(db, t), "can_edit": caller.role == "owner"}
+
+
+def _owner_only(caller: Caller) -> None:
+    if caller.role != "owner":
+        raise HTTPException(403, "Only an owner can change their own WhatsApp assistant.")
+
+
+@router.put("/owner-assistant")
+async def put_owner_assistant(body: OwnerAssistantIn, request: Request, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    """Switching the briefing or alerts on is the owner asking for them on their own WhatsApp: that choice, who made
+    it and when, is kept in the audit log (WhatsApp requires an opt-in before a business messages anyone)."""
+    from ondra_api.services import briefing
+    from ondra_api.services.owner import settings_of
+
+    caller, db = ctx
+    _owner_only(caller)
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    before = settings_of(t)
+    t.settings = {**(t.settings or {}), "owner_assistant": body.model_dump()}
+    await db.flush()
+    at = await briefing.schedule(db)
+    _audit(db, caller, request, "settings.owner_assistant", f"tenant:{t.id}", before, body.model_dump())
+    return {**await _owner_assistant(db, t), "can_edit": True, "next_briefing_at": at.isoformat() if at else None}
+
+
+@router.post("/owner-assistant/briefing")
+async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    """Send today's briefing to the owners now, to see what it looks like."""
+    from ondra_api.services import briefing
+
+    caller, db = ctx
+    _owner_only(caller)
+    await db.commit()
+    out = await briefing.send_now(caller.tenant_id)
+    if out["owners"] == 0:
+        raise HTTPException(409, "No owner has a mobile on file. Add yours under Team first.")
+    if out["sent"] == 0:
+        raise HTTPException(502, "The briefing couldn't be sent. Check that a WhatsApp number is connected under Channels.")
+    return {k: out[k] for k in ("vips_waiting", "hot_leads", "drafts", "overdue_tasks", "appointments", "sent", "owners")}

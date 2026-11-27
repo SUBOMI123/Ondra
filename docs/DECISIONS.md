@@ -573,3 +573,37 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   first real-model run handed off for timing when the customer hadn't asked; the prompt now says not to.
 - **Health without colour.** Each integration says in words whether it's off, working, working with a warning,
   or not working, with an icon. Red stays for VIPs and overdue items.
+
+## 2026-11-27: The owner's WhatsApp line (Step 8)
+
+- **Who is "the owner" on WhatsApp:** an active user with the owner role whose mobile (Team) is the number
+  writing in. WhatsApp only: it verifies the sender's number, and a text message's sender can be faked, so the same
+  number by SMS is treated as a customer. Managers aren't included yet. The owner writes to the dealership's own
+  WhatsApp number; a separate "assistant number" would simply be a second WhatsApp number on the dealership.
+- **Not a customer.** The owner's messages never create a contact or a conversation. They live in
+  `assistant_messages`, with what Ondra sent back.
+- **The 24-hour rule** (Meta's docs, read 2026-11-27): free text and reply buttons only within 24 hours of the
+  owner's last message; otherwise an approved template. Two templates are proposed, `ondra_morning_briefing` and
+  `ondra_alert`; their wording and category are approved per WhatsApp Business account by Meta, so they're
+  proposals until a dealer's account has them. The research's reading is that a daily summary fits "utility"; Meta
+  re-categorises templates it judges to be marketing. WhatsApp also requires an opt-in before messaging anyone:
+  the owner switching the briefing or alerts on is that, and it's in the audit log.
+- **Alerts reach the owner through a database trigger**, not a call at each place that raises one: every
+  `alert.created` event addressed to the owner queues its delivery in the same transaction. Six places raise
+  alerts today; none had to change, and a seventh can't forget.
+- **Briefing counts:** VIPs waiting = VIP clients with an open task; hot leads = other clients with an open
+  high-urgency task; drafts = Ondra's drafts awaiting approval; overdue = open tasks past due; appointments =
+  booked or confirmed, today in the dealership's time zone. The job lines up tomorrow's before sending today's, at
+  the wall-clock time in the dealership's zone (so it stays at 7:30 across a clock change).
+- **The assistant's tools:** find a client (tolerant of names spelled by ear), client details, who wanted
+  something, add a note, update a deal, create a task, what's waiting, approve a draft. It has no tool that
+  messages a customer. Approving a draft sends it through the one send path, with every check a dashboard
+  approval gets.
+- **From the real-model run:** replies were long, used markdown WhatsApp doesn't render, and one "corrected" an
+  earlier reply because it could no longer see the tools it had used. The prompt now asks for one or two plain
+  lines, and earlier replies carry a note of what was changed.
+- **Voice notes: no real transcription yet.** The interface and a mock exist, and the WhatsApp adapter can
+  download the audio (two requests, 16 MB cap, per Meta's docs). Which speech-to-text service turns a recorded
+  file into text is a founder decision: the calls use LiveKit's live recognition, which isn't built for files.
+- **Not built:** buttons on the briefing itself (a template with quick replies needs its own approval); the
+  assistant for managers; a view of the assistant thread in the dashboard.

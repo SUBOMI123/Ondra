@@ -26,6 +26,7 @@ import { toast } from "sonner"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { BookingSection } from "@/components/settings/booking-section"
 import { FollowUpsSection } from "@/components/settings/follow-ups-section"
+import { OwnerAssistantSection } from "@/components/settings/owner-assistant-section"
 import { assignableRoles, canManageTeam, InviteForm, ROLE_LABEL, type TeamData } from "@/components/settings/team"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -70,6 +71,7 @@ const SECTIONS = [
   { id: "follow-ups", title: "Follow-ups" },
   { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
+  { id: "assistant", title: "Your WhatsApp assistant" },
   { id: "channels", title: "Channels" },
   { id: "integrations", title: "Integrations" },
 ]
@@ -679,6 +681,9 @@ export default function SettingsPage() {
               </Section>
               <BookingSection canEdit={canEdit} />
               <VipsSection />
+              <Section id="assistant" title="Your WhatsApp assistant" description="For the owner: a morning briefing, an alert when a VIP is waiting, and a number to send voice notes and questions to.">
+                <OwnerAssistantSection />
+              </Section>
               <ChannelsSection data={settings.data} canEdit={canEdit} />
               <IntegrationsSummary />
             </>

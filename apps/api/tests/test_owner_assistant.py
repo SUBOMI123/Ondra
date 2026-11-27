@@ -327,3 +327,31 @@ async def test_outside_the_window_without_a_template_nothing_is_sent_and_dealers
     assert row.status == "failed" and "24-hour window" in row.meta["error"] and line.to_owner() == []
     async with tenant_session(database["b"]) as db:
         assert (await db.execute(select(AssistantMessage))).scalars().all() == []
+
+
+async def test_owner_assistant_settings_are_the_owners_and_schedule_the_briefing(client, line):
+    from tests.conftest import login
+
+    owner = await login(client, "owner@prestigemotors.example")
+    admin = await login(client, "admin@prestigemotors.example")
+    got = (await client.get("/settings/owner-assistant", headers=admin)).json()
+    assert (got["briefing_on"], got["briefing_time"], got["alerts_on"], got["can_edit"]) == (False, "07:30", True, False)
+    assert got["owners"] == [{"name": "Samuel Adeyemi", "has_mobile": True}] and got["whatsapp"]["live"] is False
+    assert [t["name"] for t in got["templates"]] == ["ondra_morning_briefing", "ondra_alert"]
+    body = {"briefing_on": True, "briefing_time": "06:45", "alerts_on": True}
+    assert (await client.put("/settings/owner-assistant", json=body, headers=admin)).status_code == 403  # it's the owner's own phone
+    assert (await client.put("/settings/owner-assistant", json={**body, "briefing_time": "6.45am"}, headers=owner)).status_code == 422
+    saved = (await client.put("/settings/owner-assistant", json=body, headers=owner)).json()
+    at = datetime.fromisoformat(saved["next_briefing_at"])
+    assert at.astimezone(CHI).strftime("%H:%M") == "06:45"
+    async with tenant_session(line.tenant) as db:
+        jobs = (await db.execute(select(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))).scalars().all()
+        assert [j.run_at for j in jobs] == [at]
+    # Changing the time replaces the job rather than adding a second briefing.
+    await client.put("/settings/owner-assistant", json={**body, "briefing_time": "08:15"}, headers=owner)
+    async with tenant_session(line.tenant) as db:
+        [job] = (await db.execute(select(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))).scalars().all()
+        assert job.run_at.astimezone(CHI).strftime("%H:%M") == "08:15"
+    sent = (await client.post("/settings/owner-assistant/briefing", headers=owner)).json()
+    assert sent["sent"] == 1 and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
+    assert (await client.post("/settings/owner-assistant/briefing", headers=admin)).status_code == 403
