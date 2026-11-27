@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable: Settings > Who gets what (rules as sentences, reorder, switch off, check a message) and each person's hours and task limit on Team. Next: follow-ups and quiet hours. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable. Follow-up sequences with approval and quiet hours work end to end in tests; their settings section is unverified in a browser. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -14,7 +14,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
-| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a) and the "Who gets what" settings screen with per-person hours (6b) done. Next: follow-ups and quiet hours (6c), learning loop (6d), acceptance (6e) |
+| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a), "Who gets what" screen (6b), follow-ups and quiet hours backend (6c) done and tested. **The Follow-ups settings section is written and type-checked but not yet run in a browser or through `review:ui`** (the local database stopped). Next: verify that screen, learning loop (6d), acceptance (6e) |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
@@ -73,7 +73,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Check | Status | Evidence |
 |---|---|---|
 | Rules route test messages correctly across 10 scenarios | Met in tests; rules created, reordered, switched off and checked in a real browser | `apps/api/tests/test_routing.py`: 12 routing scenarios plus tenant isolation, each a real message through the webhook, job queue and Postgres (round-robin, keeping a customer's rep, service, complaint rule with alert, VIP over any rule, a named person per channel, AI kept out of a topic, capacity, nobody in, Lagos covering Dallas, drafts after hours, rule order, empty team) |
-| STOP on SMS blocks all outbound to that contact | Built in Step 2; to be re-proven with follow-ups in 6c | `test_stop_opts_out_on_every_channel_and_blocks_later_ai` |
+| STOP on SMS blocks all outbound to that contact | Met in tests | `test_stop_on_sms_blocks_all_outbound_on_every_channel`: after STOP by text, the lined-up follow-up is cancelled, consent is opted out on all four channels, a person's reply is refused on text and WhatsApp, a reminder is blocked, a later message gets no AI reply, and nothing leaves any channel |
 | An unanswered question answered by the dealer is used by the AI on the next identical question | Not started (6d) | |
 
 ## Voice backlog (parked 2026-11-27)
@@ -102,6 +102,8 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
+| Counsel: is a customer's own inbound text consent to a follow-up text a day later? Today it isn't, so most text follow-ups become tasks for a person | How much follow-ups do by text | Open |
+| Counsel: should quiet hours also hold appointment reminders and late-night replies? Today they hold follow-ups only | Quiet hours scope | Open |
 | Counsel: call recording consent (two-party states) | Keeping call recordings | Open |
 | Counsel: is a caller's recorded spoken yes on a call enough consent to text them the details they asked for? (Ondra records it today) | Texting details from calls | Open |
 | A computer to run the stack for the acceptance call (or a host); your mobile in Settings > Team | First real call | Waiting |

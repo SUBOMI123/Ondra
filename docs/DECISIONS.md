@@ -484,3 +484,33 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   for yourself. Off by default: people follow the dealership's hours.
 - **Found by the browser run, not the tests:** the Team list endpoint didn't return the new fields, so the sheet
   thought everyone had their own hours. Fixed and covered by a test.
+
+## 2026-11-27: Follow-up sequences and quiet hours (Step 6c)
+
+- **What starts one:** any reply (Ondra's or a person's) that goes out on text, WhatsApp or email. The customer's
+  place in the first active sequence that covers the conversation's topic begins; each later reply restarts it.
+  One follow-up stream per customer, on the channel they last wrote on, never one per channel.
+- **What stops one:** the customer writes back on any channel (a draft waiting for approval is thrown away too),
+  STOP, a person takes over, a booked appointment, the sequence switched off, or a person discarding the draft.
+- **Checked again when each step is due, not when it was scheduled:** opted out, VIP, person handling, replied,
+  booked, quiet hours, consent. A day is a long time; the state when the timer was set proves nothing.
+- **Consent (CLAUDE.md: no automated texts without recorded consent):** a follow-up is the dealership writing
+  first, so by text or WhatsApp it needs a recorded opt-in for that channel. Without one, a person gets a low-urgency
+  task and nothing is sent. Most first-time texters have no recorded consent today, so most text follow-ups will
+  become tasks until counsel says whether an inbound text is itself consent to a follow-up. Email needs no
+  recorded opt-in (opt-outs still block it).
+- **WhatsApp outside the 24-hour window** needs an approved template, which isn't built: it becomes a task.
+- **VIPs and complaints are never enrolled.**
+- **Who writes it:** per step, Ondra (one model call, no tools, from the conversation) or a fixed message with
+  `{first_name}` and `{dealership}`. Ondra's is held to the reply checks with no price allowed at all, may answer
+  SKIP when there's nothing useful to say, and is told not to claim a car is still available (it hasn't checked):
+  the first real-model run said "the CR-V is still here". If its draft fails, the step's fixed text is used if
+  there is one, else nothing is sent.
+- **Approval is the default** per step, and forced while draft mode is on. An approved draft goes through the
+  normal approve path; the next step is scheduled when it's actually sent.
+- **Quiet hours** default to 9 pm to 8 am in the dealership's time and can be changed but not switched off. They
+  hold back follow-ups only. Replies to a customer who just wrote aren't held back, and appointment reminders
+  aren't either (they're about something the customer booked): both are questions for counsel, listed in STATUS.
+  The customer's own time zone isn't known, so a Lagos buyer gets Dallas quiet hours.
+- **Limits:** 50 routing rules, 20 sequences, 6 steps. Guards against runaway lists, not product limits; raise
+  them when a real dealer hits one.

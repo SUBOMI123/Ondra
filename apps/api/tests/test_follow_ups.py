@@ -288,3 +288,8 @@ async def test_sequences_api_permissions_validation_and_isolation(client, databa
     assert (await client.get("/follow-ups", headers=other)).json()["sequences"] == []  # never another dealer's
     async with tenant_session(database["b"]) as db:
         assert (await db.execute(select(FollowUp))).scalars().all() == []
+
+
+async def test_a_complaint_never_starts_a_sequence(desk):
+    frm = await desk.writes("This is unacceptable, I want a refund", reply="I'm sorry about that. I've passed this to a manager.")
+    assert await desk.follow_ups(frm) == []

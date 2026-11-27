@@ -96,6 +96,8 @@ async def on_sent(db: AsyncSession, m: Message, conv: Conversation, contact: Con
     await cancel_for(db, contact.id, "superseded", conversation_id=conv.id)
     if contact.is_vip:
         return  # a VIP never gets an automated message; their follow-up is the owner's to make
+    if conv.topic == "complaint":
+        return  # an unhappy customer hears from a person, never from a sequence
     seqs = (await db.execute(select(FollowUpSequence).where(FollowUpSequence.active.is_(True))
                              .order_by(FollowUpSequence.created_at))).scalars().all()
     seq = next((s for s in seqs if s.steps and (not s.topics or (conv.topic or "other") in s.topics)), None)

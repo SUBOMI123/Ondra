@@ -25,6 +25,7 @@ import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { BookingSection } from "@/components/settings/booking-section"
+import { FollowUpsSection } from "@/components/settings/follow-ups-section"
 import { assignableRoles, canManageTeam, InviteForm, ROLE_LABEL, type TeamData } from "@/components/settings/team"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -65,6 +66,7 @@ const SECTIONS = [
   { id: "team", title: "Team" },
   { id: "routing", title: "Who gets what" },
   { id: "ondra", title: "How Ondra replies" },
+  { id: "follow-ups", title: "Follow-ups" },
   { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
   { id: "channels", title: "Channels" },
@@ -612,6 +614,9 @@ export default function SettingsPage() {
               <TeamSection />
               <RoutingSummary />
               <RepliesSection data={settings.data} canEdit={canEdit} />
+              <Section id="follow-ups" title="Follow-ups" description="Checking back with customers who went quiet: when, what's said, and whether someone approves it first.">
+                <FollowUpsSection />
+              </Section>
               <BookingSection canEdit={canEdit} />
               <VipsSection />
               <ChannelsSection data={settings.data} canEdit={canEdit} />
