@@ -1,6 +1,6 @@
 "use client"
 
-import { IconCalendarCheck, IconCrownFilled, IconEye, IconEyeOff, IconMoonStars } from "@tabler/icons-react"
+import { IconCalendarCheck, IconEye, IconEyeOff, IconMoonStars, IconPhoneIncoming } from "@tabler/icons-react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -23,7 +23,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://useondra.com"
 const OVERNIGHT = [
   { icon: IconMoonStars, value: "41", text: "leads answered after hours", ai: true },
   { icon: IconCalendarCheck, value: "19", text: "test drives and service slots booked", ai: true },
-  { icon: IconCrownFilled, value: "2", text: "VIP calls rang straight to you", vip: true },
+  { icon: IconPhoneIncoming, value: "2", text: "VIP calls rang straight to you", vip: true },
 ]
 
 export default function LoginPage() {
@@ -168,7 +168,7 @@ export default function LoginPage() {
                 <li key={row.text} className="flex items-center gap-3 text-sm">
                   <span
                     className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                      row.vip ? "bg-vip-subtle text-vip" : "bg-ai-subtle text-ai"
+                      row.vip ? "bg-white/10 text-white" : "bg-ai-subtle text-ai"
                     }`}
                   >
                     {row.ai ? <OndraMark className="size-4" /> : <row.icon className="size-4" aria-hidden="true" />}

@@ -123,6 +123,7 @@ export type Contact = {
   id: string
   display_name: string
   is_vip: boolean
+  vip_owner_user_id?: string | null
   preferred_channel: string | null
   language: string | null
   tags: string[]

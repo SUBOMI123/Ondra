@@ -23,10 +23,13 @@ These are the product rules from `CLAUDE.md` made visible. Get them wrong and th
 
 ## VIPs
 
-- **Mark:** `IconCrownFilled` with `text-vip`, and a `bg-vip-subtle text-vip` pill reading "VIP". Same on every surface.
+- **Mark (founder, 2026-11-27):** a small "VIP" tag in ink (`VipTag`, `components/vip.tsx`), and a thin ink ring around the
+  initials wherever there's an avatar (`ClientAvatar vip`). No crown, and no red: the founder found the red crown
+  unprofessional, and sharing red with "overdue" made every VIP look like a problem. Same on every surface.
+- **Making a VIP** is done on the client (profile: "Make VIP", with who looks after them), never in Settings.
 - **No AI anywhere near them:** a VIP thread renders no Ondra-blue element, no draft, no "Let Ondra reply", no AI summary, no suggested reply. The composer is the person's own. A test should assert this (`[data-vip] [data-slot^="ai-"]` must match nothing).
-- **Calls:** "Rings you directly" on the contact; missed VIP calls go to a "Needs you" list at the top of Today in VIP red, not to a toast.
-- **Waiting messages:** shown with time waiting ("Waiting 2 h") so the owner sees the cost of delay. Overdue uses VIP red too; that is its only other use.
+- **Calls:** "Rings you directly" on the contact; missed VIP calls go to a "Needs you" list at the top of Today, not to a toast.
+- **Waiting messages:** shown with time waiting ("Waiting 2 h") so the owner sees the cost of delay. If it's overdue, the time is in `text-overdue` red, like any overdue item.
 - VIPs count in totals but no chart singles one out by name.
 
 ## Consent and opt-outs

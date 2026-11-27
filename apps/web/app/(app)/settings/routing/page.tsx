@@ -7,7 +7,7 @@
  * what Ondra does.
  */
 
-import { IconArrowLeft, IconCrownFilled, IconDotsVertical, IconPlus } from "@tabler/icons-react"
+import { IconArrowLeft, IconDotsVertical, IconPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Switch } from "@/components/ui/switch"
 import { api, send } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { VipTag } from "@/components/vip"
 
 type Topic = "sales" | "service" | "shipping" | "finance" | "complaint" | "other"
 type Channel = "sms" | "whatsapp" | "email" | "phone"
@@ -351,7 +352,7 @@ export default function RoutingPage() {
           <>
             <ol className="divide-y rounded-xl border" aria-label="Rules, in the order they are checked">
               <li className="flex items-start gap-3 px-4 py-3" data-vip>
-                <IconCrownFilled className="mt-0.5 size-4 shrink-0 text-vip" aria-hidden="true" />
+                <VipTag />
                 <div className="min-w-0">
                   <p>VIPs always go to {q.data.owner ?? "the owner"}, or the person looking after them.</p>
                   <p className="text-sm text-muted-foreground">Always first. They get a personal reply and their calls ring through directly.</p>

@@ -98,6 +98,15 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | STOP on SMS blocks all outbound to that contact | Met in tests | `test_stop_on_sms_blocks_all_outbound_on_every_channel`: after STOP by text, the lined-up follow-up is cancelled, consent is opted out on all four channels, a person's reply is refused on text and WhatsApp, a reminder is blocked, a later message gets no AI reply, and nothing leaves any channel |
 | An unanswered question answered by the dealer is used by the AI on the next identical question | Met | Real model, 2026-11-27: "Do you install remote starters on cars you sell?" was handed to service and listed as unanswered; after the answer was saved, the next customer asking the same got "Yes, our service department installs remote starters on most models, and it's usually done the same day". Also `test_an_unanswered_question_answered_once_is_used_next_time`; answering checked in a real browser |
 
+## UI overhaul (started 2026-11-27, founder's review)
+
+| Screen | State |
+|---|---|
+| VIPs: made from the client, ink tag and ring, out of Settings | Done |
+| Saved views as working Inbox filters | Next |
+| Settings as an index of pages in four groups | To do |
+| Clients list, Deals detail, Tasks team board, Inventory, Calls actions | To do |
+
 ## Voice backlog (parked 2026-11-27)
 
 Kept here by founder decision so work can move on. In rough order of what a pilot dealer would notice first.

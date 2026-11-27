@@ -10,7 +10,6 @@
 import {
   IconCheck,
   IconCopy,
-  IconCrownFilled,
   IconDotsVertical,
   IconMail,
   IconMessage,
@@ -45,7 +44,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { api, CLERK, send, type Contact, type Page } from "@/lib/api"
+import { api, CLERK, send, type Page } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 // --- types from the API ----------------------------------------------------------------------------------------
@@ -70,7 +69,6 @@ const SECTIONS = [
   { id: "knowledge", title: "What Ondra knows" },
   { id: "follow-ups", title: "Follow-ups" },
   { id: "booking", title: "Booking" },
-  { id: "vips", title: "VIPs" },
   { id: "assistant", title: "Your WhatsApp assistant" },
   { id: "channels", title: "Channels" },
   { id: "integrations", title: "Integrations" },
@@ -469,34 +467,6 @@ function RepliesSection({ data, canEdit }: { data: SettingsData; canEdit: boolea
   )
 }
 
-// --- VIPs ------------------------------------------------------------------------------------------------------
-
-function VipsSection() {
-  const vips = useQuery({
-    queryKey: ["contacts", "vips"],
-    queryFn: async () => (await api<Page<Contact>>("/contacts?limit=200")).items.filter((c) => c.is_vip),
-  })
-  return (
-    <Section id="vips" title="VIPs" description="VIPs never talk to Ondra. Their calls ring the owner's mobile, and their messages wait for a personal reply.">
-      {vips.isPending ? (
-        <TableSkeleton rows={2} />
-      ) : (vips.data ?? []).length === 0 ? (
-        <p className="rounded-xl border p-4 text-sm text-muted-foreground">No VIPs yet. Mark a client as VIP from their profile.</p>
-      ) : (
-        <ul className="divide-y rounded-xl border" data-vip>
-          {(vips.data ?? []).map((c) => (
-            <li key={c.id} className="flex items-center gap-3 px-4 py-3">
-              <IconCrownFilled className="size-4 shrink-0 text-vip" aria-hidden="true" />
-              <span className="flex-1 font-medium">{c.display_name}</span>
-              <span className="text-sm text-muted-foreground">Rings you directly</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
-  )
-}
-
 // --- Channels --------------------------------------------------------------------------------------------------
 
 function AddChannelForm({ onDone }: { onDone: () => void }) {
@@ -680,7 +650,6 @@ export default function SettingsPage() {
                 <FollowUpsSection />
               </Section>
               <BookingSection canEdit={canEdit} />
-              <VipsSection />
               <Section id="assistant" title="Your WhatsApp assistant" description="For the owner: a morning briefing, an alert when a VIP is waiting, and a number to send voice notes and questions to.">
                 <OwnerAssistantSection />
               </Section>

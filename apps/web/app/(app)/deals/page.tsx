@@ -7,7 +7,7 @@
  * nothing to base it on. Moving a deal is what the Today page's pipeline counts.
  */
 
-import { IconCrownFilled, IconDotsVertical } from "@tabler/icons-react"
+import { IconDotsVertical } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -18,6 +18,7 @@ import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
+import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
 
 type Stage = "new" | "qualified" | "appointment" | "negotiating" | "won" | "lost"
@@ -39,7 +40,7 @@ function Card({ d, stages, canMove, onMove }: { d: Deal; stages: Board["stages"]
     <article className="relative flex flex-col gap-1 rounded-xl border bg-card p-3 text-sm" data-vip={d.vip || undefined}>
       <div className="flex items-start justify-between gap-1">
         <p className="flex min-w-0 items-center gap-1.5 font-medium">
-          {d.vip && <IconCrownFilled className="size-3.5 shrink-0 text-vip" aria-label="VIP" />}
+          {d.vip && <VipTag />}
           <Link href={`/clients/profile?id=${d.contact_id}`} className="truncate rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">{d.client}</Link>
         </p>
         {canMove && (

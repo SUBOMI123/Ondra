@@ -1,13 +1,13 @@
 ---
 name: ondra-ui
-description: Ondra's design system and UI rules for anything visual in this repo. Use whenever you build, restyle, review or write copy for the marketing site (apps/site) or the dealer dashboard (apps/web - Today, Inbox, Calls, Calendar, Clients, Tasks, Settings), including new components, Tailwind classes or theme tokens, shadcn or Radix components, charts, icons, empty and error states, motion, the floor tour and its photography, emails that render HTML, and screenshots or critiques of a page. Covers the champagne-night palette (espresso grounds, sodium glow, champagne pill actions, periwinkle for the AI, red for VIPs), Inter Variable and JetBrains Mono, layout, motion, UX copy, and how AI-generated and VIP content must look. Use it even for a small tweak to a button or a label. Not for backend, API, database or agent-prompt work with no UI.
+description: Ondra's design system and UI rules for anything visual in this repo. Use whenever you build, restyle, review or write copy for the marketing site (apps/site) or the dealer dashboard (apps/web - Today, Inbox, Calls, Calendar, Clients, Tasks, Settings), including new components, Tailwind classes or theme tokens, shadcn or Radix components, charts, icons, empty and error states, motion, the floor tour and its photography, emails that render HTML, and screenshots or critiques of a page. Covers the champagne-night palette (espresso grounds, sodium glow, champagne pill actions, periwinkle for the AI, ink for VIPs), Inter Variable and JetBrains Mono, layout, motion, UX copy, and how AI-generated and VIP content must look. Use it even for a small tweak to a button or a label. Not for backend, API, database or agent-prompt work with no UI.
 ---
 
 # Ondra UI
 
 Design direction and craft come from the `frontend-design` skill; this skill holds Ondra's tokens and the product rules. Read both for UI work.
 
-Ondra is staff for a car dealership: AI agents at every desk, people where a person is needed, and the owner's office that VIPs reach directly. The brand is a luxury showroom at night ("champagne night"): warm espresso grounds, a sodium-amber glow off the floor, quiet light-weight Inter type, champagne pill buttons, a soft periwinkle that marks anything the AI did, red for VIPs only. Product UI that moves (the inbox, the channel diagram, the stories in `components/stories.tsx`) and the 3D floor carry the personality; the chrome stays quiet. Reference points the founder chose: Numa (numa.com) and Linear.
+Ondra is staff for a car dealership: AI agents at every desk, people where a person is needed, and the owner's office that VIPs reach directly. The brand is a luxury showroom at night ("champagne night"): warm espresso grounds, a sodium-amber glow off the floor, quiet light-weight Inter type, champagne pill buttons, a soft periwinkle that marks anything the AI did, ink for VIPs only. Product UI that moves (the inbox, the channel diagram, the stories in `components/stories.tsx`) and the 3D floor carry the personality; the chrome stays quiet. Reference points the founder chose: Numa (numa.com) and Linear.
 
 Visual authority, in order: the user's words, this skill, `design/README.md`, the prototypes in `design/mockups/` (`landing.html`, `app.html`). The prototypes predate the champagne-night palette (they use paper, ink and amber); keep their layouts and content, take colour and type from this skill.
 
@@ -26,7 +26,7 @@ A landing page for the product is still Persuade. A settings screen is still Ope
 **Blue is the AI.** Periwinkle (`ai` `#B3C5FF` text, `ai-subtle` `#161A2C` surface, `brand` `#8AA6FF` dots and rings) marks anything Ondra said, drafted, booked, summarised or suggested, always with a label naming it ("Sent by Ondra"). Blue is atmosphere and provenance, never a loud fill. Actions are champagne pills (`btn-primary`: `#EAD9B5` with near-black text) and ghost pills (`btn-quiet`). No saturated blue buttons anywhere.
 
 <!-- rule:red-is-rare -->
-**Red is rare.** VIP red (`vip` `#FF6B6B` on `vip-subtle` `#321416`) is for VIP contacts and overdue items only. Errors use Ink with a clear message, destructive buttons use an outline and an explicit verb, bad deltas are muted grey with a down arrow.
+**Red is rare.** Red (`overdue` / `overdue-subtle`) means overdue and nothing else. VIPs are marked in ink, not red: a "VIP" tag (`VipTag`) and a ring on their initials (founder, 2026-11-27; the crown is gone). Errors use ink with a clear message, destructive buttons use an outline and an explicit verb, bad deltas are muted grey with a down arrow.
 
 <!-- rule:vip-has-no-ai -->
 **VIPs never meet the AI.** A VIP surface shows no AI-blue draft, suggestion, summary or "let Ondra reply" affordance. Calls read "Rings you directly". This mirrors the product rule in `CLAUDE.md`, so a VIP component that renders anything AI-blue is a bug.

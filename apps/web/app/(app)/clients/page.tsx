@@ -1,14 +1,17 @@
 "use client"
 
-import { IconBrandWhatsapp, IconCrownFilled, IconMail, IconMessage, IconPhone } from "@tabler/icons-react"
+import { IconBrandWhatsapp, IconMail, IconMessage, IconPhone } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
+import { useAuth } from "@/components/providers"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { VipTag } from "@/components/vip"
 import { api, type Contact, type Page } from "@/lib/api"
 
 const CHANNEL = {
@@ -24,10 +27,13 @@ function formatPhone(e164?: string) {
 }
 
 export default function ClientsPage() {
+  const { me } = useAuth()
   const [q, setQ] = useState("")
+  const [show, setShow] = useState<"all" | "vip">("all")
+  const seesVips = me?.role === "owner" || me?.role === "manager"
   const query = useQuery({
-    queryKey: ["contacts", q],
-    queryFn: () => api<Page<Contact>>(`/contacts?limit=200${q ? `&q=${encodeURIComponent(q)}` : ""}`),
+    queryKey: ["contacts", q, show],
+    queryFn: () => api<Page<Contact>>(`/contacts?limit=200${q ? `&q=${encodeURIComponent(q)}` : ""}${show === "vip" ? "&vip=true" : ""}`),
   })
   return (
     <>
@@ -41,7 +47,15 @@ export default function ClientsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          {query.data && <span className="text-sm text-muted-foreground tabular-nums">{query.data.total} clients</span>}
+          <span className="flex items-center gap-3">
+            {seesVips && (
+              <ToggleGroup type="single" variant="outline" size="sm" value={show} onValueChange={(v) => v && setShow(v as "all" | "vip")} aria-label="Show">
+                <ToggleGroupItem value="all" className="px-3">All</ToggleGroupItem>
+                <ToggleGroupItem value="vip" className="px-3">VIPs</ToggleGroupItem>
+              </ToggleGroup>
+            )}
+            {query.data && <span className="text-sm text-muted-foreground tabular-nums">{query.data.total} {show === "vip" ? "VIPs" : "clients"}</span>}
+          </span>
         </div>
         {query.isPending ? (
           <TableSkeleton />
@@ -49,7 +63,8 @@ export default function ClientsPage() {
           <LoadError message={query.error.message} onRetry={() => query.refetch()} />
         ) : query.data.items.length === 0 ? (
           <p className="rounded-lg border p-6 text-sm text-muted-foreground">
-            {q ? `No clients match “${q}”.` : "No clients yet. They appear here as soon as someone calls, texts or emails."}
+            {show === "vip" && !q ? "No VIPs yet. Open a client and choose Make VIP: a person will always handle them, never Ondra."
+              : q ? `No clients match “${q}”.` : "No clients yet. They appear here as soon as someone calls, texts or emails."}
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border">
@@ -69,7 +84,7 @@ export default function ClientsPage() {
                     <TableRow key={c.id} data-vip={c.is_vip || undefined} className="relative">
                       <TableCell className="font-medium">
                         <Link href={`/clients/profile?id=${c.id}`} className="flex items-center gap-1.5 rounded-sm outline-none after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring">
-                          {c.is_vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
+                          {c.is_vip && <VipTag />}
                           {c.display_name}
                         </Link>
                       </TableCell>

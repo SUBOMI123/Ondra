@@ -42,7 +42,7 @@ for (const scheme of ["light", "dark"]) {
   // Plus one real client profile and one VIP profile, found through the Clients list.
   await page.goto(`${BASE}/clients`)
   await page.waitForSelector("a[href^='/clients/profile']")
-  const profiles = await page.$$eval("a[href^='/clients/profile']", (as) => [as[0].getAttribute("href"), as.find((a) => a.querySelector("[aria-label=VIP]"))?.getAttribute("href")].filter(Boolean))
+  const profiles = await page.$$eval("a[href^='/clients/profile']", (as) => [as[0].getAttribute("href"), as.find((a) => a.closest("[data-vip]"))?.getAttribute("href")].filter(Boolean))
   for (const path of [...PAGES, ...profiles]) {
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 })

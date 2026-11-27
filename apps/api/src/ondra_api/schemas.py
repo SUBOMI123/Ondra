@@ -29,6 +29,7 @@ class ContactOut(_Out):
     id: uuid.UUID
     display_name: str
     is_vip: bool
+    vip_owner_user_id: uuid.UUID | None = None  # who looks after this VIP (null: the owner)
     preferred_channel: str | None
     language: str | None
     tags: list[str]

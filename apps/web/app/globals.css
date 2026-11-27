@@ -7,7 +7,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* shadcn neutral base (the "techy" look the founder chose), with Ondra's meanings on top:
-   chart-1 / --ai is Ondra (anything the AI did), chart-2 is staff, --vip is VIP clients only. */
+   chart-1 / --ai is Ondra (anything the AI did), chart-2 is staff. --vip is VIP clients (ink, never red); --overdue is red and means overdue, nothing else. */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -30,8 +30,10 @@
   --ring: oklch(0.708 0 0);
   --ai: #3f5bd6;
   --ai-subtle: #eef1fc;
-  --vip: #c93c3c;
-  --vip-subtle: #fbedec;
+  --vip: oklch(0.205 0 0);
+  --vip-subtle: oklch(0.97 0 0);
+  --overdue: #c93c3c;
+  --overdue-subtle: #fbedec;
   --chart-1: #3f5bd6;
   --chart-2: oklch(0.708 0 0);
   --chart-3: oklch(0.556 0 0);
@@ -72,8 +74,10 @@
   --ring: oklch(0.556 0 0);
   --ai: #9db4ff;
   --ai-subtle: #161a2c;
-  --vip: #ff7b7b;
-  --vip-subtle: #2e1416;
+  --vip: oklch(0.93 0 0);
+  --vip-subtle: oklch(0.269 0 0);
+  --overdue: #ff7b7b;
+  --overdue-subtle: #2e1416;
   --chart-1: #8aa6ff;
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -116,6 +120,8 @@
   --color-ai-subtle: var(--ai-subtle);
   --color-vip: var(--vip);
   --color-vip-subtle: var(--vip-subtle);
+  --color-overdue: var(--overdue);
+  --color-overdue-subtle: var(--overdue-subtle);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

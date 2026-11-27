@@ -8,7 +8,7 @@
  * Data: GET /calendar?date=; status changes PATCH /appointments/{id}; live updates refresh it.
  */
 
-import { IconChevronLeft, IconChevronRight, IconCrownFilled, IconMessage } from "@tabler/icons-react"
+import { IconChevronLeft, IconChevronRight, IconMessage } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
+import { VipTag } from "@/components/vip"
 
 const START = 7
 const END = 20
@@ -91,7 +92,7 @@ function Block({ a, tz, onOpen }: { a: Appt; tz: string; onOpen: () => void }) {
       aria-label={`${a.title}${a.client ? ` with ${a.client.name}` : ""}, ${clock(a.starts_at, tz)} to ${clock(a.ends_at, tz)}${a.source === "ai" ? ", booked by Ondra" : ""}, ${STATUS[a.status]}`}
     >
       <span className="flex items-center gap-1 font-medium">
-        {vip && <IconCrownFilled className="size-3 shrink-0 text-vip" aria-hidden="true" />}
+        {vip && <VipTag />}
         <span className="truncate">{a.client?.name ?? a.title}</span>
         {a.source === "ai" && <OndraMark className="ml-auto size-3 shrink-0 text-ai" />}
       </span>
@@ -125,7 +126,7 @@ function Details({ a, tz, onClose }: { a: Appt; tz: string; onClose: () => void 
     <>
       <SheetHeader>
         <SheetTitle className="flex items-center gap-1.5">
-          {a.client?.is_vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
+          {a.client?.is_vip && <VipTag />}
           {a.client?.name ?? "Busy"}
         </SheetTitle>
         <SheetDescription>
@@ -244,7 +245,7 @@ export default function CalendarPage() {
                     <span className="text-sm font-medium tabular-nums">{clock(a.starts_at, tz)}</span>
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
-                        {a.client?.is_vip && <IconCrownFilled className="size-3.5 shrink-0 text-vip" aria-label="VIP" />}
+                        {a.client?.is_vip && <VipTag />}
                         <span className="truncate font-medium">{a.client?.name ?? a.title}</span>
                         {a.source === "ai" && <OndraMark className="size-3.5 shrink-0 text-ai" />}
                       </span>

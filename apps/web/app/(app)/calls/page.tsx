@@ -9,7 +9,6 @@
  */
 
 import {
-  IconCrownFilled,
   IconPhone,
   IconPhoneCall,
   IconPhoneIncoming,
@@ -29,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
+import { VipTag } from "@/components/vip"
 
 type Handled = "ai" | "staff" | "owner" | "missed" | null
 type Call = {
@@ -151,13 +151,13 @@ function CallRow({ c, onOpen }: { c: Call; onOpen: () => void }) {
       >
         <span className="pt-1">
           <Icon
-            className={cn("size-4 shrink-0", missed && vip ? "text-vip" : ai ? "text-ai" : "text-muted-foreground")}
+            className={cn("size-4 shrink-0", missed && vip ? "text-foreground" : ai ? "text-ai" : "text-muted-foreground")}
             aria-label={missed ? "Missed call" : "Incoming call"}
           />
         </span>
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 font-medium">
-            {vip && <IconCrownFilled className="size-3.5 shrink-0 text-vip" aria-label="VIP" />}
+            {vip && <VipTag />}
             <span className="truncate">{who(c)}</span>
           </span>
           <span className="mt-0.5 flex items-start gap-1.5 text-sm text-muted-foreground">
@@ -229,7 +229,7 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
           <>
             <SheetHeader>
               <SheetTitle className="flex items-center gap-1.5">
-                {vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
+                {vip && <VipTag />}
                 {who(c)}
               </SheetTitle>
               <SheetDescription>
@@ -252,7 +252,7 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
                   </Button>
                 </div>
               )}
-              <p className={cn(c.handled_by === "missed" && vip && "text-vip", c.handled_by === "ai" && "text-ai")}>
+              <p className={cn(c.handled_by === "missed" && vip && "font-medium text-foreground", c.handled_by === "ai" && "text-ai")}>
                 {vip && c.handled_by !== "missed"
                   ? "Rang you directly. Ondra doesn't answer VIP calls."
                   : c.handled_by === "ai"

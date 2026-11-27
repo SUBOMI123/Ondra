@@ -13,7 +13,6 @@ import {
   IconBell,
   IconBrandWhatsapp,
   IconCalendarEvent,
-  IconCrownFilled,
   IconMail,
   IconMessage,
   IconPhone,
@@ -31,6 +30,8 @@ import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
 import { api, ApiError, type Contact } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { VipTag } from "@/components/vip"
+import { VipControl } from "@/components/vip-control"
 
 const CHANNEL = {
   phone: { icon: IconPhone, label: "Phone" },
@@ -137,7 +138,7 @@ function Profile({ id }: { id: string }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="flex items-center gap-2 text-2xl font-medium tracking-tight">
-              {c.is_vip && <IconCrownFilled className="size-5 text-vip" aria-label="VIP" />}
+              {c.is_vip && <VipTag size="lg" />}
               {c.display_name}
             </h2>
             <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -149,17 +150,20 @@ function Profile({ id }: { id: string }) {
               {phone && <span className="tabular-nums">{formatPhone(phone)}</span>}
               {email && <span>{email}</span>}
             </p>
-            {c.is_vip && <p className="mt-2 text-sm text-muted-foreground">VIP. Calls ring you directly, and Ondra never replies to {first}.</p>}
+            {c.is_vip && <p className="mt-2 text-sm text-muted-foreground">A person always handles {first}: Ondra never replies, and calls ring straight through.</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href={t?.latest_conversation_id ? `/inbox?c=${t.latest_conversation_id}` : "/inbox"}>
                 <IconMessage /> Message
               </Link>
             </Button>
-            <Button>
-              <IconPhone /> Call
-            </Button>
+            {phone && (
+              <Button asChild>
+                <a href={`tel:${phone}`}><IconPhone /> Call</a>
+              </Button>
+            )}
+            <VipControl c={c} />
           </div>
         </div>
       </div>
@@ -207,7 +211,7 @@ function Profile({ id }: { id: string }) {
             <section>
               <h3 className="text-xs font-medium text-muted-foreground">Next</h3>
               <p className="mt-1.5 text-sm font-medium first-letter:uppercase">{t.next_task.title.split(": ").slice(-1)[0]}</p>
-              <p className={cn("text-sm tabular-nums", t.next_task.overdue ? "text-vip" : "text-muted-foreground")}>
+              <p className={cn("text-sm tabular-nums", t.next_task.overdue ? "text-overdue" : "text-muted-foreground")}>
                 {t.next_task.due_at ? `${t.next_task.overdue ? "Overdue, was due" : "Due"} ${stamp(t.next_task.due_at)}` : ""}
               </p>
             </section>

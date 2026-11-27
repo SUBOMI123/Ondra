@@ -75,7 +75,7 @@ function TaskRow({ t, me, onToggle }: { t: Task; me: boolean; onToggle: () => vo
               {t.escalated && !done && ", escalated"}
             </p>
           </div>
-          <span className={cn("shrink-0 text-sm tabular-nums", t.overdue && !done ? "font-medium text-vip" : "text-muted-foreground")}>
+          <span className={cn("shrink-0 text-sm tabular-nums", t.overdue && !done ? "font-medium text-overdue" : "text-muted-foreground")}>
             {due(t.due_at)}
           </span>
           {(t.brief || t.conversation_id) && (
@@ -207,7 +207,7 @@ export default function TasksPage() {
         ) : (
           groups.map(({ g, items }) => (
             <section key={g} aria-labelledby={`g-${g}`}>
-              <h2 id={`g-${g}`} className={cn("mb-2 text-sm font-medium", g === "Overdue" ? "text-vip" : "text-muted-foreground")}>
+              <h2 id={`g-${g}`} className={cn("mb-2 text-sm font-medium", g === "Overdue" ? "text-overdue" : "text-muted-foreground")}>
                 {g} <span className="tabular-nums">{items.length}</span>
               </h2>
               <ul className="divide-y rounded-xl border">

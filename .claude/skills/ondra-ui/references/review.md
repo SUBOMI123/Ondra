@@ -6,7 +6,7 @@ Screenshot at 390, 768 and 1440 wide (Playwright is preinstalled: `require('play
 
 - [ ] VIP surfaces contain no Ondra-blue element: `[data-vip] [data-slot^="ai-"]` matches nothing.
 - [ ] Every AI-authored item is labelled in words, not only coloured.
-- [ ] Red appears only on VIP or overdue elements.
+- [ ] Red appears only on overdue elements. VIPs use the ink tag and ring, never a crown or red.
 - [ ] No sample content has the AI committing to a price, discount or delivery date.
 - [ ] Opted-out contacts cannot be messaged from this screen.
 

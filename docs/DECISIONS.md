@@ -664,3 +664,17 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   people needs ring timing from the carrier); a dollar value on Today (deal values aren't events, and every number
   on Today must trace to events; the estimate lives on the Deals board); prices inside a dealer's own answers
   (a product decision for the founder).
+
+## 2026-11-27: VIPs look like a status, not an alarm
+
+- **The VIP mark is ink, not red.** A small outlined "VIP" tag beside the name and an ink ring around the avatar,
+  in place of the red crown. Founder: the crown wasn't professional. A VIP is a standing arrangement, not an emergency,
+  so it shouldn't share a colour with things that are late. Red is now `--overdue` only (overdue tasks and replies).
+- **"VIP", not "Verified".** Verified implies Ondra checked who someone is; it hasn't. VIP says what it means here:
+  a person always handles them.
+- **Made a VIP on the client, not in Settings.** Owners and managers get "Make VIP" on the client's profile, with the
+  effects spelled out and a choice of who looks after them. The Clients list has an All / VIPs toggle for them.
+- **Becoming a VIP takes effect at once:** drafts Ondra had queued for them are deleted and any follow-up is
+  cancelled, so nothing AI-written reaches them after the switch. Recorded as `contact.vip_changed` and in the
+  audit log. Alternative considered: let queued drafts through for approval. Rejected: the product rule is no AI
+  content for VIPs at all, and a person approving a draft by habit would break it.

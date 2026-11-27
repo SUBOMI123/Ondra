@@ -13,7 +13,6 @@ import {
   IconBrandWhatsapp,
   IconCheck,
   IconChevronDown,
-  IconCrownFilled,
   IconHandStop,
   IconLayoutSidebarRight,
   IconMail,
@@ -45,6 +44,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
+import { ClientAvatar, VipTag } from "@/components/vip"
 
 /* ---------------------------------------------------------------- API shapes */
 
@@ -104,11 +104,6 @@ type View = "needs" | "ondra" | "all"
 
 /* ---------------------------------------------------------------- formatting */
 
-function initials(name: string) {
-  const parts = name.replace(/^\+/, "").split(/\s+/).filter(Boolean)
-  return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.replace(/\D/g, "").slice(-2) || name.slice(0, 2)
-}
-
 function when(iso: string | null) {
   if (!iso) return ""
   const d = new Date(iso)
@@ -145,17 +140,15 @@ function Row({ c, active, onSelect }: { c: Summary; active: boolean; onSelect: (
         active && "bg-muted before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-foreground",
       )}
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground" aria-hidden="true">
-        {initials(c.contact.name)}
-      </span>
+      <ClientAvatar name={c.contact.name} vip={vip} />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
-          {vip && <IconCrownFilled className="size-3.5 shrink-0 text-vip" aria-label="VIP" />}
+          {vip && <VipTag />}
           <span className="truncate font-medium">{c.contact.name}</span>
         </span>
         <span className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
           {c.bucket === "needs" ? (
-            <span className={cn("truncate", (vip || c.overdue) && "text-vip")}>{c.overdue ? `Overdue: ${c.reason}` : c.reason}</span>
+            <span className={cn("truncate", c.overdue ? "text-overdue" : vip && "font-medium text-foreground")}>{c.overdue ? `Overdue: ${c.reason}` : c.reason}</span>
           ) : c.bucket === "ondra" ? (
             <>
               <OndraMark className="size-3.5 shrink-0 text-ai" />
@@ -494,7 +487,7 @@ function Thread({ id, onBack, panelOpen, togglePanel, openDetails }: {
         </Button>
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-1.5 font-medium">
-            {vip && <IconCrownFilled className="size-4 text-vip" aria-label="VIP" />}
+            {vip && <VipTag />}
             <span className="truncate">{d.contact.name}</span>
           </h2>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -591,7 +584,7 @@ function Details({ id, inSheet = false }: { id: string; inSheet?: boolean }) {
         <section>
           <h3 className="text-xs font-medium text-muted-foreground">Next</h3>
           <p className="mt-1.5 text-sm font-medium">{task.title.split(": ").slice(-1)[0]}</p>
-          <p className={cn("text-sm tabular-nums", task.overdue ? "text-vip" : "text-muted-foreground")}>
+          <p className={cn("text-sm tabular-nums", task.overdue ? "text-overdue" : "text-muted-foreground")}>
             {task.overdue ? `Overdue, was due ${dueText(task.due_at)}` : `Due ${dueText(task.due_at)}`}
             {task.assignee ? `, ${task.assignee.split(" ")[0]}` : ""}
           </p>

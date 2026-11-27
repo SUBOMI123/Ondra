@@ -4,9 +4,10 @@ import re
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from ondra_core.models import Contact, ContactIdentity, User, Vehicle
 from ondra_core.permissions import Perm, can_see_vips
+from pydantic import BaseModel
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,10 +26,12 @@ async def _page(db: AsyncSession, stmt: Select, limit: int, offset: int):
 @router.get("/contacts", response_model=Page[ContactOut])
 async def list_contacts(
     ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_READ)),
-    q: str | None = None, limit: int = Query(50, le=200), offset: int = 0,
+    q: str | None = None, limit: int = Query(50, le=200), offset: int = 0, vip: bool | None = None,
 ) -> Page[ContactOut]:
     caller, db = ctx
     stmt = select(Contact).where(Contact.merged_into_id.is_(None)).order_by(Contact.display_name)
+    if vip is not None:
+        stmt = stmt.where(Contact.is_vip.is_(vip))
     if not can_see_vips(caller.role):
         # VIPs are visible to the owner and managers, and to the person who handles that VIP.
         stmt = stmt.where(or_(Contact.is_vip.is_(False), Contact.vip_owner_user_id == caller.user_id))
@@ -111,3 +114,47 @@ async def list_users(
                                    invited=u.password_hash is None and u.clerk_user_id is None, phone=u.phone,
                                    work_hours=u.work_hours, timezone=u.timezone, max_open_tasks=u.max_open_tasks)
                            for u in rows], total=total, counts={"role": by_role, "status": by_status})
+
+class VipIn(BaseModel):
+    vip: bool
+    handler_user_id: uuid.UUID | None = None  # who looks after them; null: the owner
+
+
+@router.put("/contacts/{contact_id}/vip", response_model=ContactOut)
+async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
+                  ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
+    """Make a client a VIP (or not). Owners and managers only: they're the people who can see VIPs at all.
+    From the moment a client is a VIP, Ondra stops: any reply it drafted for them is thrown away and any follow-up
+    lined up is cancelled, so nothing automated reaches them (CLAUDE.md product rule)."""
+    from ondra_core.models import AuditLog, Conversation, Event, Message
+
+    from ondra_api.services.follow_ups import cancel_for
+
+    caller, db = ctx
+    if not can_see_vips(caller.role):
+        raise HTTPException(403, "Only owners and managers can choose VIPs.")
+    c = await db.get(Contact, contact_id)
+    if c is None or c.merged_into_id is not None:
+        raise HTTPException(404, "No client with that id.")
+    if body.handler_user_id is not None:
+        handler = await db.get(User, body.handler_user_id)
+        if handler is None or not handler.active:
+            raise HTTPException(422, "Choose someone who works here now.")
+    before = {"vip": c.is_vip, "handler": str(c.vip_owner_user_id) if c.vip_owner_user_id else None}
+    c.is_vip = body.vip
+    c.vip_owner_user_id = body.handler_user_id if body.vip else None
+    stopped = {"drafts": 0, "follow_ups": 0}
+    if body.vip:
+        convs = (await db.execute(select(Conversation.id).where(Conversation.contact_id == c.id))).scalars().all()
+        drafts = (await db.execute(select(Message).where(Message.conversation_id.in_(convs), Message.is_draft.is_(True),
+                                                         Message.status == "queued", Message.author_type == "ai"))).scalars().all() if convs else []
+        for d in drafts:
+            await db.delete(d)
+        stopped = {"drafts": len(drafts), "follow_ups": await cancel_for(db, c.id, "vip")}
+    db.add(Event(type="contact.vip_changed", payload={"contact_id": str(c.id), "vip": body.vip, "by": str(caller.user_id), **stopped}))
+    db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.vip", resource=f"contact:{c.id}", before=before,
+                    after={"vip": c.is_vip, "handler": str(c.vip_owner_user_id) if c.vip_owner_user_id else None},
+                    ip=request.client.host if request.client else None))
+    await db.flush()
+    idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
+    return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})

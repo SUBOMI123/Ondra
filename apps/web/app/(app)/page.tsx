@@ -6,7 +6,7 @@
  * Blue is Ondra's work and nothing else; red is a VIP or something overdue.
  */
 
-import { IconAlertTriangle, IconCrownFilled } from "@tabler/icons-react"
+import { IconAlertTriangle } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { ClientAvatar, VipTag } from "@/components/vip"
 
 type NeedItem = { task_id: string; client: string | null; title: string; conversation_id: string | null; since?: string; due_at?: string | null }
 type Overnight = {
@@ -271,7 +272,7 @@ export default function TodayPage() {
             <ul className="mt-3 divide-y rounded-xl border">
               {needs!.vips.map((v) => (
                 <li key={v.task_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap" data-vip>
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-vip-subtle text-vip" aria-hidden="true"><IconCrownFilled className="size-4" /></span>
+                  <ClientAvatar name={v.client ?? ""} vip />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{v.client} is waiting</p>
                     <p className="text-sm text-muted-foreground">{v.title.replace(`${v.client}: `, "")}, since {v.since ? clock(v.since, tz) : "earlier"}.</p>
@@ -293,7 +294,7 @@ export default function TodayPage() {
                 <li className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true"><IconAlertTriangle className="size-4" /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-vip">{n(needs!.overdue_count, "task")} overdue</p>
+                    <p className="font-medium text-overdue">{n(needs!.overdue_count, "task")} overdue</p>
                     <p className="truncate text-sm text-muted-foreground">{needs!.overdue.slice(0, 2).map((o) => o.title).join(". ")}{needs!.overdue_count > 2 ? ", and more" : ""}.</p>
                   </div>
                   <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/tasks">Open tasks</Link></Button>
