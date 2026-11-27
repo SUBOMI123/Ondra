@@ -84,3 +84,60 @@ def test_postmark_parse_and_basic_auth():
         a.verify_signature(req(body, {"authorization": "Basic " + base64.b64encode(b"u:x").decode()}))
     [m] = a.parse_webhook(req(body))
     assert m.from_address == "sarah@example.com" and m.body == "Is it available?" and m.in_reply_to == "<abc@mail>"
+
+
+def test_whatsapp_sends_a_template_buttons_or_text_in_metas_documented_shape():
+    from ondra_core.channels.base import OutboundMessage
+
+    base = {"channel": "whatsapp", "to_address": "+12145550100", "from_address": "+12145550199", "body": "Good morning Sam."}
+    tpl = WhatsAppCloudAdapter.content(OutboundMessage(**base, template={"name": "ondra_morning_briefing", "language": "en_US", "params": ["Sam", 3]}))
+    assert tpl == {"type": "template", "template": {"name": "ondra_morning_briefing", "language": {"code": "en_US"}, "components": [
+        {"type": "body", "parameters": [{"type": "text", "text": "Sam"}, {"type": "text", "text": "3"}]}]}}
+    buttons = [{"id": "approve:1", "title": "Approve"}, {"id": "skip:1", "title": "A title that is far too long"}, {"id": "c", "title": "C"}, {"id": "d", "title": "D"}]
+    inter = WhatsAppCloudAdapter.content(OutboundMessage(**base, buttons=buttons))["interactive"]
+    assert inter["type"] == "button" and inter["body"] == {"text": "Good morning Sam."}
+    assert [b["reply"] for b in inter["action"]["buttons"]] == [{"id": "approve:1", "title": "Approve"},
+                                                               {"id": "skip:1", "title": "A title that is far "}, {"id": "c", "title": "C"}]  # 3 at most, 20 chars
+    assert WhatsAppCloudAdapter.content(OutboundMessage(**base))["type"] == "text"
+
+
+def test_whatsapp_parses_voice_notes_and_button_taps():
+    a = WhatsAppCloudAdapter(access_token="t", app_secret="sec", verify_token="vt", phone_number_id="1065")
+
+    def msg(extra: dict) -> bytes:
+        return json.dumps({"entry": [{"changes": [{"value": {"metadata": {"display_phone_number": "12145550199"}, "messages": [
+            {"from": "12145550100", "id": "wamid.X", "timestamp": "1714510003", **extra}]}}]}]}).encode()
+
+    def parse(extra: dict):
+        from ondra_core.channels.base import WebhookRequest
+
+        [ev] = a.parse_webhook(WebhookRequest("POST", "https://x", {}, {}, msg(extra), {}))
+        return ev
+
+    voice = parse({"type": "audio", "audio": {"mime_type": "audio/ogg; codecs=opus", "sha256": "h", "id": "MEDIA1", "voice": True}})
+    assert voice.body == "" and voice.attachments == [{"type": "audio", "raw": {"mime_type": "audio/ogg; codecs=opus", "sha256": "h", "id": "MEDIA1", "voice": True}}]
+    tap = parse({"type": "interactive", "interactive": {"type": "button_reply", "button_reply": {"id": "approve:1", "title": "Approve"}}})
+    assert tap.attachments[0]["raw"]["button_reply"]["id"] == "approve:1"
+    quick = parse({"type": "button", "button": {"payload": "approve:1", "text": "Approve"}})
+    assert quick.attachments == [{"type": "button", "raw": {"payload": "approve:1", "text": "Approve"}}]
+
+
+async def test_whatsapp_fetches_media_in_two_requests_and_refuses_oversize():
+    import httpx
+
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((str(request.url), request.headers.get("authorization")))
+        if request.url.path.endswith("/MEDIA1"):
+            return httpx.Response(200, json={"url": "https://lookaside.example/file", "mime_type": "audio/ogg; codecs=opus", "file_size": "5"})
+        if request.url.path.endswith("/BIG"):
+            return httpx.Response(200, json={"url": "https://lookaside.example/big", "mime_type": "audio/ogg", "file_size": str(17 * 1024 * 1024)})
+        return httpx.Response(200, content=b"OggS!")
+
+    a = WhatsAppCloudAdapter(access_token="tok", app_secret="s", verify_token="v", phone_number_id="1065",
+                             client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    assert await a.fetch_media("MEDIA1") == (b"OggS!", "audio/ogg; codecs=opus")
+    assert [h for _, h in seen] == ["Bearer tok", "Bearer tok"] and seen[1][0] == "https://lookaside.example/file"
+    with pytest.raises(ValueError, match="16 MB"):
+        await a.fetch_media("BIG")

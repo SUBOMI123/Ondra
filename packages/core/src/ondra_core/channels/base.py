@@ -71,6 +71,11 @@ class OutboundMessage:
     body: str
     subject: str | None = None
     in_reply_to: str | None = None
+    # WhatsApp only. `buttons`: up to three quick replies, [{"id": "approve:<id>", "title": "Approve"}], inside the
+    # 24-hour window. `template`: {"name": "...", "language": "en_US", "params": ["...", ...]} for a message that
+    # starts a conversation outside it; `body` is then what the template renders to, for our own record.
+    buttons: list[dict] | None = None
+    template: dict | None = None
 
 
 @dataclass(frozen=True)

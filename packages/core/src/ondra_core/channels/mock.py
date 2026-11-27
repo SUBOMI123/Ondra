@@ -62,6 +62,12 @@ class MockAdapter:
                     received_at=datetime.now(UTC),
                     sender_name=item.get("name"),
                     subject=item.get("subject"),
+                    # {"voice": "what was said"} stands in for a voice note (the mock transcriber reads it back);
+                    # {"button": "approve:<id>"} for a tapped quick-reply button.
+                    attachments=([{"type": "audio", "raw": {"id": f"mock-audio-{item['id']}", "mime_type": "audio/ogg; codecs=opus",
+                                                             "mock_transcript": item["voice"]}}] if item.get("voice") else [])
+                    + ([{"type": "interactive", "raw": {"type": "button_reply", "button_reply": {"id": item["button"], "title": ""}}}]
+                       if item.get("button") else []),
                 )
             )
         return events

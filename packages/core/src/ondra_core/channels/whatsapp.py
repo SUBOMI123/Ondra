@@ -7,6 +7,17 @@ Checked against Meta's docs on 2026-11-26:
 - messages webhook reference: entry[].changes[].value.{metadata, contacts, messages, statuses}.
 - messages/text-messages: POST https://graph.facebook.com/<version>/<phone_number_id>/messages, Bearer token,
   response id at messages[0].id, body max 4096 chars.
+
+Checked on 2026-11-27 (developers.facebook.com/documentation/business-messaging/whatsapp/...), for the owner's line:
+- templates/overview and the Messages API reference: type "template" with template.{name, language.code,
+  components[{type: "body", parameters[{type: "text", text}]}]}.
+- messages/interactive-reply-buttons-messages: type "interactive", interactive.{type: "button", body.text,
+  action.buttons[{type: "reply", reply.{id, title}}]}; at most 3 buttons, title 20 chars, id 256, body 1024.
+  A tap arrives as a message of type "interactive" with interactive.button_reply.{id, title}; a template's quick
+  reply arrives as type "button" with button.{payload, text}.
+- webhooks/reference/messages/audio: audio.{id, mime_type "audio/ogg; codecs=opus", sha256, voice, url?}.
+- business-phone-numbers/media: GET /<version>/<media-id> returns {url, mime_type, file_size, ...}; GET that url
+  with the same Bearer token; the url lasts 5 minutes; audio up to 16 MB.
 """
 
 from __future__ import annotations
@@ -31,6 +42,7 @@ from ondra_core.channels.base import (
 from ondra_core.channels.identity import normalize_phone
 
 MAX_BODY = 4096
+MAX_MEDIA = 16 * 1024 * 1024
 
 
 class WhatsAppCloudAdapter:
@@ -101,13 +113,7 @@ class WhatsAppCloudAdapter:
 
     async def send(self, message: OutboundMessage) -> ProviderResult:
         url = f"{self.base_url}/{self.api_version}/{self.phone_number_id}/messages"
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": message.to_address,
-            "type": "text",
-            "text": {"preview_url": False, "body": message.body[:MAX_BODY]},
-        }
+        payload = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": message.to_address, **self.content(message)}
         client = self._client or httpx.AsyncClient(timeout=10)
         try:
             r = await client.post(url, json=payload, headers={"Authorization": f"Bearer {self.access_token}"})
@@ -119,6 +125,43 @@ class WhatsAppCloudAdapter:
         if r.status_code >= 400:
             return ProviderResult(ok=False, error=f"http {r.status_code}: {r.text[:300]}")
         return ProviderResult(ok=True, provider_message_id=r.json()["messages"][0]["id"])
+
+    @staticmethod
+    def content(message: OutboundMessage) -> dict:
+        """The type-specific part of a send: a template (outside the 24-hour window), reply buttons, or plain text."""
+        if message.template:
+            t = message.template
+            return {"type": "template", "template": {
+                "name": t["name"], "language": {"code": t.get("language", "en_US")},
+                "components": [{"type": "body", "parameters": [{"type": "text", "text": str(p)[:1000]} for p in t.get("params", [])]}],
+            }}
+        if message.buttons:
+            return {"type": "interactive", "interactive": {
+                "type": "button", "body": {"text": message.body[:1024]},
+                "action": {"buttons": [{"type": "reply", "reply": {"id": str(b["id"])[:256], "title": str(b["title"])[:20]}}
+                                       for b in message.buttons[:3]]},
+            }}
+        return {"type": "text", "text": {"preview_url": False, "body": message.body[:MAX_BODY]}}
+
+    async def fetch_media(self, media_id: str) -> tuple[bytes, str]:
+        """A voice note or other media by its id: (bytes, mime type). Two requests: the id gives a short-lived
+        url, the url gives the file. Refuses anything over 16 MB (WhatsApp's own limit for audio)."""
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        client = self._client or httpx.AsyncClient(timeout=20)
+        try:
+            meta = await client.get(f"{self.base_url}/{self.api_version}/{media_id}", headers=headers)
+            meta.raise_for_status()
+            info = meta.json()
+            if int(info.get("file_size") or 0) > MAX_MEDIA:
+                raise ValueError("media is larger than 16 MB")
+            r = await client.get(info["url"], headers=headers)
+            r.raise_for_status()
+            if len(r.content) > MAX_MEDIA:
+                raise ValueError("media is larger than 16 MB")
+            return r.content, info.get("mime_type") or r.headers.get("content-type", "")
+        finally:
+            if self._client is None:
+                await client.aclose()
 
     def supports(self, feature: Feature) -> bool:
         return feature in {Feature.TEXT, Feature.MEDIA, Feature.TEMPLATES, Feature.SERVICE_WINDOW, Feature.DELIVERY_STATUS}

@@ -430,6 +430,25 @@ class FollowUp(Base, TenantScoped):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class AssistantMessage(Base, TenantScoped):
+    """The owner's thread with their WhatsApp assistant (BUILD_PLAN.md §4.4): what they said or sent, and what
+    Ondra sent them (briefings, alerts, replies). Kept apart from customer conversations: the owner isn't a contact."""
+
+    __tablename__ = "assistant_messages"
+    __table_args__ = (
+        CheckConstraint(_in("direction", ("in", "out")), name="assistant_messages_direction"),
+        CheckConstraint(_in("kind", ("text", "voice", "button", "briefing", "alert", "reply")), name="assistant_messages_kind"),
+        UniqueConstraint("tenant_id", "provider_message_id", name="assistant_messages_provider_id"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    direction: Mapped[str] = mapped_column(String(3))
+    kind: Mapped[str] = mapped_column(String(12), server_default="text")
+    body: Mapped[str] = mapped_column(Text, server_default="")
+    meta: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    provider_message_id: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(10), server_default="ok")  # ok | failed
+
+
 class Integration(Base, TenantScoped):
     __tablename__ = "integrations"
     __table_args__ = (

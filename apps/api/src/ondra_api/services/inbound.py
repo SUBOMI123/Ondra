@@ -182,7 +182,7 @@ async def _record_consent(db: AsyncSession, contact: Contact, change: str, msg_i
 
 @dataclass
 class IngestResult:
-    status: str  # stored | duplicate | unknown_address
+    status: str  # stored | duplicate | unknown_address | owner (the owner writing to their assistant)
     tenant_id: uuid.UUID | None = None
     message_id: uuid.UUID | None = None
     conversation_id: uuid.UUID | None = None
@@ -205,6 +205,16 @@ async def ingest(msg: InboundMessage, *, queue_agent: bool = True) -> IngestResu
         return IngestResult("unknown_address")
 
     async with tenant_session(tenant_id) as db:
+        if msg.channel == "whatsapp":
+            # The owner writing to their own dealership on WhatsApp is talking to their assistant, not a customer.
+            # WhatsApp only: it verifies the sender's number, and a text message's sender can be faked.
+            from ondra_api.services.owner import owner_by_phone
+            from ondra_api.services.owner_assistant import receive
+
+            owner = await owner_by_phone(db, msg.from_address)
+            if owner is not None:
+                fresh = await receive(db, owner, msg)
+                return IngestResult("owner" if fresh else "duplicate", tenant_id, reason="owner_assistant")
         contact = await _resolve_contact(db, msg)
         conv = await _conversation(db, contact, msg.channel)
         inserted = (await db.execute(

@@ -75,7 +75,25 @@ async def _inventory_fetch(tenant_id: uuid.UUID, p: dict) -> None:
     log.info("inventory feed: %s", await run(tenant_id, p))
 
 
-HANDLERS = {"inventory_fetch": _inventory_fetch, "crm_push": _crm_push, "follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
+async def _owner_alert(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.owner import deliver_alert
+
+    log.info("owner alert: %s", await deliver_alert(tenant_id, p))
+
+
+async def _owner_briefing(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.briefing import run
+
+    log.info("owner briefing: %s", await run(tenant_id, p))
+
+
+async def _assistant_turn(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.owner_assistant import turn
+
+    log.info("owner assistant: %s", await turn(tenant_id, p))
+
+
+HANDLERS = {"assistant_turn": _assistant_turn, "owner_alert": _owner_alert, "owner_briefing": _owner_briefing, "inventory_fetch": _inventory_fetch, "crm_push": _crm_push, "follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
             "send_message": _send_message, "vip_realert": _vip_realert}
 
 
