@@ -38,18 +38,12 @@ def _vehicle_dict(v: Vehicle) -> dict:
 
 
 async def assignee_for(db: AsyncSession, role: str, preferred: uuid.UUID | None = None) -> uuid.UUID | None:
-    """A person to give the task to. Round-robin and shifts arrive with the routing engine in Step 6; until then the
-    first active user in the role, falling back to a manager, then the owner."""
-    if preferred:
-        return preferred
-    order = [role, "manager", "owner"] if role not in ("manager", "owner") else [role, "owner"]
-    for r in dict.fromkeys(order):
-        uid = (await db.execute(
-            select(User.id).where(User.role == r, User.active.is_(True)).order_by(User.created_at).limit(1)
-        )).scalar_one_or_none()
-        if uid:
-            return uid
-    return None
+    """A person in a role to give work to: whoever is on shift and whose turn it is, falling back to a manager, then
+    the owner (services/routing.py). Used where the team is already known; AI handoffs go through `route`, which
+    also reads the dealer's rules."""
+    from ondra_api.services.routing import someone_in
+
+    return await someone_in(db, role, preferred)
 
 
 _HANDOFF_TITLES = {
@@ -187,25 +181,40 @@ class DbToolBackend:
         return {"saved": sorted(fields)}
 
     async def handoff(self, reason: str, brief: str, urgency: str, target_role: str) -> dict:
-        c = self.contact
-        preferred = c.vip_owner_user_id if target_role == "owner" else None
+        from ondra_core.routing import topic_for_handoff
+
+        from ondra_api.services.routing import route
         from ondra_api.services.tasks import new_task
 
+        c, conv = self.contact, self.conversation
+        # The dealer's routing rules decide who gets it; the model's `target_role` is the fallback when no rule
+        # matches. The person already looking after this customer keeps them if they're on that team and in.
+        r = await route(self.db, topic=topic_for_handoff(reason, target_role, conv.topic), channel=conv.channel,
+                        contact=c, role_hint=target_role, prefer=conv.assigned_user_id)
+        urgency = urgency if urgency in ("low", "normal", "high") else "normal"
         task = await new_task(
             self.db,
             title=f"{c.display_name}: {handoff_title(reason, c.display_name)}",
             contact_id=c.id,
-            conversation_id=self.conversation.id,
-            assignee_user_id=await assignee_for(self.db, target_role, preferred),
+            conversation_id=conv.id,
+            assignee_user_id=r.user_id,
             source="ai_handoff",
-            urgency=urgency if urgency in ("low", "normal", "high") else "normal",
+            urgency="high" if r.alert else urgency,
             brief=brief,
         )
-        self.conversation.status = "waiting_staff"
+        if r.alert:
+            from ondra_core.models import Event
+
+            self.db.add(Event(type="alert.created", payload={"task_id": str(task.id), "to": r.role, "urgency": "high",
+                                                             "contact_id": str(c.id), "reason": handoff_title(reason, c.display_name)}))
+        conv.status = "waiting_staff"
+        if conv.assigned_user_id is None and r.user_id:
+            conv.assigned_user_id = r.user_id  # from here on, this customer has one contact
         if reason == "unknown_answer":
             await self._record_gap(self.last_question or brief)
         await self.db.flush()
-        return {"task_id": str(task.id), "tell_customer": handoff_message(target_role, self.open_now)}
+        # "Shortly" only if the person it went to is in now (Lagos staff may be, while Dallas is closed).
+        return {"task_id": str(task.id), "tell_customer": handoff_message(r.role or target_role, r.on_shift)}
 
     # --- booking ----------------------------------------------------------------------------------------------
 

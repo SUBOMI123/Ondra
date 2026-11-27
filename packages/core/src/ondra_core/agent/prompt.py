@@ -80,6 +80,9 @@ class DealerFacts:
     handoff_triggers: list[str] = field(default_factory=list)
     never_say: list[str] = field(default_factory=list)
     disclose_upfront: bool = False  # per dealer, for states that require it; default is "when asked"
+    # Who could pick this up right now, from the routing engine: {"sales": "in now", "service": "back Wed 8:00 am"}.
+    # Staff keep their own hours (and timezones), so this can differ from whether the dealership is open.
+    teams: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -115,6 +118,10 @@ def build_system(dealer: DealerFacts, channel: str, customer: CustomerFacts,
         CHANNEL_STYLE.get(channel, CHANNEL_STYLE["sms"]),
         PRICE_RULE.get(dealer.price_disclosure, PRICE_RULE["none"]),
     ]
+    if dealer.teams:
+        lines.append("Who can get back to a customer: " + "; ".join(f"{t}: {when}" for t, when in dealer.teams.items())
+                     + ". When you hand off, say \"shortly\" only if that team is in now; otherwise say when "
+                     "they're back, in plain words (\"when we open tomorrow\", \"Monday morning\").")
     if dealer.handoff_triggers:
         lines.append("This dealer also wants a person for: " + "; ".join(dealer.handoff_triggers) + ".")
     if dealer.never_say:

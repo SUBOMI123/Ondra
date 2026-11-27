@@ -53,8 +53,12 @@ async def _send_message(tenant_id: uuid.UUID, p: dict) -> None:
         log.info("message %s blocked: %s", p["message_id"], b.reason)
 
 
+async def _vip_realert(tenant_id: uuid.UUID, p: dict) -> None:
+    await inbound.vip_realert(tenant_id, p)
+
+
 HANDLERS = {"agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
-            "send_message": _send_message}
+            "send_message": _send_message, "vip_realert": _vip_realert}
 
 
 async def run_once(limit: int = 10) -> int:

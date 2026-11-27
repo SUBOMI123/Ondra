@@ -38,7 +38,8 @@ class AnthropicLLM:
     """
 
     def __init__(self, *, api_key: str, model: str, effort: str = "low", base_url: str | None = None,
-                 max_tokens: int = 8000, timeout_s: float = 30.0, http_client: Any = None) -> None:
+                 max_tokens: int = 8000, timeout_s: float = 30.0, http_client: Any = None,
+                 thinking: str = "adaptive") -> None:
         import anthropic
 
         # Pass base_url explicitly so a stray ANTHROPIC_BASE_URL in the environment can't redirect traffic.
@@ -49,6 +50,7 @@ class AnthropicLLM:
         self.model = model
         self.effort = effort
         self.max_tokens = max_tokens
+        self.thinking = thinking  # "adaptive", or "disabled" for one-word jobs like topic classification
 
     async def create(self, *, system: list[dict], messages: list[dict], tools: list[dict]) -> LLMResponse:
         resp = await self._client.beta.messages.create(
@@ -57,7 +59,7 @@ class AnthropicLLM:
             system=system,
             messages=messages,
             tools=tools,
-            thinking={"type": "adaptive"},
+            thinking={"type": self.thinking},
             output_config={"effort": self.effort},
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",

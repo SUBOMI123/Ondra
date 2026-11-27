@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 5, Voice, is parked with a backlog (below) by founder decision on 2026-11-27: real calls book appointments on the new voice, but the warm transfer hasn't been proven on a real call and replies take about 2.7 s against a 1 s target. Next up: Step 6, not started.
+**Last updated:** 2026-11-27. **Now:** Step 6. The routing engine is built and tested (13 scenarios through the webhook and job queue); rules can't be edited in the dashboard yet. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -14,7 +14,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
-| 6 | Routing, follow-ups, learning loop | Not started |
+| 6 | Routing, follow-ups, learning loop | In progress: routing engine done (6a). Next: routing settings screen (6b), follow-ups and quiet hours (6c), learning loop (6d), acceptance (6e) |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
@@ -67,6 +67,14 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
 - **Quality:** 166 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 13 pages.
+
+### Step 6 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| Rules route test messages correctly across 10 scenarios | Met in tests | `apps/api/tests/test_routing.py`: 12 routing scenarios plus tenant isolation, each a real message through the webhook, job queue and Postgres (round-robin, keeping a customer's rep, service, complaint rule with alert, VIP over any rule, a named person per channel, AI kept out of a topic, capacity, nobody in, Lagos covering Dallas, drafts after hours, rule order, empty team) |
+| STOP on SMS blocks all outbound to that contact | Built in Step 2; to be re-proven with follow-ups in 6c | `test_stop_opts_out_on_every_channel_and_blocks_later_ai` |
+| An unanswered question answered by the dealer is used by the AI on the next identical question | Not started (6d) | |
 
 ## Voice backlog (parked 2026-11-27)
 

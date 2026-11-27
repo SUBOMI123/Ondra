@@ -19,6 +19,7 @@ from ondra_api.db import tenant_session
 from ondra_api.services.agent_tools import DbToolBackend, assignee_for
 from ondra_api.services.calls import CallPlan
 from ondra_api.services.inbound import dealer_clock
+from ondra_api.services.routing import teams_now
 from ondra_core.agent.detectors import ReplyContext
 from ondra_core.agent.orchestrator import ToolRecord, _learn
 from ondra_core.agent.prompt import CustomerFacts, DealerFacts
@@ -87,6 +88,7 @@ class CallDesk:
                 handoff_triggers=list(policy.handoff_triggers) if policy else [],
                 never_say=list(policy.never_say) if policy else [],
                 disclose_upfront=(tenant.settings or {}).get("ai_disclosure") == "upfront",
+                teams=await teams_now(db, tenant),
             )
             customer = CustomerFacts(known=plan.known and plan.caller_name is not None, name=plan.caller_name,
                                      language=contact.language)

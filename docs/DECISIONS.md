@@ -437,3 +437,31 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **The text on the call went to the mock.** Real texts need `FEATURE_SMS=true`, the Twilio Account SID and Auth
   Token (the adapter signs webhooks with it; the API key pair used for the phone line isn't enough), and A2P 10DLC
   registration, without which US carriers drop the messages.
+
+## 2026-11-27: Routing engine (Step 6a)
+
+- **Order of decisions:** VIP first (owner or the VIP's handler; a product rule in code, no dealer rule can
+  reorder it), then the dealer's rules by priority (first match wins), then the topic's usual team. Within the
+  team: someone on shift and under their limit, whoever was given work least recently. Rules live in
+  `ondra_core.routing` as plain functions; `services/routing.py` loads rules and people and records every decision
+  as a `routing.decided` event (which rule, who, why), so "why did this come to me" has an answer.
+- **First match wins, not "all matching rules apply":** a dealer can read the list top to bottom and know what
+  happens. Alternative (merge every matching rule's actions) is more flexible and much harder to predict.
+- **A customer keeps one contact.** The first handoff assigns the conversation; later handoffs go to the same
+  person if they're on the routed team and in. Not assigned on the first message: most messages the AI answers
+  alone, and giving each one a rep would burn round-robin turns on "what time do you close".
+- **Shifts are per person, in their own timezone** (`users.work_hours`, `users.timezone`; null means the
+  dealership's hours), so Lagos staff can cover a Dallas night. Nobody in the team on shift: it queues for whoever
+  is in next rather than bouncing to a manager, and the AI's prompt now says per team who is in ("sales: in now;
+  service: nobody in until Mon 8:00 am"), because "shortly" was decided from dealership opening hours alone.
+- **At capacity** (`users.max_open_tasks`): skipped while anyone else is free; if everyone is full the least
+  loaded takes it. Work is never left unassigned because of a limit.
+- **Topic** (sales, service, shipping, finance, complaint, other) is classified by the fast model before the AI
+  runs, with thinking off and a 20-token cap: 8 of 8 on a spot check including a prompt-injection attempt and a
+  Spanish message, 300 to 1,100 ms (most near 300). That is added to every text reply. Fallback when there's no
+  key or the call fails: the words used. A handoff's topic comes from its reason first (a complaint is a complaint
+  whatever team the model asked for).
+- **Rules can set what the AI does** for what they match: reply, draft only, or stay out (a person gets a task and
+  nothing is sent). They can't make the AI answer a VIP or an opted-out contact: those checks run first.
+- **VIP re-alert:** a VIP's task still open after `settings.vip_realert_minutes` (default 10) raises the alert
+  again, up to 3 times. The alert is an event until the owner's WhatsApp layer (Step 8) delivers it.

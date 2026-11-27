@@ -193,7 +193,10 @@ async def run_turn(
             out = await backend.handoff(**args)
             result.tools.append(ToolRecord("handoff", args, out))
             result.handoff = args
-        reply = handoff_message(result.handoff["target_role"], dealer.open_now)
+        # What the handoff itself said to tell them (it knows who took it and whether they're in), else the plain line.
+        told = next((t.output.get("tell_customer") for t in reversed(result.tools)
+                     if t.name == "handoff" and isinstance(t.output, dict) and t.output.get("tell_customer")), None)
+        reply = told or handoff_message(result.handoff["target_role"], dealer.open_now)
 
     result.reply = reply
     result.latency_ms = int((time.monotonic() - started) * 1000)

@@ -83,6 +83,12 @@ class User(Base, TenantScoped):
     active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     invite_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Routing (ondra_core.routing): their own hours and timezone (null: the dealership's), a limit on open tasks
+    # (null: none), and when they were last given work, for round-robin.
+    timezone: Mapped[str | None] = mapped_column(String(64))
+    work_hours: Mapped[dict | None] = mapped_column(JSONB)
+    max_open_tasks: Mapped[int | None] = mapped_column(Integer)
+    last_assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Session(Base, TenantScoped):
@@ -155,6 +161,7 @@ class Conversation(Base, TenantScoped):
     assigned_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     ai_mode: Mapped[str] = mapped_column(String(10), server_default="draft")
     last_inbound_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    topic: Mapped[str | None] = mapped_column(String(20))  # what it's about, for routing (ondra_core.routing.TOPICS)
 
 
 class Message(Base, TenantScoped):
@@ -333,6 +340,7 @@ class Task(Base, TenantScoped):
 
 class RoutingRule(Base, TenantScoped):
     __tablename__ = "routing_rules"
+    name: Mapped[str] = mapped_column(String(120), server_default="")
     priority: Mapped[int] = mapped_column(Integer)
     conditions: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     action: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))

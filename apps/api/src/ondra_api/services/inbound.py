@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from ondra_core.agent.llm import LLM, AnthropicLLM
@@ -132,7 +132,40 @@ async def _alert(db: AsyncSession, alert: Alert, contact: Contact, conv: Convers
     # The owner's WhatsApp/push notification arrives with Step 8; the event is what the notifier will consume.
     db.add(Event(type="alert.created", payload={"task_id": str(task.id), "to": alert.to, "urgency": alert.urgency,
                                                 "contact_id": str(contact.id), "reason": alert.reason}))
+    if contact.is_vip:
+        # §7.1: a VIP who is still waiting is alerted again, not left to the task list.
+        from ondra_api.services.jobs import enqueue
+
+        tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+        enqueue(db, "vip_realert", {"task_id": str(task.id), "n": 1},
+                run_at=datetime.now(UTC) + timedelta(minutes=vip_realert_minutes(tenant)))
     return task
+
+
+VIP_REALERTS = 3
+
+
+def vip_realert_minutes(tenant: Tenant) -> int:
+    return int((tenant.settings or {}).get("vip_realert_minutes") or 10)
+
+
+async def vip_realert(tenant_id: uuid.UUID, p: dict) -> bool:
+    """A VIP's task is still open N minutes on: alert the owner again (up to VIP_REALERTS times). True if alerted."""
+    from ondra_api.services.jobs import enqueue
+
+    async with tenant_session(tenant_id) as db:
+        task = await db.get(Task, uuid.UUID(p["task_id"]))
+        if task is None or task.status not in ("open", "in_progress"):
+            return False
+        n = int(p.get("n", 1))
+        db.add(Event(type="alert.created", payload={
+            "task_id": str(task.id), "to": "owner", "urgency": "high", "repeat": n,
+            "contact_id": str(task.contact_id) if task.contact_id else None, "reason": "VIP still waiting for a reply"}))
+        if n < VIP_REALERTS:
+            tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+            enqueue(db, "vip_realert", {"task_id": str(task.id), "n": n + 1},
+                    run_at=datetime.now(UTC) + timedelta(minutes=vip_realert_minutes(tenant)))
+        return True
 
 
 async def _record_consent(db: AsyncSession, contact: Contact, change: str, msg_id: uuid.UUID, channel: str) -> None:
@@ -223,7 +256,7 @@ async def mark_status(update: StatusUpdate) -> None:
 
 @dataclass
 class AgentOutcome:
-    status: str  # sent | drafted | blocked | skipped | no_model | send_failed
+    status: str  # sent | drafted | blocked | skipped | no_model | send_failed | routed (a rule kept the AI out)
     reply: str = ""
     message_id: uuid.UUID | None = None
     latency_ms: int = 0
@@ -246,6 +279,28 @@ async def run_agent(tenant_id: uuid.UUID, conversation_id: uuid.UUID, message_id
             # A burst: a newer message from the customer arrived. Its run answers everything at once.
             return AgentOutcome("skipped")
 
+        # Routing (BUILD_PLAN.md §7): what is this about, and do the dealer's rules let the AI answer it?
+        from ondra_api.services.routing import ai_say, classify_topic, route, teams_now
+        from ondra_api.services.tasks import new_task
+
+        said = [m.body or "" for m in rows if m.direction == "inbound"]
+        conv.topic = await classify_topic(said[-1] if said else "", said[:-1])
+        say, rule = await ai_say(db, contact, topic=conv.topic, channel=conv.channel)
+        if say == "off":
+            r = await route(db, topic=conv.topic, channel=conv.channel, contact=contact, prefer=conv.assigned_user_id)
+            task = await new_task(db, title=f"{contact.display_name}: reply to their {conv.topic} message",
+                                  contact_id=contact.id, conversation_id=conv.id, assignee_user_id=r.user_id,
+                                  source="rule", urgency="high" if r.alert else "normal",
+                                  brief=f"Your rule \"{rule.name or 'unnamed'}\" keeps Ondra out of this one. Nothing was sent.")
+            if r.alert:
+                db.add(Event(type="alert.created", payload={"task_id": str(task.id), "to": r.role, "urgency": "high",
+                                                            "contact_id": str(contact.id), "reason": task.title}))
+            conv.status = "waiting_staff"
+            if conv.assigned_user_id is None and r.user_id:
+                conv.assigned_user_id = r.user_id
+            return AgentOutcome("routed")
+        draft = draft or say == "draft"
+
         llm = llm_factory()
         if llm is None:
             log.error("no ANTHROPIC_API_KEY: message %s left for a person", message_id)
@@ -263,7 +318,8 @@ async def run_agent(tenant_id: uuid.UUID, conversation_id: uuid.UUID, message_id
                                price_disclosure=policy.price_disclosure if policy else "none",
                                handoff_triggers=list(policy.handoff_triggers) if policy else [],
                                never_say=list(policy.never_say) if policy else [],
-                               disclose_upfront=(tenant.settings or {}).get("ai_disclosure") == "upfront"),
+                               disclose_upfront=(tenant.settings or {}).get("ai_disclosure") == "upfront",
+                               teams=await teams_now(db, tenant)),
             customer=CustomerFacts(known=not contact.display_name.startswith("+") and "@" not in contact.display_name,
                                    name=contact.display_name, language=contact.language),
             channel=conv.channel,
