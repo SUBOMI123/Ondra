@@ -225,6 +225,10 @@ async def get_conversation(conversation_id: uuid.UUID,
     reply_to = last_in.conversation_id if last_in else (conv.id if conv.channel != "phone" else
                                                        (text_convs[0].id if text_convs else None))
     now = datetime.now(UTC)
+    from ondra_core.models import MessageRating
+
+    ratings = dict((await db.execute(select(MessageRating.message_id, MessageRating.rating)
+                                     .where(MessageRating.message_id.in_([m.id for m in messages])))).all())
     return {
         "id": str(conv.id), "channel": conv.channel, "status": conv.status,
         # Ondra is on only if it's on for every channel: a person who took over took over the client.
@@ -241,6 +245,7 @@ async def get_conversation(conversation_id: uuid.UUID,
             "id": str(m.id), "direction": m.direction, "author": m.author_type, "channel": channel_of[m.conversation_id],
             "author_name": authors.get(m.author_user_id) if m.author_user_id else None,
             "body": m.body, "status": m.status, "is_draft": m.is_draft, "at": m.created_at.isoformat(),
+            "rating": ratings.get(m.id),  # a person's verdict on one of Ondra's replies: good | wrong | tone
         } for m in messages],
         "deal": None if deal is None else {
             "type": deal.type, "stage": deal.stage, "vehicle_of_interest": deal.vehicle_of_interest,

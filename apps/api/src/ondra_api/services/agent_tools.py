@@ -319,15 +319,9 @@ class DbToolBackend:
         return {"moved": await self._appointment_out(a)}
 
     async def _record_gap(self, question: str) -> None:
-        q = " ".join(question.lower().split())[:500]
-        gap = (await self.db.execute(
-            select(KnowledgeGap).where(and_(KnowledgeGap.question == q, KnowledgeGap.status == "open"))
-        )).scalar_one_or_none()
-        if gap:
-            gap.occurrences += 1
-            gap.example_conversation_ids = list({*gap.example_conversation_ids, self.conversation.id})[:20]
-        else:
-            self.db.add(KnowledgeGap(question=q, example_conversation_ids=[self.conversation.id]))
+        from ondra_api.services.learning import record_gap
+
+        await record_gap(self.db, question, self.conversation.id)
 
 
 __all__: list[Any] = ["DbToolBackend", "assignee_for"]

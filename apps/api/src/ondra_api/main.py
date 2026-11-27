@@ -5,7 +5,7 @@ from sqlalchemy import text
 from ondra_api import live
 from ondra_api.config import get_settings
 from ondra_api.db import no_tenant_session
-from ondra_api.routers import appointments, auth, calls, conversations, data, follow_ups, routing, settings, tasks, team, webhooks
+from ondra_api.routers import appointments, auth, calls, conversations, data, follow_ups, knowledge, routing, settings, tasks, team, webhooks
 
 app = FastAPI(title="Ondra API", version="0.1.0")
 app.add_middleware(
@@ -28,6 +28,8 @@ app.include_router(appointments.router)
 app.include_router(calls.router)
 app.include_router(routing.router)
 app.include_router(follow_ups.router)
+app.include_router(knowledge.router)
+app.include_router(knowledge.ratings_router)
 
 
 @app.get("/health", tags=["ops"])

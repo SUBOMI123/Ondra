@@ -365,6 +365,20 @@ class KnowledgeGap(Base, TenantScoped):
     occurrences: Mapped[int] = mapped_column(Integer, server_default="1")
     status: Mapped[str] = mapped_column(String(10), server_default="open")
     answer_doc_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("knowledge_docs.id", ondelete="SET NULL"))
+    embedding = mapped_column(Vector(1024), nullable=True)  # so the same question in other words is one gap
+    embedding_space: Mapped[str | None] = mapped_column(String(40))
+    last_asked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MessageRating(Base, TenantScoped):
+    """A person's verdict on one of Ondra's replies (BUILD_PLAN.md §6.3a). One per message; the latest wins."""
+
+    __tablename__ = "message_ratings"
+    __table_args__ = (CheckConstraint(_in("rating", ("good", "wrong", "tone")), name="message_ratings_rating"),)
+    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("messages.id", ondelete="CASCADE"), unique=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    rating: Mapped[str] = mapped_column(String(10))
+    note: Mapped[str | None] = mapped_column(Text)
 
 
 class Policy(Base, TenantScoped):

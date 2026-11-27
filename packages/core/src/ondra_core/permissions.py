@@ -31,6 +31,7 @@ class Perm(StrEnum):
     USERS_READ = "users:read"
     USERS_MANAGE = "users:manage"
     SETTINGS_MANAGE = "settings:manage"
+    KNOWLEDGE_WRITE = "knowledge:write"  # answer what Ondra didn't know; managers can, they know the answers
     INTEGRATIONS_MANAGE = "integrations:manage"
     AUDIT_READ = "audit:read"
 
@@ -41,9 +42,10 @@ _DO_WORK = _READ_WORK | {Perm.CONTACTS_WRITE, Perm.CONVERSATIONS_REPLY, Perm.DEA
 ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
     Role.OWNER: frozenset(Perm),
     Role.ADMIN: frozenset(
-        _READ_WORK | {Perm.USERS_READ, Perm.USERS_MANAGE, Perm.SETTINGS_MANAGE, Perm.INTEGRATIONS_MANAGE, Perm.AUDIT_READ}
+        _READ_WORK | {Perm.USERS_READ, Perm.USERS_MANAGE, Perm.SETTINGS_MANAGE, Perm.KNOWLEDGE_WRITE,
+                      Perm.INTEGRATIONS_MANAGE, Perm.AUDIT_READ}
     ),
-    Role.MANAGER: frozenset(_DO_WORK | {Perm.VEHICLES_WRITE, Perm.USERS_READ, Perm.AUDIT_READ}),
+    Role.MANAGER: frozenset(_DO_WORK | {Perm.VEHICLES_WRITE, Perm.USERS_READ, Perm.AUDIT_READ, Perm.KNOWLEDGE_WRITE}),
     Role.SALES: frozenset(_DO_WORK),
     Role.SERVICE: frozenset(_DO_WORK),
     Role.OPS: frozenset(_DO_WORK),
