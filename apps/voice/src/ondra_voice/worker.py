@@ -41,6 +41,7 @@ from ondra_api.config import get_settings
 from ondra_api.services.calls import CallPlan, finish_call, start_call
 
 from .agents import OndraAgent, greeting
+from .bakeoff import Shadow, shadow_models
 from .desk import CallDesk, turn_metrics_from
 
 log = logging.getLogger("ondra.voice")
@@ -183,14 +184,19 @@ async def entrypoint(ctx: JobContext) -> None:
     desk = await CallDesk.open(plan)
     session = build_session(desk)
     record_conversation(session, desk)
+    # The speech-to-text bake-off: other models listen to the same caller audio (VOICE_STT_SHADOW; off by default).
+    shadow = Shadow(shadow_models(), desk.vocabulary or [desk.dealer.name])
     done = asyncio.Event()
 
     async def finish() -> None:
         await desk.settle()  # a follow-up task the spoken check promised is created before the call is stored
+        metrics = desk.metrics()
+        if shadow.models:
+            metrics["stt_shadow"] = await shadow.stop()
         await finish_call(
             plan.tenant_id, plan.call_id, handled_by="staff" if desk.transferred_to else "ai",
             outcome="transferred" if desk.transferred_to else "handled", transcript=desk.transcript,
-            metrics=desk.metrics(), transferred_to_user_id=desk.transferred_to.user_id if desk.transferred_to else None,
+            metrics=metrics, transferred_to_user_id=desk.transferred_to.user_id if desk.transferred_to else None,
         )
         done.set()
 
@@ -207,6 +213,7 @@ async def entrypoint(ctx: JobContext) -> None:
     await session.start(agent=OndraAgent(desk), room=ctx.room,
                         room_options=room_io.RoomOptions(delete_room_on_close=False))
     session.say(greeting(desk), allow_interruptions=False)
+    shadow.start(caller)
 
 
 def main() -> None:

@@ -120,9 +120,9 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 
 | Item | Why it matters | Needs |
 |---|---|---|
-| Prove the warm transfer on a real call ("talk to a manager") | The last unmet Step 5 acceptance check | A call with a second phone as the manager |
-| Find the missing 2 seconds per turn | Turns take 3.4-3.8 s; model and voice account for about 1.2 s. The call record now stores the end-of-turn wait and tool time | One real call, then tune the end-of-turn wait or the lookups from the numbers |
-| Speech recognition mishearing ("I we can't know the price of a Honda CR V") | Wrong words in, wrong answers out | The recognition model comparison (try `VOICE_STT_MODEL=assemblyai/assemblyai-stt-3-7-realtime-agent`) on recorded calls |
+| Prove the warm transfer on a real call ("talk to a manager") | The last unmet Step 5 acceptance check | Call 2 of the session in docs/VOICE.md: a second phone on Grace (manager) in Team |
+| Find the missing 2 seconds per turn | Turns take 3.4-3.8 s; model and voice account for about 1.2 s. The call record now stores the end-of-turn wait and tool time | **Report ready:** `python -m ondra_voice.report` splits each call's wait into end of turn, model, voice, tools and unaccounted. Needs call 1 |
+| Speech recognition mishearing ("I we can't know the price of a Honda CR V") | Wrong words in, wrong answers out | **Ready (2026-11-27):** other models listen on the same call (`VOICE_STT_SHADOW`) and are scored against a read-aloud script (`python -m ondra_voice.bakeoff`). Needs call 1 of the session in docs/VOICE.md |
 | Hear the 2026-11-27 fixes on a call | Today-already-passed days, asking which of two times, naming three cars, no needless apology: tested, not heard | One call |
 | A test that listens to how the voice reads prices | ElevenLabs Flash misread prices and only a manual check caught it | Part of the 5e voice test set |
 | A call nobody answers must not vanish | Worker down: caller hears ringing, nothing is recorded | Hosting (a public URL for Twilio's fallback route) and a no-worker alert |
