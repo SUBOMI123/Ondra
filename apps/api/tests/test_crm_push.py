@@ -144,3 +144,53 @@ async def test_a_failed_send_is_recorded_and_retried(shop):
         assert integ.status == "error" and integ.config["last"]["ok"] is False
     assert await crm.push(shop.tenant, payload) == "sent" and len(shop.crm_emails()) == 1
     assert await crm.push(shop.tenant, payload) == "skipped: already sent"
+
+
+# --- the DMS and the repair-order tool (same step) ------------------------------------------------------------------
+
+async def test_repair_order_status_is_answered_from_the_mock_dms(shop):
+    """Step 7 acceptance: RO status answered from mock DMS. The seeded demo dealership has the mock DMS on."""
+    from ondra_api.services.agent_tools import DbToolBackend
+    from ondra_core.models import ContactIdentity, Conversation
+
+    async with tenant_session(shop.tenant) as db:
+        ident = (await db.execute(select(ContactIdentity).where(ContactIdentity.value == "+12145551001", ContactIdentity.kind == "phone"))).scalar_one()
+        contact = await db.get(Contact, ident.contact_id)
+        conv = Conversation(contact_id=contact.id, channel="sms", ai_mode="auto")
+        db.add(conv)
+        await db.flush()
+        backend = DbToolBackend(db, contact=contact, conversation=conv, price_disclosure="listed", open_now=True)
+        out = await backend.get_repair_order_status()
+        assert out["found"] is True and out["repair_orders"] == [{
+            "repair_order": "RO-55120", "vehicle": "2018 Honda Accord", "status": "waiting_parts",
+            "what_it_means": "It's waiting on parts.", "service_advisor": "Maria"}]
+        # Someone else's RO number is neither confirmed nor denied.
+        other = await backend.get_repair_order_status("RO-55098")
+        assert other["found"] is False and "under this customer's phone number" in other["note"]
+        await db.delete(conv)
+
+    # Through a whole turn: the customer asks, the tool result reaches the model, the reply goes out.
+    frm = await shop.writes("hey is my car ready yet?", [[("get_repair_order_status", {})],
+                                                        "Not yet: your Accord is waiting on parts. Maria is your advisor."], frm="+12145551001")
+    assert "waiting on parts" in channels.mock("sms").outbox[-1].body
+    async with tenant_session(shop.tenant) as db:
+        await db.execute(text("""DELETE FROM messages WHERE created_at > now() - interval '2 minutes' AND conversation_id IN
+            (SELECT c.id FROM conversations c JOIN contact_identities i ON i.contact_id = c.contact_id WHERE i.value = :v)"""), {"v": frm})
+
+
+async def test_no_dms_or_a_csv_upload(shop, database):
+    from ondra_api.services import dms as dms_service
+
+    async with tenant_session(database["b"]) as db:  # the other dealership has no DMS connected
+        out = await dms_service.repair_order_status(db, phones=["+12145551001"], emails=[])
+        assert out["found"] is False and "isn't connected" in out["note"]
+    csv = "RO,Status,Phone\n77001,Ready,2145551002\n77002,Nope,2145551003\n"
+    async with tenant_session(shop.tenant) as db:
+        before = dict((await dms_service.dms_integration(db)).config)
+        up = await dms_service.upload_repair_orders(db, csv, "ros.csv")
+        assert (up["loaded"], up["skipped_count"]) == (1, 1)
+        out = await dms_service.repair_order_status(db, phones=["+12145551002"], emails=[])
+        assert out["repair_orders"][0]["status"] == "ready" and out["repair_orders"][0]["repair_order"] == "77001"
+        integ = await dms_service.dms_integration(db)
+        assert integ.status == "warning" and integ.config["provider"] == "csv"
+        integ.config, integ.status = before, "ok"  # back to the demo data

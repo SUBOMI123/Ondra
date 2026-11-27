@@ -31,6 +31,7 @@ from ondra_core.models import (
     Task,
     Tenant,
     User,
+    Integration,
     Vehicle,
 )
 from sqlalchemy import func, select, text
@@ -237,6 +238,9 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             db.add(tenant)
             await db.flush()
             t = tenant.id
+
+            # The demo dealership's service lane answers from demo repair orders (ondra_core.dms.DEMO_ORDERS).
+            db.add(Integration(tenant_id=t, kind="dms", config={"provider": "mock"}, status="ok"))
 
             pw = hash_password(DEV_PASSWORD)
             users = [User(tenant_id=t, email=e, name=n, role=r, phone=p, password_hash=pw) for e, n, r, p in USERS]

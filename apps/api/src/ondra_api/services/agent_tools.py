@@ -324,6 +324,13 @@ class DbToolBackend:
             return {"error": str(exc)}
         return {"moved": await self._appointment_out(a)}
 
+    async def get_repair_order_status(self, ro_number: str | None = None) -> dict:
+        from ondra_api.services.dms import repair_order_status
+
+        ids = (await self.db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == self.contact.id))).scalars().all()
+        return await repair_order_status(self.db, phones=[i.value for i in ids if i.kind in ("phone", "whatsapp")],
+                                         emails=[i.value for i in ids if i.kind == "email"], ro_number=ro_number)
+
     async def _record_gap(self, question: str) -> None:
         from ondra_api.services.learning import record_gap
 

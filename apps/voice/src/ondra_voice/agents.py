@@ -170,7 +170,7 @@ _OWN_FILLER = re.compile(r"^\s*(?:sure|okay|ok|great|got it)?[,.!]?\s*(?:let me|
                          r"hold on|bear with me)\b[^.?!]*[.!]\s*$", re.IGNORECASE)
 # Tools that take a moment and lead to a second model reply; bookkeeping (update_lead_fields) and hanging up don't.
 _SLOW_TOOLS = {"check_availability", "book_appointment", "reschedule_or_cancel", "search_inventory", "get_vehicle",
-               "search_knowledge", "get_contact_context"}
+               "search_knowledge", "get_contact_context", "get_repair_order_status"}
 
 
 def _needs_filler(chunks: list[llm.ChatChunk]) -> bool:

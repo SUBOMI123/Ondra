@@ -41,7 +41,7 @@ from ondra_core.embeddings import MIN_SIMILARITY, VoyageEmbedder, cosine
 ROOT = Path(__file__).parent
 GOLDEN = ROOT / "golden"
 RESULTS = ROOT / "results"
-STEP = 4
+STEP = 7
 LATENCY_BUDGET_MS = 5000
 
 
@@ -169,6 +169,20 @@ class FixtureBackend:
         q = _words(query)
         hits = [(len(q & _words(k["q"] + " " + k["a"])), k) for k in self.knowledge]
         return [{"title": k["q"], "answer": k["a"]} for n, k in sorted(hits, key=lambda x: -x[0]) if n > 0][:3]
+
+    async def get_repair_order_status(self, ro_number: str | None = None) -> dict:
+        """From the scenario's `context.repair_orders` (the customer's own). No completion time is passed on, as in
+        the real backend."""
+        from ondra_core.dms import STATUSES
+
+        orders = (self.s.get("context") or {}).get("repair_orders", [])
+        if ro_number:
+            orders = [o for o in orders if str(o.get("ro", "")).lower() == ro_number.lower()] or orders
+        if not orders:
+            return {"found": False, "note": "No repair order under this customer's phone number or email. Hand off to service."}
+        return {"found": True, "repair_orders": [
+            {k: v for k, v in {"repair_order": o.get("ro"), "status": o["status"], "what_it_means": STATUSES.get(o["status"], o["status"]),
+                               "service_advisor": o.get("advisor"), "vehicle": o.get("vehicle")}.items() if v} for o in orders]}
 
     async def update_lead_fields(self, fields: dict) -> dict:
         self.fields.update({k: v for k, v in fields.items() if v not in (None, "")})

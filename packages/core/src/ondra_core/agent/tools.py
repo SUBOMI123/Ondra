@@ -5,7 +5,7 @@
 a scenario's fixtures. The orchestrator only talks to the protocol.
 
 Step 2 ships the tools that need no booking or DMS: get_contact_context, search_inventory, get_vehicle,
-search_knowledge, update_lead_fields and handoff. Booking tools arrive in Step 4, repair-order status in Step 7.
+search_knowledge, update_lead_fields and handoff. Booking tools came in Step 4, repair-order status in Step 7.
 """
 
 from __future__ import annotations
@@ -197,6 +197,24 @@ BOOKING_TOOLS: list[dict[str, Any]] = [
 ]
 TOOL_SPECS.extend(BOOKING_TOOLS)
 
+SERVICE_TOOLS: list[dict] = [
+    {
+        "name": "get_repair_order_status",
+        "description": (
+            "Where this customer's car is in the service department, from the dealer's own system: checked in, being "
+            "worked on, waiting on parts, ready to pick up. Call it when they ask if their car is ready, how the "
+            "repair is going, or about a repair order. It finds repair orders by the phone number or email they're "
+            "contacting us from, so it needs no input; pass ro_number only to pick one of several. It gives no "
+            "completion time. If it finds nothing, don't guess: hand off to service."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"ro_number": {"type": "string", "description": "Only if they gave one, to pick among their repair orders."}},
+        },
+    },
+]
+TOOL_SPECS.extend(SERVICE_TOOLS)
+
 TOOL_NAMES = frozenset(t["name"] for t in TOOL_SPECS)
 
 
@@ -210,6 +228,7 @@ class ToolBackend(Protocol):
     async def check_availability(self, kind: str, day: str | None = None, part_of_day: str | None = None) -> dict: ...
     async def book_appointment(self, slot_id: str, details: dict | None = None) -> dict: ...
     async def reschedule_or_cancel(self, appointment_id: str, action: str, new_slot_id: str | None = None) -> dict: ...
+    async def get_repair_order_status(self, ro_number: str | None = None) -> dict: ...
 
 
 def apply_price_policy(vehicle: dict, price_disclosure: str) -> dict:
@@ -260,4 +279,6 @@ async def run_tool(backend: ToolBackend, name: str, args: dict) -> Any:
         return await backend.book_appointment(args["slot_id"], args.get("details"))
     if name == "reschedule_or_cancel":
         return await backend.reschedule_or_cancel(args["appointment_id"], args["action"], args.get("new_slot_id"))
+    if name == "get_repair_order_status":
+        return await backend.get_repair_order_status(args.get("ro_number"))
     raise KeyError(name)
