@@ -60,7 +60,8 @@ async def test_press_one_and_talk_marks_them_called_back(client, database):
     assert (await _hook(client, placed, "status", {"CallSid": placed.sid, "CallStatus": "in-progress"})).status_code == 204
     dial = await _hook(client, placed, "connect", {"CallSid": placed.sid, "Digits": "1"})
     # The customer sees the dealer's number, never the salesperson's.
-    assert f'<Dial callerId="{DEALER}"' in dial.text and f"<Number>{CALLER}</Number>" in dial.text
+    assert f'<Dial callerId="{DEALER}"' in dial.text and f">{CALLER}</Number>" in dial.text
+    assert 'machineDetection="Enable"' in dial.text and "/amd" in dial.text
     done = await _hook(client, placed, "dialed", {"CallSid": placed.sid, "DialCallStatus": "completed", "DialCallDuration": "95"})
     assert "<Hangup/>" in done.text
     # Twilio retries: nothing is recorded twice.
@@ -166,3 +167,75 @@ async def test_the_twilio_request_matches_the_docs():
         raise AssertionError("should have failed")
     except bridge.BridgeError:
         pass
+
+
+async def _connected(client, database, owner):
+    missed = await _missed(database)
+    await client.post(f"/calls/{missed}/bridge", headers=owner)
+    placed = bridge.dialer().placed[-1]
+    await _hook(client, placed, "connect", {"CallSid": placed.sid, "Digits": "1"})
+    return missed, placed
+
+
+async def _state(database, missed):
+    async with tenant_session(database["a"]) as db:
+        call = await db.get(Call, missed)
+        task = (await db.execute(select(Task).where(Task.contact_id == call.contact_id))).scalars().all()
+        tries = (await db.execute(select(Event).where(Event.type == "callback.first_try",
+                                                      Event.payload["contact_id"].astext == str(call.contact_id)))).scalars().all()
+        return call, task, tries
+
+
+async def test_a_person_picking_up_counts_even_on_a_short_call(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    missed, placed = await _connected(client, database, owner)
+    assert (await _hook(client, placed, "amd", {"CallSid": "CAchild", "AnsweredBy": "human"})).status_code == 204
+    await _hook(client, placed, "dialed", {"CallSid": placed.sid, "DialCallStatus": "completed", "DialCallDuration": "20"})
+    call, tasks, tries = await _state(database, missed)
+    assert call.callback_done_at is not None and all(t.status == "done" for t in tasks)
+    assert [e.payload["result"] for e in tries] == ["reached"]
+    await _cleanup(database)
+
+
+async def test_their_voicemail_is_a_try_even_on_a_long_message(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    missed, placed = await _connected(client, database, owner)
+    await _hook(client, placed, "amd", {"CallSid": "CAchild", "AnsweredBy": "machine_start"})
+    await _hook(client, placed, "dialed", {"CallSid": placed.sid, "DialCallStatus": "completed", "DialCallDuration": "95"})
+    call, tasks, tries = await _state(database, missed)
+    assert call.callback_done_at is None and any(t.status == "open" for t in tasks)
+    assert [e.payload["result"] for e in tries] == ["voicemail"]
+    row = next(i for i in (await client.get("/calls?show=missed", headers=owner)).json()["items"] if i["id"] == str(missed))
+    assert row["needs_callback"] and row["attempts"][-1]["how"] == "voicemail"
+    out = next(i for i in (await client.get("/calls", headers=owner)).json()["items"]
+               if i["direction"] == "outbound" and i["contact"] and i["contact"]["name"] == CALLER)
+    assert out["line"] == "Samuel called them back and got their voicemail"
+    await _cleanup(database)
+
+
+async def test_a_late_verdict_corrects_what_was_recorded(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    # 95 s and no verdict yet: counted as spoke to them...
+    missed, placed = await _connected(client, database, owner)
+    await _hook(client, placed, "dialed", {"CallSid": placed.sid, "DialCallStatus": "completed", "DialCallDuration": "95"})
+    call, tasks, _ = await _state(database, missed)
+    assert call.callback_done_at is not None
+    # ...then detection says it was a machine: back on the list, the task reopened, the try kept as voicemail.
+    await _hook(client, placed, "amd", {"CallSid": "CAchild", "AnsweredBy": "machine_start"})
+    call, tasks, tries = await _state(database, missed)
+    assert call.callback_done_at is None and any(t.status == "open" for t in tasks)
+    assert [(e.payload["result"], e.payload.get("undone")) for e in tries] == [("voicemail", False)]
+    await _cleanup(database)
+
+    # The other way: 20 s with no verdict is a short call (a try), then detection says a person: called back.
+    missed, placed = await _connected(client, database, owner)
+    await _hook(client, placed, "dialed", {"CallSid": placed.sid, "DialCallStatus": "completed", "DialCallDuration": "20"})
+    assert (await _state(database, missed))[0].callback_done_at is None
+    await _hook(client, placed, "amd", {"CallSid": "CAchild", "AnsweredBy": "human"})
+    call, tasks, tries = await _state(database, missed)
+    assert call.callback_done_at is not None and all(t.status == "done" for t in tasks)
+    assert [e.payload["result"] for e in tries] == ["reached"]
+    # Detection that can't tell ("unknown") falls back to the length of the call, and changes nothing here.
+    assert bridge.result_of("completed", 95, "unknown") == "spoke" and bridge.result_of("completed", 20, "unknown") == "short"
+    assert bridge.result_of("no-answer", 0, "human") == "no_answer" and bridge.result_of("completed", 5, "fax") == "voicemail"
+    await _cleanup(database)

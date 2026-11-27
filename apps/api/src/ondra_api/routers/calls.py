@@ -17,21 +17,26 @@ see VIPs, like everywhere else.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ondra_core.models import Call, Contact, Event, MetricDay, Task, Tenant, User
+from ondra_core.models import Call, Contact, Event, Task, User
 from ondra_core.permissions import Perm, can_see_vips
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.routers.conversations import LIVE_FOR, call_line
 from ondra_api.services import bridge
-from ondra_api.services.calls import CALLBACK_BRIEFS, first_try, mark_called_back, waiting_calls
+from ondra_api.services.calls import (
+    CALLBACK_BRIEFS,
+    first_try,
+    mark_called_back,
+    reopen_called_back,
+    waiting_calls,
+)
 
 router = APIRouter(tags=["calls"])
 
@@ -111,6 +116,7 @@ def _out(call: Call, c: Contact | None, names: dict, full: bool = False, text_ba
         b = out["bridge"]
         who = (b["by"] or "Someone").split(" ")[0]
         out["line"] = {"spoke": f"{who} called them back", "short": f"{who} called them back, a short call",
+                       "voicemail": f"{who} called them back and got their voicemail",
                        "no_answer": f"{who} called them back, no answer"}.get(b["result"] or "", f"{who} is calling them back")
     if full:
         out["transcript"] = call.transcript or []
@@ -184,11 +190,6 @@ async def get_call(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depend
     return out
 
 
-async def _local_day(db: AsyncSession, at: datetime) -> date:
-    tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-    return at.astimezone(ZoneInfo((tenant.timezones or ["America/Chicago"])[0])).date()
-
-
 class CalledBackIn(BaseModel):
     result: Literal["reached", "left_message"] = "reached"
 
@@ -220,21 +221,7 @@ async def reopen(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depends(
     stamp = (call.metrics or {}).get("callback")
     if call.callback_done_at is None or not stamp:
         raise HTTPException(409, "This call isn't marked as called back.")
-    for cid in stamp.get("calls") or [str(call.id)]:
-        k = await db.get(Call, uuid.UUID(cid))
-        if k is not None:
-            k.callback_done_at = None
-            k.metrics = {key: v for key, v in (k.metrics or {}).items() if key != "callback"}
-    for tid in stamp.get("tasks") or []:
-        t = await db.get(Task, uuid.UUID(tid))
-        if t is not None and t.status == "done":
-            t.status = "open"
-    if stamp.get("first_try"):
-        # The call-back didn't happen after all: it leaves Today's time-to-call-back until the real one.
-        e = await db.get(Event, uuid.UUID(stamp["first_try"]))
-        if e is not None:
-            e.payload = {**e.payload, "undone": True}
-            await db.execute(delete(MetricDay).where(MetricDay.day == await _local_day(db, e.occurred_at)))
+    await reopen_called_back(db, call)
     db.add(Event(type="call.callback_reopened", payload={"call_id": str(call.id), "by": str(caller.user_id)}))
     await db.flush()
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}

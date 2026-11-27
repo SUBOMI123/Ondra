@@ -112,7 +112,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Inventory: days on the lot, buyers asking, make filter and sorts, hold/sold from the row, car panel with buyers | Done |
 | Calls: filters (missed, Ondra answered, put through), one row per waiting caller, call and mark done from the row, who rang back and how long it took, undo | Done |
 | Today: time to call back (median, open hours, per person) and one "callers waiting" line | Done |
-| Calls: call back through the dealer's line (rings you, press 1, dials them from the dealer's number), logged automatically | Built against a mock; needs Twilio live |
+| Calls: call back through the dealer's line (rings you, press 1, dials them from the dealer's number), logged automatically, with answering-machine detection telling a person from their voicemail | Built against a mock; needs Twilio live |
 
 ## Voice backlog (parked 2026-11-27)
 

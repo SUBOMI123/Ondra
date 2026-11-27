@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     # with MOCK_BRIDGE_AUTOPLAY it plays a call out against the local webhooks so the flow can be seen.
     feature_call_bridge: bool = False
     mock_bridge_autoplay: bool = False
+    mock_bridge_answered_by: str = "human"  # what the mock's answering-machine detection reports: human, machine_start
     feature_email: bool = False
     postmark_server_token: str = ""
     postmark_inbound_user: str = ""

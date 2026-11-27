@@ -121,13 +121,11 @@ def _twiml(body: str) -> Response:
 
 
 @router.post("/voice/bridge/{tenant_id}/{call_id}/{step}")
-async def bridge_webhook(tenant_id: uuid.UUID, call_id: uuid.UUID, step: Literal["connect", "dialed", "status"],
+async def bridge_webhook(tenant_id: uuid.UUID, call_id: uuid.UUID, step: Literal["connect", "dialed", "amd", "status"],
                          request: Request) -> Response:
     """Each step of a call-back: the salesperson pressed (or didn't press) 1, the customer's leg ended, or the
     salesperson's leg changed state. Signed like every Twilio webhook; the URL names the dealer and the call."""
     from ondra_core.models import Call, Event
-
-    from ondra_api.services.calls import first_try, mark_called_back, waiting_calls
 
     req = await _request(request)
     if not bridge.verify(req.url, req.form, req.headers.get("x-twilio-signature", "")):
@@ -149,27 +147,25 @@ async def bridge_webhook(tenant_id: uuid.UUID, call_id: uuid.UUID, step: Literal
             save(state="dialing_them")
             return _twiml(bridge.dial_customer(bridge.webhook_base(tenant_id, call_id), out.from_number, out.to_number))
 
-        if step == "dialed":
-            if b.get("result"):  # Twilio retried; already recorded
-                return _twiml(bridge.hang_up())
-            seconds = int(f.get("DialCallDuration") or 0)
-            result = bridge.result_of(f.get("DialCallStatus", ""), seconds)
-            out.duration_s, out.ended_at, out.outcome = seconds, bridge.now(), result
-            save(state="ended", result=result, dial_status=f.get("DialCallStatus"))
+        if step in ("dialed", "amd"):
+            # The end of the customer's leg and the answering-machine verdict, in whichever order they come.
+            if step == "dialed":
+                if b.get("dial_status"):  # Twilio retried; already recorded
+                    return _twiml(bridge.hang_up())
+                seconds = int(f.get("DialCallDuration") or 0)
+                b = {**b, "dial_status": f.get("DialCallStatus", ""), "seconds": seconds, "state": "ended"}
+                out.duration_s, out.ended_at = seconds, bridge.now()
+            else:
+                b = {**b, "answered_by": f.get("AnsweredBy") or "unknown"}
             missed = await db.get(Call, uuid.UUID(b["for_call"]))
-            by = uuid.UUID(b["user_id"])
-            if missed is not None and missed.callback_done_at is None:
-                if result == "spoke":
-                    # They talked: the call-back is done, the task finished, and it counts on Today, untouched.
-                    await mark_called_back(db, missed, by)
-                else:
-                    # A try that didn't reach them (or only their voicemail): noted, and they stay on the list.
-                    await first_try(db, await waiting_calls(db, missed), by, result)
-                    attempt = {"by": str(by), "at": bridge.now().isoformat(), "how": result, "seconds": seconds}
-                    missed.metrics = {**(missed.metrics or {}),
-                                      "callback_attempts": [*(missed.metrics or {}).get("callback_attempts", []), attempt]}
-            db.add(Event(type="call.bridge_ended", payload={"call_id": str(out.id), "result": result, "seconds": seconds}))
-            return _twiml(bridge.hang_up())
+            before = b.get("result")
+            b = await bridge.settle(db, out, missed, b)
+            out.outcome = b.get("result")
+            out.metrics = {**(out.metrics or {}), "bridge": b}
+            if b.get("result") != before:
+                db.add(Event(type="call.bridge_result", payload={"call_id": str(out.id), "result": b.get("result"),
+                                                                 "answered_by": b.get("answered_by"), "seconds": b.get("seconds")}))
+            return _twiml(bridge.hang_up()) if step == "dialed" else Response(status_code=204)
 
         # status: the salesperson's own leg
         status = f.get("CallStatus", "")

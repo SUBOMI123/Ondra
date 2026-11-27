@@ -855,13 +855,32 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   logged, and a salesperson's private number doesn't walk out the door with the customer.
 - **The result logs itself:** connected for 60 s or more counts as "spoke to them" (marked called back, task
   finished, counted on Today). Under 60 s is most likely their voicemail: a try, and they stay on the list. Busy or
-  no answer: a try. Twilio can't tell a short real conversation from a voicemail without answering-machine detection
-  (which delays the connect by a few seconds); "Spoke to them" by hand still works for that case.
+  no answer: a try. (Superseded the same day by answering-machine detection, below; the 60 s rule is now the
+  fallback when detection gives no verdict.)
 - **Consent:** a person taps this each time, to return a call the customer made, so it isn't an automated
   outbound call. It's allowed even if they texted STOP (that withdrew consent to texts, not to a returned call).
   This is a reading of the rule, not legal advice; confirm with counsel before launch.
 - **"Call from your own phone"** stays in the menu for when the line can't be used; it isn't logged.
 - **Mock:** with FEATURE_CALL_BRIDGE off, the mock records the call, and with MOCK_BRIDGE_AUTOPLAY plays it out
   through the real webhooks locally. Checked against Twilio's docs 2026-11-27 (see services/bridge.py).
-- **Not built:** recording (needs the consent notice), answering-machine detection, verifying the dealer's own number
+- **Not built:** recording (needs the consent notice), verifying the dealer's own number
   as a caller ID from Ondra (done once in Twilio for now), and a salesperson's choice of which phone to ring.
+
+## 2026-11-27: Answering-machine detection on call-backs
+
+- **What it changes:** the customer's leg is dialed with Twilio's detection on (`<Number machineDetection="Enable"
+  machineDetectionTimeout="5" amdStatusCallback=...>`). A person picking up counts as "spoke to them" however short
+  the call (a 20-second "call me after lunch" is a reach). Their voicemail is a try, however long the message (a
+  95-second voicemail used to count as a conversation). No verdict ("unknown", or none arrives) falls back to the
+  60-second rule.
+- **"Enable", not "DetectMessageEnd":** we only need to know who answered, not wait for the beep; Enable returns as
+  soon as the party is identified.
+- **5-second detection timeout:** Twilio's docs don't say whether detection on a `<Dial><Number>` holds the
+  connection until it decides. If it does, the salesperson's "hello" could meet a few seconds of silence; 5 s caps
+  that, at some cost in accuracy (more "unknown"). To verify on the first real call (TODO(verify) in bridge.py).
+- **Order doesn't matter:** the verdict and the end of the call can arrive either way round. `bridge.settle()` decides
+  from whatever has arrived and corrects itself when the rest comes: a late "machine" after a long call reopens the
+  call-back and its task (the try still counts on Today, as a voicemail); a late "human" after a short call marks it
+  done.
+- **Accuracy:** detection isn't perfect (long business greetings can read as a machine, a terse "yeah?" as a
+  person). "Spoke to them" and the menu still correct it by hand. Twilio charges per detection.

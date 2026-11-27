@@ -215,6 +215,34 @@ async def mark_called_back(db: AsyncSession, call: Call, by: uuid.UUID | None, *
     return stamp
 
 
+async def reopen_called_back(db: AsyncSession, call: Call, *, try_was: str | None = None) -> None:
+    """Undo `mark_called_back`: the caller's calls and the task go back to waiting. With `try_was`, a try still
+    happened (it just didn't reach them, e.g. it was their voicemail), so Today keeps it under that result;
+    without it, the try is taken off Today's time to call back."""
+    from zoneinfo import ZoneInfo
+
+    from ondra_core.models import MetricDay
+    from sqlalchemy import delete
+
+    stamp = (call.metrics or {}).get("callback") or {}
+    for cid in stamp.get("calls") or [str(call.id)]:
+        k = await db.get(Call, uuid.UUID(cid))
+        if k is not None:
+            k.callback_done_at = None
+            k.metrics = {key: v for key, v in (k.metrics or {}).items() if key != "callback"}
+    for tid in stamp.get("tasks") or []:
+        t = await db.get(Task, uuid.UUID(tid))
+        if t is not None and t.status == "done":
+            t.status = "open"
+    if stamp.get("first_try"):
+        e = await db.get(Event, uuid.UUID(stamp["first_try"]))
+        if e is not None:
+            e.payload = {**e.payload, "result": try_was} if try_was else {**e.payload, "undone": True}
+            tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+            day = e.occurred_at.astimezone(ZoneInfo((tenant.timezones or ["America/Chicago"])[0])).date()
+            await db.execute(delete(MetricDay).where(MetricDay.day == day))  # that day's numbers are recomputed
+
+
 async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None:
     from ondra_api.services.tasks import new_task
 

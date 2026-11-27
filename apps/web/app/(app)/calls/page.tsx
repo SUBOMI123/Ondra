@@ -60,7 +60,7 @@ type Call = {
   first_rang_at?: string | null
   callback_by?: string | null
 }
-type Stamp = { by: string | null; at: string | null; how?: "left_message" | "short" | "no_answer"; seconds?: number | null }
+type Stamp = { by: string | null; at: string | null; how?: "left_message" | "short" | "voicemail" | "no_answer" | "spoke"; seconds?: number | null }
 type Bridge = { by: string | null; by_id: string | null; state: "ringing_you" | "asked" | "dialing_them" | "ended" | "you_missed" | "not_connected" | "failed"; result: string | null }
 type Show = "all" | "missed" | "ondra" | "people"
 const SHOWS: [Show, string][] = [["all", "All"], ["missed", "Missed"], ["ondra", "Ondra answered"], ["people", "Put through"]]
@@ -125,7 +125,9 @@ function later(from: string | null, to: string | null) {
 function progress(c: Call) {
   if (c.called_back) return `Called back by ${firstName(c.called_back.by)} ${later(c.started_at, c.called_back.at)}`
   const last = c.attempts[c.attempts.length - 1]
-  const did = last?.how === "no_answer" ? "called, no answer," : last?.how === "short" ? `called for ${length(last.seconds ?? 0)}, likely voicemail,` : "left a message"
+  const did = last?.how === "no_answer" ? "called, no answer,"
+    : last?.how === "voicemail" ? "called and got their voicemail"
+      : last?.how === "short" ? `called for ${length(last.seconds ?? 0)}, likely voicemail,` : "left a message"
   const tried = last ? `${firstName(last.by)} ${did} ${isToday(last.at!) ? "at" : "on"} ${when(last.at)}` : ""
   // Who's to ring them, unless it's the same person who already tried ("Daniel left a message" says it).
   const owner = c.callback_by && (!last || last.by !== c.callback_by) ? `For ${firstName(c.callback_by)} to call back` : ""
