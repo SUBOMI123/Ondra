@@ -342,6 +342,9 @@ async def discard(message_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Depe
         raise HTTPException(404, "No draft waiting with that id.")
     await _load(db, caller, m.conversation_id)
     db.add(Event(type="draft.discarded", payload={"message_id": str(m.id), "by": str(caller.user_id), "body": m.body}))
+    from ondra_api.services.follow_ups import discarded
+
+    await discarded(db, m.id)  # if it was a follow-up, the sequence ends here
     await db.delete(m)
 
 

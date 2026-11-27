@@ -68,7 +68,11 @@ async def deliver(tenant_id: uuid.UUID, message_id: uuid.UUID) -> Delivery:
         m.provider = adapter.provider
         m.provider_message_id = res.provider_message_id
         if res.ok:
-            (await db.get(Conversation, m.conversation_id)).status = "waiting_customer"
+            conv = await db.get(Conversation, m.conversation_id)
+            conv.status = "waiting_customer"
+            from ondra_api.services.follow_ups import on_sent
+
+            await on_sent(db, m, conv, await db.get(Contact, conv.contact_id))  # start or advance their follow-ups
         else:
             db.add(Event(type="message.send_failed", payload={"message_id": str(message_id), "error": res.error}))
     return Delivery(res.ok, res.error)

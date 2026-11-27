@@ -220,6 +220,10 @@ async def ingest(msg: InboundMessage, *, queue_agent: bool = True) -> IngestResu
         conv.last_inbound_at = msg.received_at
         if conv.status == "waiting_customer":
             conv.status = "open"
+        # They wrote back (or wrote STOP): whatever follow-ups were lined up no longer apply.
+        from ondra_api.services.follow_ups import cancel_for
+
+        await cancel_for(db, contact.id, "replied")
 
         policy = (await db.execute(select(Policy).limit(1))).scalar_one_or_none()
         decision = evaluate_inbound(InboundFacts(

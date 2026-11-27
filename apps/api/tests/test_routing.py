@@ -288,7 +288,7 @@ async def test_rules_api_add_order_switch_preview_and_permissions(client, databa
     assert (await client.post("/routing/rules", json=rule, headers=sales)).status_code == 403  # read-only for sales
 
     a = (await client.post("/routing/rules", json=rule, headers=owner)).json()
-    b = (await client.post("/routing/rules", json={"team": "sales", "hours": "closed", "ai": "draft"}, headers=owner)).json()
+    b = (await client.post("/routing/rules", json={"team": "sales", "channels": ["email"], "ai": "draft"}, headers=owner)).json()
     assert (a["position"], b["position"]) == (1, 2) and a["topics"] == ["complaint"] and a["ai"] == "off"
     # A rule must send the work somewhere, to a team or a person, not both; and only to someone who works here.
     assert (await client.post("/routing/rules", json={"topics": ["sales"]}, headers=owner)).status_code == 422
@@ -303,7 +303,7 @@ async def test_rules_api_add_order_switch_preview_and_permissions(client, databa
     p = (await client.post("/routing/preview", json={"text": "is the tahoe in stock?"}, headers=sales)).json()
     assert p["topic"] == "sales" and p["team"] == "sales" and p["rule_id"] is None and p["in_now"] is True
 
-    # Order decides: move the catch-all first and the complaint now matches it instead (if the dealership is closed).
+    # The order can be changed, and must name every rule.
     r = await client.put("/routing/order", json={"ids": [b["id"], a["id"]]}, headers=owner)
     assert [x["id"] for x in r.json()["rules"]] == [b["id"], a["id"]]
     assert (await client.put("/routing/order", json={"ids": [a["id"]]}, headers=owner)).status_code == 409

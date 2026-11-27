@@ -391,7 +391,27 @@ class MessageTemplate(Base, TenantScoped):
 class FollowUpSequence(Base, TenantScoped):
     __tablename__ = "follow_up_sequences"
     name: Mapped[str] = mapped_column(String(200))
+    # Each step: {"after_hours": 24, "write": "ondra" | "text", "text": "...", "require_approval": true}
     steps: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+    active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    topics: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))  # empty: any conversation
+
+
+class FollowUp(Base, TenantScoped):
+    """One customer's next step in a sequence. A new row per step; ended rows say why (`reason`)."""
+
+    __tablename__ = "follow_ups"
+    __table_args__ = (CheckConstraint(_in("status", ("scheduled", "awaiting_approval", "sending", "sent", "cancelled",
+                                                     "needs_person")), name="follow_ups_status"),)
+    sequence_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("follow_up_sequences.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="CASCADE"), index=True)
+    step: Mapped[int] = mapped_column(Integer)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), server_default="scheduled")
+    reason: Mapped[str | None] = mapped_column(String(60))
+    message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL"))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Integration(Base, TenantScoped):
