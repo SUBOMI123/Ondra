@@ -7,10 +7,12 @@
 
 import { IconSearch } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import Link from "next/link"
 import { useDeferredValue, useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -48,6 +50,9 @@ export default function InventoryPage() {
             <ToggleGroupItem value="sold" className="px-3">Sold</ToggleGroupItem>
             <ToggleGroupItem value="all" className="px-3">All</ToggleGroupItem>
           </ToggleGroup>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings/integrations#inventory">Import a file</Link>
+          </Button>
         </div>
         {res.isPending ? (
           <TableSkeleton />

@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 6 is built and its three acceptance checks are met; waiting for the founder to accept it before Step 7. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Step 7 is built and its three acceptance checks are met; waiting for the founder to accept it before Step 8. Step 6 is built with its checks met. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -15,7 +15,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
 | 6 | Routing, follow-ups, learning loop | **Built; all 3 acceptance checks met** (2026-11-27). Two parts of the plan's learning loop are not built: exporting ratings into the eval set, and automatic pattern-finding across draft edits (see Known gaps) |
-| 7 | Integrations (ADF, inventory feed, DMS) | Not started |
+| 7 | Integrations (ADF, inventory feed, DMS) | **Built; all 3 acceptance checks met** (2026-11-27). No real CRM, feed or DMS has been connected: everything is proven against mocks and files |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
 | 10 | Hardening and compliance | Not started |
@@ -68,6 +68,14 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
 - **Quality:** 166 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 13 pages.
 
+### Step 7 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| A qualified lead produces a valid ADF/XML email | Met in tests | `test_a_qualified_lead_produces_a_valid_adf_email_once`: a lead captured from a text conversation is emailed once to the CRM address; the XML passes Ondra's ADF checker (built from the DTD) and carries the car, the buyer and their notes. Not yet received by a real CRM |
+| Inventory CSV import updates stock | Met | `test_a_csv_import_updates_stock_after_a_preview` (price and mileage updated, new cars added, the AI's search sees them); also run in a real browser: a 4-row file previewed, 3 imported, 1 bad row reported |
+| RO status answered from mock DMS | Met with the real model | Golden 006: "hey is my car ready yet?" answered "not yet, waiting on parts, Maria is your advisor" with no invented date (4 of 4 runs); full golden set 27 of 27 |
+
 ### Step 6 acceptance
 
 | Check | Status | Evidence |
@@ -111,9 +119,13 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | **A2P 10DLC registration for (707) 306-8599** (Twilio Console > Messaging > Regulatory compliance) | Any real text: details from calls, missed-call text-back, reminders | **Start now** (weeks) |
 | Postmark account (also needed to email invites) | Live email, invite emails | Not started |
 | Real conversations: mystery-shop dealers, pilot exports | Replacing the synthetic golden set | Not started |
+| Each pilot dealer's CRM lead address, and a test lead confirmed arriving in that CRM | Leads reaching the CRM for real | Not started |
+| Which DMS the first pilot dealers use, and their partner programme | A live DMS connection | Open (plan §17 Q4) |
 | Container host and managed Postgres | First staging deploy | Not decided |
 
 ## Known gaps (honest list)
+
+- **Integrations, not proven or not built:** (1) no real CRM has received an ADF lead, and how each CRM wants the email (body or attachment, subject) is unverified; (2) scheduled feed fetching doesn't stop DNS rebinding and can't use feeds that need a login; (3) no real DMS vendor adapter exists (partner programs); (4) the CSV repair-order upload is manual and replaces the last one; (5) XML feeds that put data in attributes only aren't read.
 
 - **Learning loop, not built:** (1) ratings aren't exported into the eval set (needs redaction of customer data and a home for such cases); (2) no automatic pattern-finding across draft edits, each edit is listed for the dealer to act on; (3) no note field when rating in the Inbox; (4) prices inside a dealer's own answers ("remote starter, $450") aren't repeated by Ondra, because only listed vehicle prices are allowed.
 - **Follow-ups by text mostly become tasks** until counsel says whether an inbound text is consent to a later follow-up; WhatsApp follow-ups after 24 hours need templates, which aren't built.

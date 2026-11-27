@@ -18,9 +18,9 @@ def _label(c: feed.Car) -> str:
     return f"{c.year} {c.make} {c.model}{price} ({c.stock})"
 
 
-async def feed_integration(db: AsyncSession) -> Integration:
+async def feed_integration(db: AsyncSession, create: bool = True) -> Integration | None:
     row = (await db.execute(select(Integration).where(Integration.kind == "inventory_feed").limit(1))).scalar_one_or_none()
-    if row is None:
+    if row is None and create:
         row = Integration(kind="inventory_feed", config={}, status="disconnected")
         db.add(row)
         await db.flush()

@@ -538,3 +538,38 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Seen in the real-model acceptance run:** the dealer's answer included a service price ("$450"); Ondra's reply
   used the answer but left the price out. The price rules only allow listed vehicle prices, so prices inside
   dealer answers aren't repeated today. Whether they should be is a product decision.
+
+## 2026-11-27: Integrations (Step 7)
+
+- **Leads to the dealer's CRM (ADF/XML email).** A sales lead is sent once, a minute after it qualifies (we know
+  what they want and have a phone or email), so details from the same conversation go together. VIPs are never
+  sent. The body is the XML and nothing else, plain text, from the dealership's own email address.
+- **What "valid ADF" rests on.** The spec's site was unreachable from the build machine. Element names, attributes
+  and child order come from a copy of the ADF 1.0 DTD read in full (github.com/carmelosantana/sendadf); the
+  processing instruction and date format from that project's output and search snippets of the spec. Ondra builds
+  to those rules and checks every lead against them before sending (`ondra_core.adf.problems`). No CRM vendor's
+  documentation was read and no real CRM has received one. `TODO(verify)` per pilot dealer's CRM: body or
+  attachment, subject line. "Send a test lead" in Settings exists for exactly that check.
+- **A lead with no particular car** ("a 3-row SUV") is still sent: `year`, `make` and `model` are required by the
+  DTD, so they're present and empty, with the description in the vehicle's comments. Make and model are filled only
+  when the description names exactly one model the dealer stocks. Never a guess at a specific car.
+- **Inventory import.** Headers are matched by meaning across vendor spellings; a row that can't be used is
+  reported with its line and the reason, never guessed at. Cars match by VIN, then stock number. Every import is
+  previewed before it's applied. "$0" means no price (the AI then says sales will confirm it).
+- **Marking cars sold** only happens when the file is declared the whole lot (a scheduled feed always is), only
+  for cars that came from an import (never hand-entered ones), and not at all when the file lists under half of
+  what the feed had: a feed cut short mid-export would otherwise have the AI telling buyers the lot is empty.
+- **Scheduled feed fetch** takes an https address on the standard port with no credentials in it, refuses private
+  and internal addresses, follows no redirects and caps the download at 5 MB. **Known gap:** the host is resolved,
+  checked, then connected to by name, so DNS rebinding isn't stopped. Close it at hosting with an egress proxy that
+  refuses private ranges. Feed addresses that need a login aren't supported yet (credentials need the encryption
+  key work in Step 10).
+- **DMS.** One interface (`DmsAdapter`), two adapters: demo data and a repair-order CSV the dealer uploads. Real
+  vendors need partner programs; none is built or claimed. The CSV adapter can't book (Ondra's own calendar does).
+- **Repair-order privacy.** A customer hears only about repair orders under the phone number or email they're
+  contacting from. An RO number alone finds nothing, and Ondra neither confirms nor denies someone else's.
+- **No completion times or costs** from the DMS reach the AI at all, not even when the DMS has them: the product
+  rule is that Ondra doesn't promise dates. It says the stage and the advisor's name; timing goes to service. The
+  first real-model run handed off for timing when the customer hadn't asked; the prompt now says not to.
+- **Health without colour.** Each integration says in words whether it's off, working, working with a warning,
+  or not working, with an icon. Red stays for VIPs and overdue items.

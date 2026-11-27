@@ -87,8 +87,8 @@ def _health(integ, set_up: bool) -> dict:
 @router.get("/integrations")
 async def get_integrations(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
     caller, db = ctx
-    c, f, d = await crm.crm_integration(db), await feed_integration(db), await dms_service.dms_integration(db)
-    ccfg, fcfg, dcfg = (c.config or {}) if c else {}, f.config or {}, (d.config or {}) if d else {}
+    c, f, d = await crm.crm_integration(db), await feed_integration(db, create=False), await dms_service.dms_integration(db)
+    ccfg, fcfg, dcfg = (c.config or {}) if c else {}, (f.config or {}) if f else {}, (d.config or {}) if d else {}  # reading creates nothing
     has_email = (await db.execute(select(ChannelAddress.id).where(ChannelAddress.channel == "email", ChannelAddress.active.is_(True)).limit(1))).first()
     return {
         "crm": {"email": ccfg.get("email", ""), "active": bool(ccfg.get("active")), "has_sender": bool(has_email),

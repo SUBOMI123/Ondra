@@ -71,6 +71,7 @@ const SECTIONS = [
   { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
   { id: "channels", title: "Channels" },
+  { id: "integrations", title: "Integrations" },
 ]
 const SECTION_IDS = SECTIONS.map((s) => s.id)
 
@@ -328,6 +329,33 @@ function KnowledgeSummary() {
           <div>
             <Button asChild>
               <Link href="/settings/knowledge">{waiting > 0 ? "Answer them" : "See what Ondra knows"}</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// --- Integrations ----------------------------------------------------------------------------------------------
+
+function IntegrationsSummary() {
+  type H = { state: "off" | "ok" | "warning" | "error" }
+  const q = useQuery({ queryKey: ["integrations"], queryFn: () => api<{ crm: H; inventory: H; dms: H }>("/integrations"), retry: false })
+  const word = (h: H) => (h.state === "off" ? "not set up" : h.state === "error" ? "not working" : "working")
+  const broken = q.data ? [q.data.crm, q.data.inventory, q.data.dms].some((h) => h.state === "error") : false
+  return (
+    <Section id="integrations" title="Integrations" description="Your CRM, your inventory and your service system: what's connected and whether it's working.">
+      {q.isPending ? (
+        <Skeleton className="h-16 w-full" />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm">
+            {q.isError ? "Couldn't load your integrations." : `Leads to your CRM: ${word(q.data.crm)}. Inventory import: ${word(q.data.inventory)}. Service system: ${word(q.data.dms)}.`}
+          </p>
+          <div>
+            <Button asChild>
+              <Link href="/settings/integrations">{broken ? "See what's wrong" : "Manage integrations"}</Link>
             </Button>
           </div>
         </div>
@@ -652,6 +680,7 @@ export default function SettingsPage() {
               <BookingSection canEdit={canEdit} />
               <VipsSection />
               <ChannelsSection data={settings.data} canEdit={canEdit} />
+              <IntegrationsSummary />
             </>
           )}
         </div>
