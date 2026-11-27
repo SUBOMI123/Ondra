@@ -63,7 +63,13 @@ async def _follow_up(tenant_id: uuid.UUID, p: dict) -> None:
     log.info("follow-up %s: %s", p.get("follow_up_id"), await run(tenant_id, p))
 
 
-HANDLERS = {"follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
+async def _crm_push(tenant_id: uuid.UUID, p: dict) -> None:
+    from ondra_api.services.crm import push
+
+    log.info("crm push %s: %s", p.get("deal_id"), await push(tenant_id, p))
+
+
+HANDLERS = {"crm_push": _crm_push, "follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
             "send_message": _send_message, "vip_realert": _vip_realert}
 
 

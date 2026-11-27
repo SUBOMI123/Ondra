@@ -178,6 +178,9 @@ class DbToolBackend:
                 voi[k] = v
         deal.vehicle_of_interest = voi
         await self.db.flush()
+        from ondra_api.services.crm import maybe_queue
+
+        await maybe_queue(self.db, self.contact)  # a lead worth a salesperson's time goes to the dealer's CRM
         return {"saved": sorted(fields)}
 
     async def handoff(self, reason: str, brief: str, urgency: str, target_role: str) -> dict:
@@ -213,6 +216,9 @@ class DbToolBackend:
         if reason == "unknown_answer":
             await self._record_gap(self.last_question or brief)
         await self.db.flush()
+        from ondra_api.services.crm import maybe_queue
+
+        await maybe_queue(self.db, c)
         # "Shortly" only if the person it went to is in now (Lagos staff may be, while Dallas is closed).
         return {"task_id": str(task.id), "tell_customer": handoff_message(r.role or target_role, r.on_shift)}
 

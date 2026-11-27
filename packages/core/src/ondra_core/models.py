@@ -226,6 +226,7 @@ class Deal(Base, TenantScoped):
     source_channel: Mapped[str | None] = mapped_column(String(20))
     value_estimate: Mapped[float | None] = mapped_column(Numeric(12, 2))
     lost_reason: Mapped[str | None] = mapped_column(String(200))
+    crm_pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # sent to the dealer's CRM as ADF, once
 
 
 class Vehicle(Base, TenantScoped):
