@@ -304,11 +304,18 @@ async def test_voice_requests_skip_thinking_at_low_effort(monkeypatch):
 async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(database):
     """Real calls: four cars and prices read aloud were hard to follow. Now the model is given the best two and a
     count, and can text them all, but only after the caller agrees (their yes is recorded as consent)."""
+    import os
+
     from ondra_api import channels
     from ondra_api import worker as jobs
     from ondra_core.models import Consent
 
-    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    os.environ["VOICE_TEXT_ON_MOCK"] = "1"  # the test dealership's SMS is the mock: allow it on purpose here
+    try:
+        desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    finally:
+        os.environ.pop("VOICE_TEXT_ON_MOCK")
+    assert desk.can_text and agents.TEXT_RULES in agents.instructions(desk)
     out = await desk.run("search_inventory", {"query": "SUV"})
     assert out["total_found"] > 2 and len(out["best"]) == 2 and len(desk.last_cars) == out["total_found"]
     assert "text_details" in out["next"]
@@ -331,10 +338,32 @@ async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(dat
         assert consent.status == "opted_in" and consent.evidence["said"].startswith("Yes")
 
 
-async def test_no_text_to_a_caller_who_opted_out(database):
+async def test_while_texting_isnt_live_ondra_never_offers_a_text(database):
+    """A real call: "it's on its way to your phone" while the dealer's SMS was still the mock. Now, unless texting is
+    live, the rules, the stock search's hint and the tool itself all say no text."""
     from ondra_api import channels
 
-    desk = await CallDesk.open(await _plan(database, "Jordan Price"))
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    assert desk.can_text is False
+    rules = agents.instructions(desk)
+    assert agents.NO_TEXT_RULES in rules and agents.TEXT_RULES not in rules
+    out = await desk.run("search_inventory", {"query": "SUV"})
+    assert "don't offer one" in out["next"] and "text_details" not in out["next"]
+    channels.mock("sms").outbox.clear()
+    refused = await desk.text_details(None, "Yes, text me those please.")
+    assert "can't be sent from this line" in refused["error"] and channels.mock("sms").outbox == []
+
+
+async def test_no_text_to_a_caller_who_opted_out(database):
+    import os
+
+    from ondra_api import channels
+
+    os.environ["VOICE_TEXT_ON_MOCK"] = "1"
+    try:
+        desk = await CallDesk.open(await _plan(database, "Jordan Price"))
+    finally:
+        os.environ.pop("VOICE_TEXT_ON_MOCK")
     await desk.run("search_inventory", {"query": "SUV"})
     channels.mock("sms").outbox.clear()
     out = await desk.text_details(None, "Yes please.")

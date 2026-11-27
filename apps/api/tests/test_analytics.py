@@ -158,3 +158,41 @@ async def test_backfill_writes_missing_events_once_and_today_respects_roles(clie
     assert isinstance(all_["appointments"], list)
     async with tenant_session(t) as db:
         await db.execute(delete(MetricDay))
+
+
+async def test_the_deals_board_shows_real_deals_and_moves_them(client, database):
+    t = database["a"]
+    owner = await login(client, "owner@prestigemotors.example")
+    sales = await login(client, "daniel@prestigemotors.example")
+    board = (await client.get("/deals", headers=owner)).json()
+    assert [s["stage"] for s in board["stages"]] == ["new", "qualified", "appointment", "negotiating", "won", "lost"]
+    by_client = {d["client"]: d for s in board["stages"] for d in s["deals"]}
+    sarah, kevin = by_client["Sarah King"], by_client["Kevin Lee"]
+    assert (sarah["stage"], sarah["wants"], sarah["value"], sarah["value_from"]) == ("new", "2021 Toyota Highlander XLE", 31000.0, "their budget")
+    assert "Budget up to $31,000" in sarah["note"] and "Paying by cash" in sarah["note"]
+    assert kevin["stage"] == "qualified" and kevin["value"] is None  # no stock number and no budget: no made-up value
+    assert board["open"] == len(by_client) and board["open_without_value"] >= 1 and board["can_move"] is True
+    # A salesperson doesn't see a VIP's deal, and can't move it by guessing its id.
+    async with tenant_session(t) as db:
+        vip = (await db.execute(select(Contact).where(Contact.is_vip.is_(True)).limit(1))).scalar_one()
+        d = Deal(contact_id=vip.id, type="sales", stage="new", vehicle_of_interest={"description": "Range Rover Sport"})
+        db.add(d)
+        await db.flush()
+        vip_deal, vip_name = d.id, vip.display_name
+    theirs = {x["client"] for s in (await client.get("/deals", headers=sales)).json()["stages"] for x in s["deals"]}
+    mine = {x["client"]: x for s in (await client.get("/deals", headers=owner)).json()["stages"] for x in s["deals"]}
+    assert vip_name not in theirs and mine[vip_name]["vip"] is True and mine[vip_name]["by_ondra"] is False
+    assert (await client.patch(f"/deals/{vip_deal}", json={"stage": "won"}, headers=sales)).status_code == 404
+    # Moving a deal: the board, the stored reason and the dashboard's pipeline all follow.
+    lost = (await client.patch(f"/deals/{sarah['id']}", json={"stage": "lost", "lost_reason": "Bought elsewhere"}, headers=sales)).json()
+    assert lost["stage"] == "lost"
+    after = {d["client"]: d for s in (await client.get("/deals", headers=owner)).json()["stages"] for d in s["deals"]}
+    assert (after["Sarah King"]["stage"], after["Sarah King"]["lost_reason"]) == ("lost", "Bought elsewhere")
+    pipe = (await client.get("/analytics", params={"days": 1}, headers=owner)).json()["pipeline"]
+    assert pipe["by_stage"]["lost"] >= 1
+    assert (await client.patch(f"/deals/{sarah['id']}", json={"stage": "new"}, headers=sales)).json()["stage"] == "new"  # back, reason cleared
+    async with tenant_session(t) as db:
+        assert (await db.execute(select(Deal.lost_reason).where(Deal.id == sarah["id"]))).scalar_one() is None
+        await db.execute(delete(Deal).where(Deal.id == vip_deal))
+        await db.execute(delete(Event).where(Event.type == "deal.stage_changed", Event.payload["deal_id"].astext == sarah["id"]))
+        await db.execute(delete(MetricDay))

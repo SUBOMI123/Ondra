@@ -9,6 +9,7 @@ channel. Each tool call opens its own short tenant-scoped transaction; a call la
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import time
 import uuid
@@ -24,7 +25,7 @@ from ondra_core.agent.detectors import ReplyContext
 from ondra_core.agent.orchestrator import ToolRecord, _learn
 from ondra_core.agent.prompt import CustomerFacts, DealerFacts
 from ondra_core.agent.tools import run_tool
-from ondra_core.models import Contact, Conversation, Policy, Tenant, User, Vehicle
+from ondra_core.models import ChannelAddress, Contact, Conversation, Policy, Tenant, User, Vehicle
 from sqlalchemy import select
 
 BLOCK_REASON = {"quotes_final_price": "pricing", "promises_discount": "discount", "values_trade_in": "trade_in",
@@ -59,6 +60,7 @@ class CallDesk:
     slot_aliases: dict[str, str] = field(default_factory=dict)
     # The full result of the last stock search: on a call Ondra names the best two, and can text all of them.
     last_cars: list[dict] = field(default_factory=list)
+    can_text: bool = False  # the dealer's SMS is live, so offering to text the caller is honest
     # Quick fillers: whether one was said this turn and last turn, and which phrase comes next.
     filled_this_turn: bool = False
     filled_last_turn: bool = False
@@ -97,12 +99,17 @@ class CallDesk:
             context = await backend.get_contact_context() if plan.known else None
             stock = (await db.execute(select(Vehicle.make, Vehicle.model).where(Vehicle.status == "available")
                                       .distinct().limit(40))).all()
+            sms = (await db.execute(select(ChannelAddress.provider).where(ChannelAddress.channel == "sms", ChannelAddress.active.is_(True))
+                                    .limit(1))).scalar_one_or_none()
+        # Only offer to text if a text would actually reach the caller. Callers were told "it's on its way" while the
+        # dealer's SMS was still the mock. VOICE_TEXT_ON_MOCK=1 lets local runs and tests use the mock on purpose.
+        can_text = sms is not None and (sms != "mock" or os.getenv("VOICE_TEXT_ON_MOCK") == "1")
         checks = ReplyContext(price_disclosure=dealer.price_disclosure, today=local_time.split()[0])
         # Dealership words callers use ("I need the loaner" was heard as "lunar skill" on a real call), then stock.
         trade = ["loaner", "oil change", "test drive", "trade-in", "service appointment", "brake", "tire rotation"]
         vocabulary = list(dict.fromkeys([dealer.name, *trade] + [w for make, model in stock for w in (make, model)]))[:60]
         desk = cls(plan=plan, dealer=dealer, customer=customer, contact_context=context, checks=checks,
-                   vocabulary=vocabulary)
+                   vocabulary=vocabulary, can_text=can_text)
         if context:
             _learn(checks, ToolRecord("get_contact_context", {}, context))
         return desk
@@ -140,8 +147,10 @@ class CallDesk:
         return {"total_found": len(cars), "best": [_spoken(c) for c in best],
                 "next": f"Say there are {len(cars)}. Then name only these two, each as year, model and price, "
                         "nothing else: mileage and trim only if they ask. Ask one question to narrow it down "
-                        "(budget, newer or lower miles). Offer to text all of them; call text_details once they "
-                        "ask for it or say yes."}
+                        "(budget, newer or lower miles). " + (
+                            "Offer to text all of them; call text_details once they ask for it or say yes." if self.can_text else
+                            "Texts can't be sent from this line yet, so don't offer one: offer to go through the rest, "
+                            "or to have someone from sales follow up with the full list.")}
 
     async def text_details(self, stock_numbers: list[str] | None, said: str) -> dict:
         """Text the caller the cars from the last search, after they agreed on the call. Their yes is recorded as
@@ -151,6 +160,9 @@ class CallDesk:
         from ondra_api.services.jobs import enqueue
         from ondra_core.models import Consent, Event, Message
 
+        if not self.can_text:
+            return {"error": "Texts can't be sent from this line yet. Tell them plainly, and offer to have sales follow up "
+                             "with the list instead (handoff, low urgency)."}
         if not _AGREED.search(said or ""):
             return {"error": "They haven't agreed to a text yet. Ask first, and wait for a yes."}
         wanted = {s.strip().upper() for s in (stock_numbers or []) if s}

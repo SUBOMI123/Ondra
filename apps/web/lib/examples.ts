@@ -258,54 +258,6 @@ export const TASKS: Record<"open" | "in_progress" | "done", TaskCard[]> = {
   ],
 }
 
-export type DealCard = { client: string; vehicle: string; value: number; owner: string; channel: Channel; byOndra?: boolean; vip?: boolean; note?: string }
-
-export const SALES_STAGES: { stage: string; deals: DealCard[] }[] = [
-  { stage: "New", deals: [
-    { client: "Aisha Bello", vehicle: "2023 Mercedes-Benz GLE 450", value: 64000, owner: "Daniel", channel: "whatsapp", byOndra: true },
-    { client: "Hannah Weiss", vehicle: "2023 Tesla Model Y", value: 41000, owner: "Unassigned", channel: "email", byOndra: true },
-    { client: "Sarah King", vehicle: "2021 Toyota Highlander XLE", value: 33900, owner: "Daniel", channel: "sms", byOndra: true, note: "Trade-in: 2019 Tahoe" },
-  ] },
-  { stage: "Qualified", deals: [
-    { client: "Robert Hale", vehicle: "2024 Range Rover Sport", value: 92000, owner: "You", channel: "phone", vip: true },
-    { client: "Elena Ruiz", vehicle: "2020 Lexus RX 350", value: 36500, owner: "Daniel", channel: "whatsapp", byOndra: true },
-    { client: "Natalie Ross", vehicle: "2024 Honda CR-V Hybrid", value: 37200, owner: "Chris", channel: "email", byOndra: true },
-  ] },
-  { stage: "Appointment", deals: [
-    { client: "Kevin Lee", vehicle: "2022 Chevrolet Silverado LT", value: 44900, owner: "Daniel", channel: "email", byOndra: true, note: "Thu 6:30 pm" },
-    { client: "Priya Shah", vehicle: "2024 Toyota RAV4 Hybrid", value: 34800, owner: "Daniel", channel: "email", byOndra: true, note: "Sat 10:00 am" },
-    { client: "Omar Haddad", vehicle: "2022 Lexus ES 350", value: 38200, owner: "Daniel", channel: "whatsapp", byOndra: true, note: "Video walkaround Mon" },
-  ] },
-  { stage: "Test drive done", deals: [
-    { client: "Tom Nguyen", vehicle: "2022 Ford Bronco Badlands", value: 47500, owner: "Chris", channel: "phone" },
-    { client: "Samuel Bakare", vehicle: "2023 Toyota Sequoia", value: 71000, owner: "You", channel: "whatsapp" },
-  ] },
-  { stage: "Negotiating", deals: [
-    { client: "Grace Kim", vehicle: "2021 BMW X5 xDrive40i", value: 48900, owner: "Chris", channel: "phone", byOndra: true },
-  ] },
-  { stage: "Sold", deals: [
-    { client: "Darnell Brooks", vehicle: "2022 Chevrolet Tahoe Z71", value: 58400, owner: "Chris", channel: "sms", note: "Delivery Fri" },
-  ] },
-]
-
-export const SERVICE_STAGES: { stage: string; deals: DealCard[] }[] = [
-  { stage: "Booked", deals: [
-    { client: "Marcus Taylor", vehicle: "Brakes, 2019 F-150", value: 480, owner: "Maria", channel: "phone", byOndra: true, note: "Wed 7:30 am, Bay 3" },
-    { client: "Luis Romero", vehicle: "60k-mile service, 2020 Tacoma", value: 690, owner: "Maria", channel: "sms", byOndra: true, note: "Thu 8:00 am, Bay 1" },
-    { client: "Mei Chen", vehicle: "Recall, 2019 CR-V", value: 0, owner: "Maria", channel: "phone", byOndra: true, note: "Tue 9:00 am, Bay 2" },
-  ] },
-  { stage: "In service", deals: [
-    { client: "Ethan Walker", vehicle: "Transmission check, 2018 Accord", value: 320, owner: "Maria", channel: "phone" },
-  ] },
-  { stage: "Ready", deals: [
-    { client: "Rachel Green", vehicle: "4 tires, 2021 Camry", value: 860, owner: "Maria", channel: "phone", byOndra: true, note: "Invoice sent" },
-  ] },
-  { stage: "Picked up", deals: [
-    { client: "Fatima Hassan", vehicle: "Oil change, 2022 RAV4", value: 89, owner: "Maria", channel: "sms" },
-  ] },
-]
-
-/** Today: what needs the owner, how last night went, and what's booked today. */
 /* ------------------------------------------------------------------ Calendar (Step 4) */
 
 export type Lane = { id: string; name: string; group: "Sales" | "Service" }
