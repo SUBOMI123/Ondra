@@ -22,7 +22,7 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button"
 import { api, ApiError, type Contact } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { VipTag } from "@/components/vip"
-import { VipControl } from "@/components/vip-control"
+import { VipButton, VipPanel } from "@/components/vip-control"
 
 const CHANNEL = {
   phone: { icon: IconPhone, label: "Phone" },
@@ -108,6 +108,7 @@ function TimelineItem({ e, first }: { e: TimelineEntry; first: string }) {
 }
 
 function Profile({ id }: { id: string }) {
+  const [vipOpen, setVipOpen] = useState(false)
   const q = useQuery({ queryKey: ["contact", id], queryFn: () => api<Contact>(`/contacts/${id}`) })
   const tl = useQuery({ queryKey: ["timeline", id], queryFn: () => api<Timeline>(`/contacts/${id}/timeline`), enabled: q.isSuccess })
   if (q.isPending) return <div className="p-6"><TableSkeleton rows={4} /></div>
@@ -163,9 +164,10 @@ function Profile({ id }: { id: string }) {
                 <a href={`tel:${phone}`}><IconPhone /> Call</a>
               </Button>
             )}
-            <VipControl c={c} />
+            <VipButton c={c} onOpen={() => setVipOpen(true)} />
           </div>
         </div>
+        {vipOpen && <VipPanel c={c} onClose={() => setVipOpen(false)} />}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
