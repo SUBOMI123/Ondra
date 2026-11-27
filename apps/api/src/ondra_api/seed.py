@@ -318,6 +318,11 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                       "run `python -m ondra_api.services.knowledge` later")
             await _seed_conversations(db, t, by_name, {u.role: u for u in users})
             await _seed_calls(db, t, by_name, {u.role: u for u in users})
+            # The seeded history gets its events, so the dashboard has numbers to show (marked as backfilled).
+            from ondra_api.services.metrics import backfill
+
+            await db.flush()
+            await backfill(db)
             print(f"seed: Prestige Motors ({t}) with 5 users, 50 vehicles, 30 contacts. Password: {DEV_PASSWORD}")
             return t
     finally:

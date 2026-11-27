@@ -141,9 +141,11 @@ async def test_real_work_writes_the_events_and_a_stage_change_moves_the_pipeline
 async def test_backfill_writes_missing_events_once_and_today_respects_roles(client, database):
     t = database["a"]
     async with tenant_session(t) as db:
+        # The seed already backfilled its history. Remove those events, as if they'd never been recorded.
+        await db.execute(text("DELETE FROM events WHERE (payload->>'backfilled')::bool"))
         first = await metrics.backfill(db)
         again = await metrics.backfill(db)
-        assert first["lead.captured"] >= 2 and first["appointment.booked"] >= 0  # the seeded deals had no events
+        assert first["lead.captured"] >= 2 and first["response.sent"] >= 1 and first["call.ended"] >= 1  # the seeded deals, replies and calls
         assert set(again.values()) == {0}  # nothing is written twice
         marked = (await db.execute(text("SELECT count(*) FROM events WHERE type = 'lead.captured' AND (payload->>'backfilled')::bool AND payload->>'by' = 'unknown'"))).scalar()
         assert marked == first["lead.captured"]
@@ -155,5 +157,4 @@ async def test_backfill_writes_missing_events_once_and_today_respects_roles(clie
     assert all_["overnight"] is None or {"from", "to", "leads", "median_first_response_seconds"} <= set(all_["overnight"])
     assert isinstance(all_["appointments"], list)
     async with tenant_session(t) as db:
-        await db.execute(text("DELETE FROM events WHERE (payload->>'backfilled')::bool"))
         await db.execute(delete(MetricDay))

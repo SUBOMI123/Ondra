@@ -607,3 +607,31 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   file into text is a founder decision: the calls use LiveKit's live recognition, which isn't built for files.
 - **Not built:** buttons on the briefing itself (a template with quick replies needs its own approval); the
   assistant for managers; a view of the assistant thread in the dashboard.
+
+## 2026-11-27: Analytics (Step 9)
+
+- **Every dashboard number is a count (or a median) of rows in `events`, and nothing else.** One table in
+  `ondra_core.metrics` says which events count toward which number; the daily rollups, the period totals and the
+  "what's behind this number" list all read that table, so they can't disagree. The test fixture is three days
+  worked out by hand in the test's docstring.
+- **New events at the moment things happen:** `lead.captured` (who captured it, the channel, after hours or not),
+  `response.sent` (only the first answer to a waiting customer, with how long they waited and who answered),
+  `follow_up.sent`, `deal.stage_changed`. Appointment and call events existed already and now carry the contact.
+- **A day is the dealership's day.** A lead at 11:30 pm in Dallas is that night's, not tomorrow's in UTC.
+- **Rollups are a cache** (`metric_days`, one row per dealership day). A finished day is computed once; today's
+  is recomputed when it's more than five minutes old. Reply times are kept whole per day, not averaged, so a
+  period's median is exact. Rollups are computed when the dashboard is read; there is no nightly job yet (the plan
+  mentions one), because nothing needs the numbers when nobody is looking.
+- **Median first reply** counts each time a customer wrote and was waiting, to the first message that went out to
+  them, from Ondra or a person. It covers messages, not calls (a call's speed to answer is a different number).
+- **Pipeline** is where each deal stands now, folded from every lead and stage event. There was no way to move a
+  deal's stage, so `PATCH /deals/{id}` was added (it records the event). The Deals board still shows example data
+  and isn't wired to it.
+- **History before these events** gets backfilled events, dated when the thing happened and marked as such. Who
+  captured an old lead isn't knowable, so those say "unknown" and count toward neither Ondra nor the team.
+- **Charts** (dataviz and ondra-ui): one chart, first replies per day stacked by who answered. Ondra blue against
+  a new neutral grey token for the team: checked for colour-blind separation and 3:1 on both surfaces. The
+  validator's "reads grey" failure is deliberate: people are not a brand colour. Channels and stages are bar lists
+  in one ink; red is never a series. Comparisons with the period before are muted text with an arrow.
+- **Not built:** value of deals in play (deals carry no reliable value yet); per-salesperson breakdowns; exports;
+  a custom date range.

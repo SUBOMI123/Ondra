@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Steps 6, 7 and 8 are built with their acceptance checks met; waiting for the founder to accept them before Step 9 (analytics). Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Steps 6 to 9 are built with their acceptance checks met; waiting for the founder to accept them before Step 10 (hardening and compliance). Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -17,7 +17,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 6 | Routing, follow-ups, learning loop | **Built; all 3 acceptance checks met** (2026-11-27). Two parts of the plan's learning loop are not built: exporting ratings into the eval set, and automatic pattern-finding across draft edits (see Known gaps) |
 | 7 | Integrations (ADF, inventory feed, DMS) | **Built; all 3 acceptance checks met** (2026-11-27). No real CRM, feed or DMS has been connected: everything is proven against mocks and files |
 | 8 | Owner WhatsApp layer | **Built; both acceptance checks met** (2026-11-27), on the mock WhatsApp channel. Real voice notes need a transcription service (founder decision) and real delivery needs the dealer's WhatsApp connected and two templates approved |
-| 9 | Analytics | Not started |
+| 9 | Analytics | **Built; acceptance check met** (2026-11-27). The Today page runs on real events; the Deals board is still example data |
 | 10 | Hardening and compliance | Not started |
 | 11 | Instagram and self-serve onboarding | Not started |
 
@@ -67,6 +67,13 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
 - **Quality:** 166 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 13 pages.
+
+### Step 9 acceptance
+
+| Check | Status | Evidence |
+|---|---|---|
+| Every metric on the dashboard is traceable to events | Met | `test_every_number_is_traceable_to_its_events`: for each number, `GET /analytics/trace` returns exactly as many events as the number, each a real row in `events`. On the page, "See what's behind this" opens that list (checked in a browser) |
+| Numbers match a hand-calculated test fixture | Met | Three days worked out by hand in `packages/core/tests/test_metrics.py`, checked as plain functions and again through the API and database in `test_the_dashboard_matches_the_hand_calculated_fixture` (including the 11:30 pm lead landing on the dealership's day) |
 
 ### Step 8 acceptance
 
@@ -133,6 +140,8 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Container host and managed Postgres | First staging deploy | Not decided |
 
 ## Known gaps (honest list)
+
+- **Analytics:** (1) the Deals board is still example data, so nobody moves a deal's stage from the dashboard and the pipeline is mostly "New"; (2) no value on deals in play; (3) reply time covers messages, not calls; (4) leads from before Step 9 count toward neither Ondra nor the team; (5) no per-person numbers, exports or custom dates.
 
 - **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) the dashboard doesn't show the assistant thread; (5) owners only, not managers.
 

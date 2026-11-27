@@ -306,22 +306,6 @@ export const SERVICE_STAGES: { stage: string; deals: DealCard[] }[] = [
 ]
 
 /** Today: what needs the owner, how last night went, and what's booked today. */
-export const NEEDS_YOU = [
-  { kind: "vip" as const, title: "Robert Hale called last night", detail: "VIP. Waiting 2 h, about a Range Rover for his daughter.", action: "Call back", href: "/inbox" },
-  { kind: "drafts" as const, title: "2 replies to approve", detail: "Kevin Lee and Sarah King. Ondra wrote them; draft mode is on.", action: "Review", href: "/inbox" },
-  { kind: "overdue" as const, title: "2 tasks overdue", detail: "Call Robert back, and a payment estimate for Natalie Ross.", action: "Open tasks", href: "/tasks" },
-]
-
-export const OVERNIGHT = { from: "7 pm", to: "9 am", answered: { ondra: 41, team: 6 }, booked: 19, medianReply: "14 s" }
-
-export const TODAY_APPOINTMENTS = [
-  { time: "8:00 am", title: "60k-mile service", client: "Luis Romero", who: "Maria", where: "Bay 1", byOndra: true },
-  { time: "9:00 am", title: "Recall check", client: "Mei Chen", who: "Maria", where: "Bay 2", byOndra: true },
-  { time: "11:30 am", title: "Test drive, Bronco Badlands", client: "Tom Nguyen", who: "Chris", where: "Lot", byOndra: false },
-  { time: "2:00 pm", title: "Delivery, Tahoe Z71", client: "Darnell Brooks", who: "Chris", where: "Showroom", byOndra: false },
-  { time: "6:30 pm", title: "Test drive, Silverado LT", client: "Kevin Lee", who: "Daniel", where: "Lot", byOndra: true },
-]
-
 /* ------------------------------------------------------------------ Calendar (Step 4) */
 
 export type Lane = { id: string; name: string; group: "Sales" | "Service" }
