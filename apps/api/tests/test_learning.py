@@ -159,3 +159,31 @@ async def test_people_rate_ondras_replies_and_corrections_are_listed(client, sho
     assert r.status_code == 200, r.text
     [edit] = (await client.get("/knowledge/corrections", headers=manager)).json()["edits"]
     assert (edit["before"], edit["after"]) == ("Yes, always.", "Yes, if you book one ahead.")
+
+
+def test_redaction_removes_what_identifies_a_customer():
+    from ondra_api.services.eval_export import redact
+
+    said = "Hi, Sarah King here, 214-555-0199 or sarah.k@mail.com, VIN 1HGCV1F30LA000111, 42 Elm Street. Sarah again."
+    assert redact(said, ["Sarah King", "Sarah", "King"]) == ("Hi, the customer here, [phone] or [email], VIN [VIN], [address]. the customer again.")
+
+
+async def test_replies_rated_wrong_become_draft_eval_cases(client, shop, tmp_path):
+    import yaml
+    from ondra_api.services.eval_export import export
+
+    sales = await login(client, "daniel@prestigemotors.example")
+    frm, _ = await shop.asks("Hi it's Tom Baker, what time do you close today? call me on 214 555 0142", ["We close at 9 pm."])
+    async with tenant_session(shop.tenant) as db:
+        ondra = (await db.execute(text("""SELECT m.id FROM messages m JOIN conversations c ON c.id = m.conversation_id
+            JOIN contact_identities i ON i.contact_id = c.contact_id WHERE i.value = :v AND m.author_type = 'ai'"""), {"v": frm})).scalar_one()
+        await db.execute(text("UPDATE contacts SET display_name = 'Tom Baker' WHERE id = (SELECT contact_id FROM contact_identities WHERE value = :v)"), {"v": frm})
+    r = await client.put(f"/messages/{ondra}/rating", json={"rating": "wrong", "note": "We close at 7. Tom Baker deserved better."}, headers=sales)
+    assert r.status_code == 200
+    [path] = await export(shop.tenant, tmp_path)
+    case = yaml.safe_load(path.read_text())
+    assert case["needs_review"] is True and case["synthetic"] is False and case["category"] == "rated"
+    assert case["turns"][0]["customer"] == "Hi it's the customer, what time do you close today? call me on [phone]"
+    assert case["ondra_said"] == "We close at 9 pm." and case["verdict"] == {"rating": "wrong", "by": "Daniel", "note": "We close at 7. the customer deserved better."}
+    assert "Tom" not in path.read_text() and "0142" not in path.read_text()  # nothing identifying left in the file
+    assert case["turns"][0]["expect"] == {"reply": True, "must": [], "must_not": []}  # a person writes the expectation

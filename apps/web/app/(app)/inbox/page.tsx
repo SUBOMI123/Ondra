@@ -245,31 +245,52 @@ function Draft({ m, conversationId }: { m: Msg; conversationId: string }) {
 
 const RATING_LABEL: Record<Rating, string> = { good: "Rated good", wrong: "Rated wrong", tone: "Rated off in tone" }
 
-/** A person's verdict on one of Ondra's sent replies. It feeds What Ondra knows > Corrections. */
+/** A person's verdict on one of Ondra's sent replies. "Wrong" or "off in tone" asks what was wrong, in a line, so
+ * What Ondra knows > Corrections says why, not only that. */
 function RateReply({ m }: { m: Msg }) {
   const qc = useQueryClient()
+  const [asking, setAsking] = useState<Rating | null>(null)
+  const [note, setNote] = useState("")
   const rate = useMutation({
-    mutationFn: (rating: Rating | null) => (rating ? send("PUT", `/messages/${m.id}/rating`, { rating }) : send("DELETE", `/messages/${m.id}/rating`)),
-    onSuccess: (_r, rating) => {
+    mutationFn: (v: { rating: Rating | null; note?: string }) =>
+      v.rating ? send("PUT", `/messages/${m.id}/rating`, { rating: v.rating, note: v.note || null }) : send("DELETE", `/messages/${m.id}/rating`),
+    onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: ["conversation"] })
-      if (rating === "wrong" || rating === "tone") toast("Noted. It's listed under Corrections in What Ondra knows.")
+      if (v.note !== undefined) toast("Noted. It's listed under Corrections in What Ondra knows.")
     },
     onError: (e) => toast(e instanceof Error ? e.message : "Couldn't save the rating. Try again."),
   })
+  const pick = (r: Rating) => {
+    rate.mutate({ rating: r })
+    if (r !== "good") {
+      setNote("")
+      setAsking(r)
+    }
+  }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button type="button" className="rounded underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring" aria-label={m.rating ? `${RATING_LABEL[m.rating]}. Change rating` : "Rate this reply"}>
-          {m.rating ? RATING_LABEL[m.rating] : "Rate"}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => rate.mutate("good")}>Good reply</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => rate.mutate("wrong")}>Wrong</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => rate.mutate("tone")}>Right, but off in tone</DropdownMenuItem>
-        {m.rating && <DropdownMenuItem onSelect={() => rate.mutate(null)}>Clear rating</DropdownMenuItem>}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="rounded underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring" aria-label={m.rating ? `${RATING_LABEL[m.rating]}. Change rating` : "Rate this reply"}>
+            {m.rating ? RATING_LABEL[m.rating] : "Rate"}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => pick("good")}>Good reply</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => pick("wrong")}>Wrong</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => pick("tone")}>Right, but off in tone</DropdownMenuItem>
+          {m.rating && <DropdownMenuItem onSelect={() => rate.mutate({ rating: null })}>Clear rating</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {asking && (
+        <form className="flex w-full basis-full flex-wrap items-center gap-2 pt-1" onSubmit={(e) => { e.preventDefault(); rate.mutate({ rating: asking, note: note.trim() }); setAsking(null) }}>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} autoFocus maxLength={1000} className="h-8 min-w-0 flex-1 basis-48 text-sm"
+            aria-label="What was wrong with this reply" placeholder={asking === "wrong" ? "What was wrong? e.g. We close at 7 on weekdays" : "What was off? e.g. Too formal"} />
+          <Button size="sm" type="submit">Save note</Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => setAsking(null)}>Skip</Button>
+        </form>
+      )}
+    </>
   )
 }
 
@@ -282,7 +303,7 @@ function Bubbled({ m, showChannel }: { m: Msg; showChannel: boolean }) {
         <Bubble variant={m.author === "user" ? "default" : "muted"} align={end ? "end" : "start"}>
           <BubbleContent className={cn("whitespace-pre-wrap", ai && "bg-ai-subtle! text-foreground")}>{m.body}</BubbleContent>
         </Bubble>
-        <MessageFooter className="gap-1.5">
+        <MessageFooter className="flex-wrap gap-1.5">
           {ai && (
             <span className="flex items-center gap-1 text-ai">
               <OndraMark className="size-3.5" /> {m.author_name ? `Sent by Ondra, approved by ${m.author_name.split(" ")[0]}` : "Sent by Ondra"}

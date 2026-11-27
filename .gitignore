@@ -12,3 +12,6 @@ __pycache__/
 node_modules/
 .next/
 evals/results/
+
+# Draft eval cases from real conversations (redacted, but reviewed by a person before they're kept)
+evals/candidates/
