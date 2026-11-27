@@ -2,13 +2,15 @@
 
 /**
  * Deals. One job: see every open sale by how far along it is, know what each one needs next, and move it when it
- * moves. Drag a card to another stage (or use its menu, which also works by keyboard); dropping on Lost asks why.
+ * moves. Drag a card to another stage (on a phone: press and hold, then drag), or use its menu, which also works by
+ * keyboard; dropping on Lost asks why.
  * Open a card for the whole deal. "Mine" shows the deals you've been given, and is where a salesperson starts.
  * Real deals only: one starts when Ondra or someone on the team records what a buyer wants, and Ondra gives it a
  * salesperson by the dealer's routing rules. A value is an estimate (the listed price of the car in stock they asked
  * about, else their own budget) and is left blank when there's nothing to base it on.
  */
 
+import { DndContext, type DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core"
 import { IconBell, IconCalendarEvent, IconDotsVertical } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -28,6 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { daysAgo, fmt } from "@/lib/time"
 
 type Deal = {
   id: string; contact_id: string; client: string; vip: boolean; stage: Stage; wants: string | null; note: string | null
@@ -47,11 +50,11 @@ const compact = new Intl.NumberFormat("en-US", { style: "currency", currency: "U
 /** "Today", "Yesterday", "3 days ago", then a date. For "last in touch" on a card. */
 function ago(iso: string | null) {
   if (!iso) return "Not in touch yet"
-  const days = Math.round((new Date(new Date().toDateString()).getTime() - new Date(new Date(iso).toDateString()).getTime()) / 86_400_000)
+  const days = daysAgo(iso)
   if (days <= 0) return "In touch today"
   if (days === 1) return "In touch yesterday"
   if (days < 14) return `In touch ${days} days ago`
-  return `In touch ${new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+  return `In touch ${fmt(iso, { month: "short", day: "numeric" })}`
 }
 
 /** The one thing this deal needs next: a booked visit beats a task, and an overdue task says so in red. */
@@ -75,25 +78,23 @@ function Next({ d }: { d: Deal }) {
   return <p className="text-xs text-muted-foreground">Nothing booked or due</p>
 }
 
-function Card({ d, board, onOpen, onMove, dragging, setDragging }: {
-  d: Deal; board: Board; onOpen: () => void; onMove: (stage: Stage, reason?: string) => void
-  dragging: string | null; setDragging: (id: string | null) => void
+function Card({ d, board, onOpen, onMove, overlay }: {
+  d: Deal; board: Board; onOpen?: () => void; onMove?: (stage: Stage, reason?: string) => void; overlay?: boolean
 }) {
+  // Mouse: drag after moving a few pixels, so a click still opens the deal. Touch: press and hold, so the board
+  // still scrolls under a finger. Keyboard: the card's menu. (Pointer listeners only: the card holds buttons.)
+  const drag = useDraggable({ id: d.id, disabled: !board.can_move || overlay })
   return (
     <article
+      ref={drag.setNodeRef}
+      {...drag.listeners}
       className={cn(
-        "relative flex flex-col gap-1.5 rounded-xl border bg-card p-3 text-sm outline-none hover:border-foreground/25 has-[button[data-open]:focus-visible]:ring-2 has-[button[data-open]:focus-visible]:ring-ring",
-        board.can_move && "cursor-grab active:cursor-grabbing",
-        dragging === d.id && "opacity-40",
+        "relative flex touch-manipulation flex-col gap-1.5 rounded-xl border bg-card p-3 text-sm outline-none select-none hover:border-foreground/25 has-[button[data-open]:focus-visible]:ring-2 has-[button[data-open]:focus-visible]:ring-ring",
+        board.can_move && "cursor-grab",
+        drag.isDragging && "opacity-40",
+        overlay && "cursor-grabbing shadow-lg",
       )}
       data-vip={d.vip || undefined}
-      draggable={board.can_move}
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", d.id)
-        e.dataTransfer.effectAllowed = "move"
-        setDragging(d.id)
-      }}
-      onDragEnd={() => setDragging(null)}
     >
       <div className="flex items-start justify-between gap-1">
         <p className="flex min-w-0 items-center gap-1.5 font-medium">
@@ -103,7 +104,7 @@ function Card({ d, board, onOpen, onMove, dragging, setDragging }: {
             {d.client}
           </button>
         </p>
-        {board.can_move && (
+        {board.can_move && !overlay && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative z-10 -mt-1.5 -mr-1.5 size-8 shrink-0" aria-label={`Move ${d.client}'s deal`}><IconDotsVertical /></Button>
@@ -111,12 +112,12 @@ function Card({ d, board, onOpen, onMove, dragging, setDragging }: {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Move to</DropdownMenuLabel>
               {board.stages.filter((s) => s.stage !== d.stage && s.stage !== "lost").map((s) => (
-                <DropdownMenuItem key={s.stage} onSelect={() => onMove(s.stage)}>{s.label}</DropdownMenuItem>
+                <DropdownMenuItem key={s.stage} onSelect={() => onMove?.(s.stage)}>{s.label}</DropdownMenuItem>
               ))}
               {d.stage !== "lost" && (
                 <>
                   <DropdownMenuLabel>Lost, because</DropdownMenuLabel>
-                  {LOST_REASONS.map((r) => <DropdownMenuItem key={r} onSelect={() => onMove("lost", r)}>{r}</DropdownMenuItem>)}
+                  {LOST_REASONS.map((r) => <DropdownMenuItem key={r} onSelect={() => onMove?.("lost", r)}>{r}</DropdownMenuItem>)}
                 </>
               )}
             </DropdownMenuContent>
@@ -140,6 +141,36 @@ function Card({ d, board, onOpen, onMove, dragging, setDragging }: {
   )
 }
 
+/** A stage column: a drop target for cards. */
+function Column({ stage, label, active, children }: { stage: Stage; label: string; active: boolean; children: React.ReactNode }) {
+  const drop = useDroppable({ id: stage })
+  return (
+    <section
+      ref={drop.setNodeRef}
+      aria-label={label}
+      className={cn("flex flex-col gap-2.5 rounded-xl bg-muted/40 p-2.5 transition-colors", active && drop.isOver && "bg-muted ring-2 ring-foreground/20")}
+    >
+      {children}
+    </section>
+  )
+}
+
+/** Won and Lost wait at the bottom of the screen while dragging: they're the columns off the edge of most screens. */
+function EdgeTarget({ stage }: { stage: "won" | "lost" }) {
+  const drop = useDroppable({ id: `edge-${stage}` })
+  return (
+    <div
+      ref={drop.setNodeRef}
+      className={cn(
+        "pointer-events-auto flex h-16 w-44 items-center justify-center rounded-xl border-2 border-dashed bg-background text-sm font-medium shadow-sm transition-colors sm:w-56",
+        drop.isOver ? "border-foreground bg-muted" : "border-foreground/30",
+      )}
+    >
+      {stage === "won" ? "Drop to mark as won" : "Drop to mark as lost"}
+    </div>
+  )
+}
+
 function Deals() {
   const qc = useQueryClient()
   const router = useRouter()
@@ -148,7 +179,10 @@ function Deals() {
   const { me } = useAuth()
   const [whose, setWhose] = useState<"mine" | "everyone">(me?.role === "sales" ? "mine" : "everyone")
   const [dragging, setDragging] = useState<string | null>(null)
-  const [over, setOver] = useState<Stage | null>(null)
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  )
   const [losing, setLosing] = useState<Deal | null>(null)
   const q = useQuery({ queryKey: ["deals"], queryFn: () => api<Board>("/deals") })
 
@@ -193,11 +227,15 @@ function Deals() {
   const mineCount = all.filter((d) => d.owner_id === me?.id && !["won", "lost"].includes(d.stage)).length
   const drop = (stage: Stage, id: string) => {
     const d = find(id)
-    setOver(null)
     setDragging(null)
     if (!d || d.stage === stage) return
     if (stage === "lost") setLosing(d)
     else move.mutate({ d, stage })
+  }
+  const onDragEnd = (e: DragEndEvent) => {
+    const target = e.over ? String(e.over.id).replace(/^edge-/, "") : null
+    if (target) drop(target as Stage, String(e.active.id))
+    else setDragging(null)
   }
   const setOpen = (id: string | null) => router.replace(id ? `/deals?deal=${id}` : "/deals", { scroll: false })
 
@@ -241,30 +279,14 @@ function Deals() {
                 <p className="mt-1 text-muted-foreground">When Ondra opens a deal it gives it to the next salesperson in turn, and a manager can hand you one from the deal itself. Everyone shows the whole board.</p>
               </div>
             ) : (
+              <DndContext sensors={sensors} onDragStart={(e) => setDragging(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
               <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
                 <div className="grid auto-cols-[17rem] grid-flow-col gap-3">
                   {b.stages.map((s) => {
                     const deals = s.deals.filter(shown)
                     const sum = deals.reduce((a, d) => a + (d.value ?? 0), 0)
                     return (
-                      <section
-                        key={s.stage}
-                        aria-label={s.label}
-                        className={cn("flex flex-col gap-2.5 rounded-xl bg-muted/40 p-2.5 transition-colors", over === s.stage && "bg-muted ring-2 ring-foreground/20")}
-                        onDragOver={(e) => {
-                          if (!dragging) return
-                          e.preventDefault()
-                          e.dataTransfer.dropEffect = "move"
-                          if (over !== s.stage) setOver(s.stage)
-                        }}
-                        onDragLeave={(e) => {
-                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null)
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          drop(s.stage, e.dataTransfer.getData("text/plain"))
-                        }}
-                      >
+                      <Column key={s.stage} stage={s.stage} label={s.label} active={!!dragging}>
                         <h2 className="flex items-baseline justify-between px-1 pt-0.5 text-sm font-medium">
                           {s.label}
                           <span className="text-xs font-normal text-muted-foreground tabular-nums">{deals.length}{sum > 0 && `, ${compact.format(sum)}`}</span>
@@ -275,46 +297,27 @@ function Deals() {
                           </p>
                         )}
                         {deals.map((d) => (
-                          <Card key={d.id} d={d} board={b} onOpen={() => setOpen(d.id)} onMove={(stage, reason) => move.mutate({ d, stage, reason })}
-                            dragging={dragging} setDragging={setDragging} />
+                          <Card key={d.id} d={d} board={b} onOpen={() => setOpen(d.id)} onMove={(stage, reason) => move.mutate({ d, stage, reason })} />
                         ))}
-                      </section>
+                      </Column>
                     )
                   })}
                 </div>
               </div>
+              {dragging && (
+                <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center gap-3 p-4 md:pl-[calc(var(--sidebar-width)+1rem)]">
+                  <EdgeTarget stage="won" />
+                  <EdgeTarget stage="lost" />
+                </div>
+              )}
+              <DragOverlay dropAnimation={null}>
+                {dragging && find(dragging) ? <div className="w-[17rem]"><Card d={find(dragging)!} board={b} overlay /></div> : null}
+              </DragOverlay>
+              </DndContext>
             )}
           </>
         )}
       </div>
-
-      {/* While dragging, Won and Lost wait at the bottom of the screen: the board is wider than most screens, and
-          those two columns are the ones off the edge. */}
-      {dragging && b?.can_move && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center gap-3 p-4 md:pl-[calc(var(--sidebar-width)+1rem)]">
-          {(["won", "lost"] as const).map((stage) => (
-            <div
-              key={stage}
-              className={cn(
-                "pointer-events-auto flex h-16 w-56 items-center justify-center rounded-xl border-2 border-dashed bg-background text-sm font-medium shadow-sm transition-colors",
-                over === stage ? "border-foreground bg-muted" : "border-foreground/30",
-              )}
-              onDragOver={(e) => {
-                e.preventDefault()
-                e.dataTransfer.dropEffect = "move"
-                if (over !== stage) setOver(stage)
-              }}
-              onDragLeave={() => setOver(null)}
-              onDrop={(e) => {
-                e.preventDefault()
-                drop(stage, e.dataTransfer.getData("text/plain"))
-              }}
-            >
-              {stage === "won" ? "Drop to mark as won" : "Drop to mark as lost"}
-            </div>
-          ))}
-        </div>
-      )}
 
       <DealSheet id={open} onClose={() => setOpen(null)} onMove={(id, stage, reason) => {
         const d = find(id)

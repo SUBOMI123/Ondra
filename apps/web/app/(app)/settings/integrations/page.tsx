@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { api, send } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { fmt } from "@/lib/time"
 
 type Health = { state: "off" | "ok" | "warning" | "error"; last_ok_at: string | null; last: Record<string, unknown> }
 type Data = {
@@ -42,7 +43,7 @@ function errorText(e: unknown) {
 }
 
 function when(iso: string | null) {
-  return iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null
+  return iso ? fmt(iso, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).replace(" AM", " am").replace(" PM", " pm") : null
 }
 
 function n(count: number, one: string, many = `${one}s`) {

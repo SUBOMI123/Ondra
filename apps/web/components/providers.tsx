@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 
 import { api, CLERK, logout as apiLogout, refresh, type Me } from "@/lib/api"
+import { setDealerZone } from "@/lib/time"
 
 import type { ClerkState } from "./clerk-bridge"
 
@@ -35,7 +36,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      setMe(await api<Me>("/me"))
+      const m = await api<Me>("/me")
+      setDealerZone(m.timezone) // before any screen renders a time
+      setMe(m)
       setStatus("signed-in")
     } catch {
       setMe(null)

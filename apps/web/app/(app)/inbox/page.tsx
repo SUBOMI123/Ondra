@@ -48,6 +48,7 @@ import { useLiveInbox } from "@/lib/live"
 import { viewById } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { ClientAvatar, VipTag } from "@/components/vip"
+import { clock, fmt, isToday } from "@/lib/time"
 
 /* ---------------------------------------------------------------- API shapes */
 
@@ -112,16 +113,16 @@ type View = "needs" | "ondra" | "all"
 function when(iso: string | null) {
   if (!iso) return ""
   const d = new Date(iso)
-  const today = new Date().toDateString() === d.toDateString()
+  const today = isToday(d)
   return today
-    ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? clock(d)
+    : fmt(d, { month: "short", day: "numeric" })
 }
 
 function dueText(iso: string | null) {
   if (!iso) return ""
   const d = new Date(iso)
-  return d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" }).replace(" AM", " am").replace(" PM", " pm")
+  return fmt(d, { weekday: "short", hour: "numeric", minute: "2-digit" }).replace(" AM", " am").replace(" PM", " pm")
 }
 
 function errorText(e: unknown) {

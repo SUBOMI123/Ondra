@@ -172,7 +172,7 @@ async def test_the_deals_board_shows_real_deals_and_moves_them(client, database)
     assert (sarah["stage"], sarah["wants"], sarah["value"], sarah["value_from"]) == ("new", "2021 Toyota Highlander XLE", 31000.0, "their budget")
     assert "Budget up to $31,000" in sarah["note"] and "Paying by cash" in sarah["note"]
     assert kevin["stage"] == "qualified" and kevin["value"] is None  # no stock number and no budget: no made-up value
-    assert board["open"] == len(by_client) and board["open_without_value"] >= 1 and board["can_move"] is True
+    assert board["open"] == sum(len(s["deals"]) for s in board["stages"] if s["stage"] not in ("won", "lost")) and board["open_without_value"] >= 1 and board["can_move"] is True
     # A salesperson doesn't see a VIP's deal, and can't move it by guessing its id.
     async with tenant_session(t) as db:
         vip = (await db.execute(select(Contact).where(Contact.is_vip.is_(True)).limit(1))).scalar_one()
@@ -237,3 +237,43 @@ async def test_a_deal_opens_in_full_and_can_be_given_to_someone(client, database
         await db.execute(delete(Event).where(Event.type == "deal.stage_changed", Event.payload["deal_id"].astext == sarah["id"]))
         await db.execute(update(Deal).where(Deal.id == sarah["id"]).values(stage="new", owner_user_id=None))
         await db.execute(delete(MetricDay))
+
+
+async def test_handing_a_deal_over_tells_them_and_its_facts_can_be_corrected(client, database):
+    from ondra_core.models import AuditLog, Task
+
+    t = database["a"]
+    owner = await login(client, "owner@prestigemotors.example")
+    sales = await login(client, "daniel@prestigemotors.example")
+    board = {d["client"]: d for s in (await client.get("/deals", headers=owner)).json()["stages"] for d in s["deals"]}
+    kevin = board["Kevin Lee"]
+    me = (await client.get("/me", headers=owner)).json()["id"]
+    daniel = (await client.get("/me", headers=sales)).json()["id"]
+    started = datetime.now(UTC)
+    try:
+        # Taking it yourself tells nobody; handing it to Daniel gives him a task and a WhatsApp note meant for him alone.
+        assert (await client.patch(f"/deals/{kevin['id']}", json={"owner_user_id": me}, headers=owner)).status_code == 200
+        assert (await client.patch(f"/deals/{kevin['id']}", json={"owner_user_id": daniel}, headers=owner)).status_code == 200
+        async with tenant_session(t) as db:
+            tasks = (await db.execute(select(Task).where(Task.created_at >= started, Task.title.like("%deal is yours now")))).scalars().all()
+            assert [(str(x.assignee_user_id), x.title) for x in tasks] == [(daniel, "Kevin Lee: Kevin's deal is yours now")]
+            alert = (await db.execute(select(Event).where(Event.type == "alert.created", Event.created_at >= started))).scalar_one()
+            assert (alert.payload["user_id"], alert.payload["only_handler"]) == (daniel, True)
+        # Correcting what the buyer wants: stored, audited, shown.
+        r = await client.patch(f"/deals/{kevin['id']}", headers=sales, json={
+            "budget_max": 45000, "trade_in": "2015 F-150, 120k miles", "payment_method": "finance", "timeline": "  "})
+        assert r.status_code == 200, r.text
+        d = (await client.get(f"/deals/{kevin['id']}", headers=sales)).json()
+        assert (d["budget_max"], d["trade_in"], d["payment_method"], d["timeline"], d["stage"]) == (
+            45000.0, "2015 F-150, 120k miles", "finance", None, "qualified")
+        assert d["wants"] == "2022 Chevrolet Silverado 1500 LT"  # untouched
+        async with tenant_session(t) as db:
+            log = (await db.execute(select(AuditLog).where(AuditLog.action == "deal.edit", AuditLog.created_at >= started))).scalar_one()
+            assert log.after["budget_max"] == 45000 and log.before["trade_in"] is None
+        assert (await client.patch(f"/deals/{kevin['id']}", json={"budget_max": -5}, headers=sales)).status_code == 422
+    finally:
+        async with tenant_session(t) as db:
+            await db.execute(delete(Task).where(Task.created_at >= started))
+            await db.execute(update(Deal).where(Deal.id == kevin["id"]).values(
+                owner_user_id=daniel, budget_max=None, timeline=None,
+                vehicle_of_interest={"description": "2022 Chevrolet Silverado 1500 LT"}))

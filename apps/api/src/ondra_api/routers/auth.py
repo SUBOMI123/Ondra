@@ -151,7 +151,8 @@ async def me(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> MeOut:
     user = (await db.execute(select(User).where(User.id == caller.user_id))).scalar_one()
     tenant = (await db.execute(select(Tenant))).scalar_one()
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role,
-                 tenant_id=tenant.id, tenant_name=tenant.name, phone=user.phone, mfa_required=caller.mfa_missing)
+                 tenant_id=tenant.id, tenant_name=tenant.name, timezone=(tenant.timezones or ["America/Chicago"])[0], phone=user.phone,
+                 mfa_required=caller.mfa_missing)
 
 
 class MePatch(BaseModel):

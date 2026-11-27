@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { api, send } from "@/lib/api"
+import { fmt } from "@/lib/time"
 
 type Data = {
   briefing_on: boolean
@@ -60,7 +61,7 @@ function Thread() {
               <li key={m.id} className="grid gap-0.5">
                 <p className="text-xs text-muted-foreground">
                   {m.from === "you" ? "You" : <span data-slot="ai-note" className="text-ai">Ondra</span>}
-                  {KIND[m.kind] ? `, ${KIND[m.kind].toLowerCase()}` : ""}, {new Date(m.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {KIND[m.kind] ? `, ${KIND[m.kind].toLowerCase()}` : ""}, {fmt(m.at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </p>
                 <p className="whitespace-pre-wrap">{m.text || (m.kind === "button" ? "(a button)" : "")}</p>
                 {m.did.length > 0 && <p className="text-xs text-muted-foreground">Changed: {m.did.join("; ")}.</p>}

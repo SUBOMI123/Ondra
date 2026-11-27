@@ -757,5 +757,19 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **The deal panel** (`/deals?deal=…`, a sheet over the board, so you keep your place): call, message, profile;
   stage and salesperson; what they want (car in stock with price, budget, paying by, trade-in, timing, delivery);
   what's next; the last six messages; how the deal has moved and who moved it. A VIP's panel shows nothing Ondra wrote.
-- **Not built:** editing budget or trade-in from the panel (they come from the conversation; edits belong with the
-  CRM sync), notifying someone when a deal is handed to them, and dragging on touch screens.
+- **Follow-ups the same day:** handing a deal to someone now gives them a task and a WhatsApp note to their own
+  mobile (never the owners instead); what the buyer wants (car, budget, paying by, trade-in, timing) can be corrected
+  from the panel, sending only what changed and audited as `deal.edit`; dragging moved to `@dnd-kit/core` (already a
+  dependency from the dashboard template), so a phone can press-and-hold to drag and the board still scrolls under a
+  finger; migration 0018 gives older deals the salesperson who has the conversation or an open task.
+
+## 2026-11-27: Every time on screen is the dealership's time
+
+- **Decision:** the dashboard formats every time in the dealership's time zone (from `/me`, set once in
+  `lib/time.ts` before anything renders), not the reader's. When the reader's zone differs, the header says
+  "Times in Chicago time".
+- **Why:** an owner checking in from Lagos saw that Aisha wrote at 8:10 am when she wrote at 2:10 am Dallas time,
+  which hides the fact that she wrote after hours. "Today", "overdue" and the calendar's day all follow the
+  dealership's calendar too.
+- **Alternatives:** the reader's own zone (what browsers do by default; wrong for a business with opening hours),
+  or both zones on every time (noisy). The greeting on Today still follows the reader's clock: it's about them.

@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { api, ApiError, send } from "@/lib/api"
+import { fmt } from "@/lib/time"
 
 type Gap = { id: string; question: string; times: number; last_asked_at: string; asked: string | null }
 type Answer = { id: string; question: string; answer: string; updated_at: string }
@@ -43,7 +44,7 @@ function asQuestion(q: string) {
 }
 
 function day(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  return fmt(iso, { month: "short", day: "numeric" })
 }
 
 /* ------------------------------------------------------------ question and answer form */

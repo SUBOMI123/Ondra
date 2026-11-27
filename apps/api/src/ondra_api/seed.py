@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from ondra_core.models import (
+    Appointment,
     AppointmentType,
     Call,
     ChannelAddress,
@@ -142,7 +143,8 @@ async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
         "the price by email, so I've asked Daniel from our sales team to go over pricing and financing with you. Would "
         "Thursday after work suit you to see it?", 41, "queued", draft=True)
     db.add(Deal(tenant_id=t, contact_id=contacts["Kevin Lee"].id, type="sales", stage="qualified", source_channel="email",
-                vehicle_of_interest={"description": "2022 Chevrolet Silverado 1500 LT"}, payment_method="finance"))
+                vehicle_of_interest={"description": "2022 Chevrolet Silverado 1500 LT"}, payment_method="finance",
+                owner_user_id=users["sales"].id))
 
     # 3. Handed to sales, and the follow-up is overdue.
     sarah = conv("Sarah King", "sms", status="waiting_staff")
@@ -171,6 +173,76 @@ async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
     msg(jordan, "inbound", "customer", "STOP", 590, "received")
 
     await _seed_after_hours_lead(db, t, contacts, users)
+
+
+async def _seed_pipeline(db, t, contacts: dict, users: dict) -> None:
+    """A sales board that looks like a working week: a deal at every stage, each with a short conversation, a
+    salesperson, and what's next (a booked test drive, a task), plus one won and one lost."""
+    from ondra_api.services.metrics import lead_captured
+
+    now = datetime.now(UTC)
+    local = now.astimezone(ZoneInfo("America/Chicago"))
+    test_drive = (await db.execute(select(AppointmentType).where(AppointmentType.category == "test_drive"))).scalars().first()
+    sales, manager = users["sales"], users["manager"]
+
+    async def deal(name, channel, stage, owner, wants, said, *, budget=None, pay=None, trade_in=None, timeline=None,
+                   by_ai=False, days_ago=2, reason=None):
+        conv = Conversation(tenant_id=t, contact_id=contacts[name].id, channel=channel, status="waiting_customer",
+                            ai_mode="auto", assigned_user_id=owner.id, last_inbound_at=now - timedelta(days=days_ago))
+        db.add(conv)
+        await db.flush()
+        for i, (who, body) in enumerate(said):
+            mins = days_ago * 1440 - i * 4
+            db.add(Message(tenant_id=t, conversation_id=conv.id, direction="inbound" if who == "customer" else "outbound",
+                           author_type=who, author_user_id=owner.id if who == "user" else None, body=body,
+                           status="received" if who == "customer" else "delivered", created_at=now - timedelta(minutes=mins),
+                           provider="mock" if who == "customer" else None,
+                           provider_message_id=f"seed-pipe-{name}-{i}" if who == "customer" else None))
+        voi = {"description": wants, **({"trade_in": trade_in} if trade_in else {})}
+        d = Deal(tenant_id=t, contact_id=contacts[name].id, type="sales", stage=stage, source_channel=channel,
+                 vehicle_of_interest=voi, budget_max=budget, payment_method=pay, timeline=timeline, owner_user_id=owner.id,
+                 lost_reason=reason, created_at=now - timedelta(days=days_ago + 1), updated_at=now - timedelta(days=max(days_ago - 1, 0)))
+        db.add(d)
+        await db.flush()
+        if by_ai:
+            lead_captured(db, d, by="ai", after_hours=False, at=now - timedelta(days=days_ago + 1))
+        return d
+
+    andre = await deal("Andre Jackson", "sms", "appointment", sales, "2023 Honda Accord EX-L", [
+        ("customer", "Hi, is the white Accord EX-L still there? I could come by tomorrow morning."),
+        ("ai", ("It is, Andre: the 2023 Accord EX-L in white, listed at $29,400. I've booked you a test drive for tomorrow "
+                "at 10:30 am with Daniel. Bring your Civic if you'd like a trade-in value the same day.")),
+        ("customer", "Perfect, see you then"),
+    ], budget=30000, pay="finance", trade_in="2016 Honda Civic LX, about 88,000 miles", timeline="this week", by_ai=True, days_ago=1)
+    if test_drive is not None:
+        start = (local + timedelta(days=1)).replace(hour=10, minute=30, second=0, microsecond=0)
+        db.add(Appointment(tenant_id=t, contact_id=contacts["Andre Jackson"].id, deal_id=andre.id, appointment_type_id=test_drive.id,
+                           starts_at=start, ends_at=start + timedelta(minutes=45), assigned_user_id=sales.id, status="booked",
+                           blocks_until=start + timedelta(minutes=45 + test_drive.buffer_min),
+                           source="ai"))
+    await deal("Carmen Ortiz", "phone", "negotiating", sales, "2022 Toyota RAV4 XLE", [
+        ("customer", "We liked the RAV4 on Saturday. Can you do better than $31,900 if we trade in the Rogue?"),
+        ("user", "Thanks Carmen. Our used-car manager is looking at the Rogue today; I'll call you with numbers by 5."),
+    ], budget=30000, pay="finance", trade_in="2018 Nissan Rogue SV", timeline="this weekend", days_ago=1)
+    await deal("Darnell Brooks", "whatsapp", "qualified", manager, "Ford F-150 XLT, 2021 or newer", [
+        ("customer", "Looking for an F-150 XLT, 2021 or newer, under 42k. Need tow package."),
+        ("ai", ("We have two that fit, Darnell: a 2021 and a 2022 F-150 XLT, both with the tow package. I've asked Grace "
+                "to send you photos and the window stickers today.")),
+    ], budget=42000, pay="cash", by_ai=True, days_ago=3)
+    db.add(Task(tenant_id=t, title="Darnell Brooks: Send Darnell the two F-150s", contact_id=contacts["Darnell Brooks"].id,
+                assignee_user_id=manager.id, source="ai_handoff", urgency="normal", due_at=now + timedelta(hours=20),
+                brief="Wants an F-150 XLT 2021+, tow package, under $42,000, paying cash. Send photos and window stickers."))
+    await deal("Chloe Dubois", "email", "new", sales, "Tesla Model 3 or a similar EV", [
+        ("customer", "Do you have any used EVs around $35k? Tesla Model 3 ideally."),
+        ("ai", ("Hi Chloe, we have a 2021 Model 3 Long Range listed at $33,500, and a 2022 Hyundai Ioniq 5 at $34,900. "
+                "Would you like to see either this week?")),
+    ], budget=35000, by_ai=True, days_ago=0)
+    await deal("Fatima Hassan", "sms", "won", sales, "2020 Mercedes-Benz GLC 300", [
+        ("customer", "Picked it up, thank you Daniel! Love it."),
+    ], pay="finance", days_ago=4)
+    await deal("Ethan Walker", "email", "lost", manager, "2021 Mazda CX-5 Touring", [
+        ("customer", "Thanks for your help, but we found one closer to home."),
+    ], budget=26000, days_ago=6, reason="Bought elsewhere")
 
 
 async def _seed_after_hours_lead(db, t, contacts: dict, users: dict) -> None:
@@ -356,6 +428,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                       "run `python -m ondra_api.services.knowledge` later")
             await _seed_conversations(db, t, by_name, {u.role: u for u in users})
             await _seed_calls(db, t, by_name, {u.role: u for u in users})
+            await _seed_pipeline(db, t, by_name, {u.role: u for u in users})
             # The seeded history gets its events, so the dashboard has numbers to show (marked as backfilled).
             from ondra_api.services.metrics import backfill
 

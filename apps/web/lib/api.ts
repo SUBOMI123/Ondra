@@ -114,6 +114,7 @@ export type Me = {
   role: string
   tenant_id: string
   tenant_name: string
+  timezone: string
   phone: string | null
   // Clerk: their role needs two-step sign-in and this session didn't use it
   mfa_required?: boolean

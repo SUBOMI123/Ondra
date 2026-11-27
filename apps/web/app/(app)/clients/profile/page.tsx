@@ -32,6 +32,7 @@ import { api, ApiError, type Contact } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { VipTag } from "@/components/vip"
 import { VipButton, VipPanel } from "@/components/vip-control"
+import { clock, fmt, isToday } from "@/lib/time"
 
 const CHANNEL = {
   phone: { icon: IconPhone, label: "Phone" },
@@ -61,8 +62,8 @@ type Timeline = {
 
 function stamp(iso: string) {
   const d = new Date(iso)
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
-  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`
+  const time = clock(d)
+  return isToday(d) ? time : `${fmt(d, { month: "short", day: "numeric" })}, ${time}`
 }
 
 function TimelineItem({ e, first }: { e: TimelineEntry; first: string }) {

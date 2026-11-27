@@ -23,6 +23,7 @@ import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
 import { VipTag } from "@/components/vip"
+import { dayKey } from "@/lib/time"
 
 const START = 7
 const END = 20
@@ -50,8 +51,9 @@ const STATUS: Record<Appt["status"], string> = {
   booked: "Booked", confirmed: "Confirmed", showed: "Showed up", no_show: "No-show", cancelled: "Cancelled",
 }
 
+/** The calendar day of a noon-UTC date stand-in (see `date` below). */
 function isoDay(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  return d.toISOString().slice(0, 10)
 }
 
 /** Hours since midnight, in the dealer's time zone. */
@@ -181,18 +183,16 @@ export default function CalendarPage() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [now, setNow] = useState<number | null>(null)
 
-  const date = useMemo(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + offset)
-    return d
-  }, [offset])
+  // Today is the dealership's today (an owner abroad still sees the dealership's day), held as noon UTC so
+  // adding days never trips over a clock change.
+  const date = useMemo(() => new Date(Date.parse(`${dayKey(new Date())}T12:00:00Z`) + offset * 86_400_000), [offset])
   const q = useQuery({ queryKey: ["calendar", isoDay(date)], queryFn: () => api<Day>(`/calendar?date=${isoDay(date)}`) })
   const tz = q.data?.timezone ?? "America/Chicago"
   useEffect(() => {
     setNow(hourIn(new Date().toISOString(), tz))
   }, [tz])
 
-  const label = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+  const label = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })
   const appts = q.data?.appointments ?? []
   const lanes = q.data?.lanes ?? []
   const groups = (["Sales", "Service"] as const).map((g) => ({ g, lanes: lanes.filter((l) => l.group === g) })).filter((x) => x.lanes.length)

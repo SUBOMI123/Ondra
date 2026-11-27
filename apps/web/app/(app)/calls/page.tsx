@@ -29,6 +29,7 @@ import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
 import { VipTag } from "@/components/vip"
+import { clock, fmt, isToday } from "@/lib/time"
 
 type Handled = "ai" | "staff" | "owner" | "missed" | null
 type Call = {
@@ -74,8 +75,8 @@ function length(s: number | null) {
 function when(iso: string | null) {
   if (!iso) return ""
   const d = new Date(iso)
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
-  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`
+  const time = clock(d)
+  return isToday(d) ? time : `${fmt(d, { month: "short", day: "numeric" })}, ${time}`
 }
 
 function phone(v?: string | null) {

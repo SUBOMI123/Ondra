@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ondra_core.models import Appointment, AppointmentType, Contact, Deal, Message, Task, Tenant, User
 from ondra_core.permissions import Perm, can_see_vips, has_perm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +34,12 @@ class StageIn(BaseModel):
     stage: Literal["new", "qualified", "appointment", "negotiating", "won", "lost"] | None = None
     lost_reason: str | None = None  # why, when the stage is "lost"
     owner_user_id: uuid.UUID | None = None  # give the deal to this person
+    # What the buyer wants, corrected or filled in by the salesperson (Ondra fills these from the conversation).
+    wants: str | None = None
+    budget_max: float | None = Field(None, ge=0, le=10_000_000)
+    payment_method: Literal["cash", "finance", "lease", "unknown"] | None = None
+    trade_in: str | None = None
+    timeline: str | None = None
 
 
 async def _deal_context(db: AsyncSession, contact_ids: list) -> tuple[dict, dict, dict, dict]:
@@ -215,6 +221,25 @@ def _uuid_or_none(v: object) -> uuid.UUID | None:
         return None
 
 
+async def _tell_new_owner(db: AsyncSession, deal: Deal, contact: Contact, person: User, caller: Caller) -> None:
+    """Handing someone a deal tells them now: a task in their list, and a WhatsApp message to their own mobile."""
+    from ondra_core.models import Event
+
+    from ondra_api.services.tasks import new_task
+
+    by = await db.get(User, caller.user_id)
+    first = contact.display_name.split()[0]
+    wants = (deal.vehicle_of_interest or {}).get("description")
+    brief = f"{by.name if by else 'A manager'} gave you {first}'s deal" + (f" ({wants})" if wants else "") + \
+        f", at {STAGE_LABEL.get(deal.stage, deal.stage)}. Open it on the Deals board for the conversation and what's next."
+    task = await new_task(db, title=f"{contact.display_name}: {first}'s deal is yours now", contact_id=contact.id,
+                          assignee_user_id=person.id, source="rule", urgency="normal", brief=brief)
+    db.add(Event(type="alert.created", payload={
+        "task_id": str(task.id), "to": "owner", "urgency": "normal", "contact_id": str(contact.id),
+        "user_id": str(person.id), "only_handler": True,
+        "reason": f"{by.name.split()[0] if by else 'A manager'} gave you {contact.display_name}'s deal" + (f", {wants}" if wants else "")}))
+
+
 @router.patch("/deals/{deal_id}")
 async def move_deal(deal_id: uuid.UUID, body: StageIn, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.DEALS_WRITE))) -> dict:
     """Move a deal to a stage, give it to someone, or both."""
@@ -227,8 +252,9 @@ async def move_deal(deal_id: uuid.UUID, body: StageIn, ctx: tuple[Caller, AsyncS
     contact = await db.get(Contact, deal.contact_id)
     if contact.is_vip and not (can_see_vips(caller.role) or contact.vip_owner_user_id == caller.user_id):
         raise HTTPException(404)  # a VIP's deal doesn't exist for someone who can't see VIPs
-    if body.stage is None and body.owner_user_id is None:
-        raise HTTPException(422, "Say which stage to move it to, or who to give it to.")
+    edits = body.model_dump(include={"wants", "budget_max", "payment_method", "trade_in", "timeline"}, exclude_unset=True)
+    if body.stage is None and body.owner_user_id is None and not edits:
+        raise HTTPException(422, "Say which stage to move it to, who to give it to, or what to change.")
     changed = False
     if body.stage is not None:
         changed = await metrics.set_stage(db, deal, body.stage, by=str(caller.user_id))
@@ -241,6 +267,24 @@ async def move_deal(deal_id: uuid.UUID, body: StageIn, ctx: tuple[Caller, AsyncS
         db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="deal.owner", resource=f"deal:{deal.id}",
                         before={"owner": str(deal.owner_user_id) if deal.owner_user_id else None}, after={"owner": str(person.id)}))
         deal.owner_user_id = person.id
+        changed = True
+        if person.id != caller.user_id:
+            await _tell_new_owner(db, deal, contact, person, caller)
+    if edits:
+        voi = dict(deal.vehicle_of_interest or {})
+        before = {"wants": voi.get("description"), "budget_max": float(deal.budget_max) if deal.budget_max is not None else None,
+                  "payment_method": deal.payment_method, "trade_in": voi.get("trade_in"), "timeline": deal.timeline}
+        for k, v in edits.items():
+            v = v.strip()[:200] or None if isinstance(v, str) else v
+            if k == "wants":
+                voi["description"] = v
+            elif k == "trade_in":
+                voi["trade_in"] = v
+            else:
+                setattr(deal, k, v)
+        deal.vehicle_of_interest = {k: v for k, v in voi.items() if v is not None}
+        db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="deal.edit", resource=f"deal:{deal.id}",
+                        before={k: before[k] for k in edits}, after=edits))
         changed = True
     return {"id": str(deal.id), "stage": deal.stage, "owner_user_id": str(deal.owner_user_id) if deal.owner_user_id else None, "changed": changed}
 

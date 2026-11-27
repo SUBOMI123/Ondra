@@ -25,6 +25,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
+import { clock, fmt, isToday } from "@/lib/time"
 
 type Task = {
   id: string
@@ -44,14 +45,14 @@ type Task = {
 function due(iso: string | null) {
   if (!iso) return ""
   const d = new Date(iso)
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
-  if (d.toDateString() === new Date().toDateString()) return time
-  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${time}`
+  const time = clock(d)
+  if (isToday(d)) return time
+  return `${fmt(d, { weekday: "short", month: "short", day: "numeric" })}, ${time}`
 }
 
 function group(t: Task): "Overdue" | "Today" | "Later" {
   if (t.overdue) return "Overdue"
-  return t.due_at && new Date(t.due_at).toDateString() === new Date().toDateString() ? "Today" : "Later"
+  return t.due_at && isToday(t.due_at) ? "Today" : "Later"
 }
 
 function TaskRow({ t, me, onToggle }: { t: Task; me: boolean; onToggle: () => void }) {

@@ -10,11 +10,13 @@
 import { IconCalendarEvent, IconExternalLink, IconMessage, IconPhone, IconBell } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
+import { useState } from "react"
 import { toast } from "sonner"
 
 import { LoadError } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -22,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { clock, daysAgo, fmt } from "@/lib/time"
 
 export type Stage = "new" | "qualified" | "appointment" | "negotiating" | "won" | "lost"
 export const STAGES: { stage: Stage; label: string }[] = [
@@ -50,14 +53,13 @@ const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD",
 const CHANNEL: Record<string, string> = { sms: "text", whatsapp: "WhatsApp", email: "email", phone: "phone", web: "your website", owner: "the owner" }
 
 export function stamp(iso: string) {
-  const d = new Date(iso)
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
-  const days = Math.round((new Date(d.toDateString()).getTime() - new Date(new Date().toDateString()).getTime()) / 86_400_000)
+  const time = clock(iso)
+  const days = -daysAgo(iso)
   if (days === 0) return `today, ${time}`
   if (days === 1) return `tomorrow, ${time}`
   if (days === -1) return `yesterday, ${time}`
-  if (days > 1 && days < 7) return `${d.toLocaleDateString("en-US", { weekday: "long" })}, ${time}`
-  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`
+  if (days > 1 && days < 7) return `${fmt(iso, { weekday: "long" })}, ${time}`
+  return `${fmt(iso, { month: "short", day: "numeric" })}, ${time}`
 }
 
 function formatPhone(e164?: string | null) {
@@ -76,17 +78,72 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3 py-2 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words">{children}</dd>
+      <dd className="min-w-0 break-words first-letter:uppercase">{children}</dd>
     </div>
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {action}
+      </div>
       {children}
     </section>
+  )
+}
+
+const PAYING = { cash: "Cash", finance: "Finance", lease: "Lease", unknown: "Not sure yet" } as const
+
+/** Correct what Ondra picked up from the conversation, or fill in what it couldn't. */
+function EditWants({ d, onDone }: { d: Detail; onDone: () => void }) {
+  const qc = useQueryClient()
+  const [start] = useState({
+    wants: d.wants ?? "", budget_max: d.budget_max ? String(d.budget_max) : "", payment_method: d.payment_method ?? "unknown",
+    trade_in: d.trade_in ?? "", timeline: d.timeline ?? "",
+  })
+  const [f, setF] = useState(start)
+  const changed = (Object.keys(f) as (keyof typeof f)[]).filter((k) => f[k] !== start[k])
+  const save = useMutation({
+    // Only what changed, so the audit log says what someone actually corrected.
+    mutationFn: () => send("PATCH", `/deals/${d.id}`, Object.fromEntries(changed.map((k) =>
+      [k, k === "budget_max" ? (f.budget_max ? Number(f.budget_max.replace(/[^\d.]/g, "")) : null) : f[k]]))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deal", d.id] })
+      qc.invalidateQueries({ queryKey: ["deals"] })
+      toast("Saved.")
+      onDone()
+    },
+  })
+  const field = (k: keyof typeof f, label: string, placeholder: string, extra?: React.ComponentProps<typeof Input>) => (
+    <div className="grid gap-1.5">
+      <Label htmlFor={`deal-${k}`}>{label}</Label>
+      <Input id={`deal-${k}`} value={f[k]} placeholder={placeholder} onChange={(e) => setF({ ...f, [k]: e.target.value })} {...extra} />
+    </div>
+  )
+  return (
+    <form className="grid gap-3 rounded-xl border p-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      {field("wants", "Wants", "2022 Toyota RAV4 XLE")}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {field("budget_max", "Budget, up to", "$30,000", { inputMode: "numeric" })}
+        <div className="grid gap-1.5">
+          <Label htmlFor="deal-paying">Paying by</Label>
+          <Select value={f.payment_method} onValueChange={(v) => setF({ ...f, payment_method: v })}>
+            <SelectTrigger id="deal-paying" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>{Object.entries(PAYING).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+      {field("trade_in", "Trade-in", "2016 Honda Civic, about 88,000 miles")}
+      {field("timeline", "When", "This weekend")}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" size="sm" disabled={save.isPending || changed.length === 0}>{save.isPending ? "Saving…" : "Save"}</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>Cancel</Button>
+        {save.isError && <p role="alert" className="text-sm">{save.error.message}</p>}
+      </div>
+    </form>
   )
 }
 
@@ -101,6 +158,7 @@ function Body({ d, onMove }: { d: Detail; onMove: (stage: Stage, reason?: string
     },
     onError: (e) => toast(e instanceof Error ? e.message : "Couldn't change who has it. Try again."),
   })
+  const [editing, setEditing] = useState(false)
   const first = d.client.name.split(" ")[0]
   const said = d.messages.filter((m) => m.body)
   const wants = d.car?.name ?? d.wants
@@ -114,7 +172,7 @@ function Body({ d, onMove }: { d: Detail; onMove: (stage: Stage, reason?: string
       </span>
     )] as [string, React.ReactNode]] : []),
     ...(money(d) ? [["Budget", <span key="b" className="tabular-nums">{money(d)}</span>] as [string, React.ReactNode]] : []),
-    ...(d.payment_method ? [["Paying by", d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1)] as [string, React.ReactNode]] : []),
+    ...(d.payment_method ? [["Paying by", PAYING[d.payment_method as keyof typeof PAYING] ?? d.payment_method] as [string, React.ReactNode]] : []),
     ["Trade-in", d.trade_in ?? "None mentioned"],
     ...(d.timeline ? [["When", d.timeline] as [string, React.ReactNode]] : []),
     ...(d.destination ? [["Delivery to", d.destination] as [string, React.ReactNode]] : []),
@@ -170,10 +228,14 @@ function Body({ d, onMove }: { d: Detail; onMove: (stage: Stage, reason?: string
         <p className="text-sm">{d.stage_label}. {d.owner?.name ? `${d.owner.name} has it.` : "Nobody has it yet."}</p>
       )}
 
-      <Section title="What they want">
-        <dl className="divide-y border-y">
-          {facts.map(([k, v]) => <Fact key={k} label={k}>{v}</Fact>)}
-        </dl>
+      <Section title="What they want" action={d.can_move && !editing ? <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Edit</Button> : null}>
+        {editing ? (
+          <EditWants d={d} onDone={() => setEditing(false)} />
+        ) : (
+          <dl className="divide-y border-y">
+            {facts.map(([k, v]) => <Fact key={k} label={k}>{v}</Fact>)}
+          </dl>
+        )}
       </Section>
 
       <Section title="What's next">

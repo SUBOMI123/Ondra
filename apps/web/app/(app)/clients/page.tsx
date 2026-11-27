@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VipTag } from "@/components/vip"
 import { api, type Contact, type Page } from "@/lib/api"
+import { clock, dayKey, daysAgo, fmt } from "@/lib/time"
 
 type Row = Contact & {
   last_contact_at: string | null
@@ -46,13 +47,11 @@ function formatPhone(e164?: string) {
 /** "2:14 pm" today, "Yesterday", a weekday this week, then "Nov 3". */
 function when(iso: string | null) {
   if (!iso) return null
-  const d = new Date(iso)
-  const now = new Date()
-  const days = Math.floor((new Date(now.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86_400_000)
-  if (days === 0) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()
+  const days = daysAgo(iso)
+  if (days === 0) return clock(iso)
   if (days === 1) return "Yesterday"
-  if (days < 7) return d.toLocaleDateString("en-US", { weekday: "long" })
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" })
+  if (days < 7) return fmt(iso, { weekday: "long" })
+  return fmt(iso, { month: "short", day: "numeric", year: dayKey(iso).slice(0, 4) === dayKey(new Date()).slice(0, 4) ? undefined : "numeric" })
 }
 
 function useDebounced<T>(value: T, ms = 250): T {

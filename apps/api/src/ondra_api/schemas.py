@@ -16,6 +16,7 @@ class MeOut(_Out):
     role: str
     tenant_id: uuid.UUID
     tenant_name: str
+    timezone: str = "America/Chicago"  # the dealership's: every time in the dashboard is shown in it
     phone: str | None = None
     mfa_required: bool = False  # Clerk sign-in: their role needs two-step sign-in and they haven't used it
 

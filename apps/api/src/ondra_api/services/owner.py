@@ -102,8 +102,10 @@ async def deliver_alert(tenant_id: uuid.UUID, payload: dict) -> str:
         task = await db.get(Task, uuid.UUID(payload["task_id"])) if payload.get("task_id") else None
         contact_id = payload.get("contact_id") or (str(task.contact_id) if task and task.contact_id else None)
         contact = await db.get(Contact, uuid.UUID(contact_id)) if contact_id else None
-        # The VIP's own owner if they have one, else every owner.
-        handler = await db.get(User, contact.vip_owner_user_id) if contact is not None and contact.vip_owner_user_id else None
+        # A named person (a deal just handed to them), else the VIP's own owner if they have one, else every owner.
+        named = payload.get("user_id")
+        handler = (await db.get(User, uuid.UUID(named)) if named
+                   else await db.get(User, contact.vip_owner_user_id) if contact is not None and contact.vip_owner_user_id else None)
         reachable = handler is not None and handler.active and handler.phone
         # A note meant for the handler alone (they were just put on a VIP) never falls back to the owners.
         to = [handler] if reachable else [] if payload.get("only_handler") else await owners(db)
