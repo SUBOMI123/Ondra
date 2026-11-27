@@ -1,7 +1,8 @@
 "use client"
 
 /**
- * Tasks. One job: "what do I do next?" A to-do list grouped by urgency, where finishing a task is one tap.
+ * Tasks. Mine: "what do I do next?", a to-do list grouped by urgency, where finishing a task is one tap.
+ * Everyone: a board with one column per person, to see whose work is slipping and move it (components/tasks).
  * Where a task came from (Ondra's handoff, a rule) is a quiet mark, and the brief opens only when wanted.
  * Data: GET/POST/PATCH /tasks. Deadlines come from urgency, counted in opening hours; overdue tasks escalate.
  */
@@ -21,7 +22,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { type Person, TeamBoard } from "@/components/tasks/team-board"
+import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
@@ -66,11 +69,12 @@ function TaskRow({ t, me, onToggle }: { t: Task; me: boolean; onToggle: () => vo
           <Checkbox checked={done} onCheckedChange={onToggle} className="mt-0.5 size-5" aria-label={done ? `Mark "${title}" as not done` : `Mark "${title}" as done`} />
           <div className="min-w-0 flex-1">
             <p className={cn("flex items-center gap-1.5 font-medium", done && "text-muted-foreground line-through")}>
-              {t.source === "ai_handoff" && <OndraMark className="size-3.5 shrink-0 text-ai" />}
-              {t.source === "ai_handoff" && <span className="sr-only">Handed off by Ondra:</span>}
+              {t.source === "ai_handoff" && !t.contact?.is_vip && <OndraMark className="size-3.5 shrink-0 text-ai" />}
+              {t.source === "ai_handoff" && !t.contact?.is_vip && <span className="sr-only">Handed off by Ondra:</span>}
               <span className="truncate first-letter:uppercase">{title}</span>
             </p>
-            <p className="truncate text-sm text-muted-foreground">
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-sm text-muted-foreground">
+              {t.contact?.is_vip && <VipTag />}
               {t.contact?.name ?? "No client"}
               {!me && t.assignee?.name && `, ${t.assignee.name}`}
               {t.escalated && !done && ", escalated"}
@@ -153,7 +157,7 @@ export default function TasksPage() {
   const [who, setWho] = useState<"mine" | "all">("mine")
   const [showDone, setShowDone] = useState(false)
   const [adding, setAdding] = useState(false)
-  const open = useQuery({ queryKey: ["tasks", who, "open"], queryFn: () => api<{ items: Task[] }>(`/tasks?scope=${who}&status=open`) })
+  const open = useQuery({ queryKey: ["tasks", who, "open"], queryFn: () => api<{ items: Task[]; people?: Person[] }>(`/tasks?scope=${who}&status=open`) })
   const done = useQuery({
     queryKey: ["tasks", who, "done"],
     queryFn: () => api<{ items: Task[] }>(`/tasks?scope=${who}&status=done`),
@@ -182,12 +186,14 @@ export default function TasksPage() {
   return (
     <>
       <SiteHeader title="Tasks" />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
+      <div className={cn("mx-auto flex w-full flex-col gap-6 px-4 py-6 lg:px-6", who === "mine" ? "max-w-3xl" : "min-w-0")}>
         <div className="flex items-center justify-between gap-3">
-          <ToggleGroup type="single" variant="outline" size="sm" value={who} onValueChange={(v) => v && setWho(v as "mine" | "all")} aria-label="Whose tasks">
-            <ToggleGroupItem value="mine" className="px-3">Mine</ToggleGroupItem>
-            <ToggleGroupItem value="all" className="px-3">Everyone</ToggleGroupItem>
-          </ToggleGroup>
+          <Tabs value={who} onValueChange={(v) => setWho(v as "mine" | "all")}>
+            <TabsList aria-label="Whose tasks">
+              <TabsTrigger value="mine">Mine</TabsTrigger>
+              <TabsTrigger value="all">Everyone</TabsTrigger>
+            </TabsList>
+          </Tabs>
           {!adding && (
             <Button size="sm" onClick={() => setAdding(true)}>
               <IconPlus /> New task
@@ -203,6 +209,8 @@ export default function TasksPage() {
             <p>Tasks didn&apos;t load. {open.error instanceof Error ? open.error.message : ""}</p>
             <Button variant="outline" onClick={() => open.refetch()}>Try again</Button>
           </div>
+        ) : who === "all" && open.data.people ? (
+          <TeamBoard tasks={items} people={open.data.people} onToggle={(t) => toggle(t as Task)} />
         ) : groups.length === 0 ? (
           <p className="rounded-xl border p-6 text-sm text-muted-foreground">You&apos;re clear. New handoffs from Ondra land here.</p>
         ) : (

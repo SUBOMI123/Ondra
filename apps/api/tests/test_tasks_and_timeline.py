@@ -77,3 +77,16 @@ async def test_timeline_merges_messages_and_tasks_newest_first(client, database)
     assert {"message", "task"} <= kinds
     assert [i["at"] for i in items] == sorted((i["at"] for i in items), reverse=True)
     assert items[0]["kind"] == "task" and items[0]["title"] == "Timeline check"
+
+
+async def test_the_team_board_lists_everyone_who_takes_work_and_moves_tasks_between_them(client, database):
+    owner = await login(client, "owner@prestigemotors.example")
+    board = (await client.get("/tasks?scope=all", headers=owner)).json()
+    people = {p["name"]: p for p in board["people"]}
+    assert {"Daniel Okafor", "Samuel Adeyemi", "Grace Thompson"} <= set(people)
+    assert all(p["role"] != "admin" for p in board["people"])  # admins set things up; they don't take tasks
+    assert "people" not in (await client.get("/tasks?scope=mine", headers=owner)).json()
+    t = (await client.post("/tasks", headers=owner, json={"title": "Check the trade-in on the Rogue"})).json()
+    moved = (await client.patch(f"/tasks/{t['id']}", headers=owner, json={"assignee_user_id": people["Grace Thompson"]["id"]})).json()
+    assert moved["assignee"]["name"] == "Grace Thompson"
+    await client.patch(f"/tasks/{t['id']}", headers=owner, json={"status": "cancelled"})

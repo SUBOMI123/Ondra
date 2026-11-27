@@ -108,8 +108,9 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Settings as an index of pages in four groups | Done |
 | Clients list: search by name, phone or email; deal, who looks after them, last in touch; paged | Done |
 | Deals: salesperson from the start, next step on each card, drag between stages, Mine, deal panel | Done |
-| Tasks team board | Next |
-| Inventory, Calls actions | To do |
+| Tasks: Mine stays a list; Everyone is a board with a column per person, drag or menu to reassign | Done |
+| Inventory | Next |
+| Calls actions | To do |
 
 ## Voice backlog (parked 2026-11-27)
 

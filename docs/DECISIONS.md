@@ -773,3 +773,16 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   dealership's calendar too.
 - **Alternatives:** the reader's own zone (what browsers do by default; wrong for a business with opening hours),
   or both zones on every time (noisy). The greeting on Today still follows the reader's clock: it's about them.
+
+## 2026-11-27: Tasks for everyone is a board by person; your own stay a list
+
+- **Mine stays a list** grouped Overdue, Today, Later: one person working down their to-dos wants order, not columns.
+- **Everyone is a board, one column per person who takes work** (owners, managers, sales, service, operations;
+  admins set things up and don't take tasks), busiest-with-overdue first, plus "Nobody yet" when something is
+  unassigned. Each column header says how much is open and how much is overdue (red, which means overdue). It
+  answers the manager's question: whose work is slipping, and who's free.
+- **Drag a task to someone to give it to them** (press and hold on a phone), or use its "Give to" menu, which is
+  the keyboard way. Undo in the toast. The same drag library as the Deals board.
+- **VIP tasks carry the VIP tag** in both views, and never Ondra's mark (a VIP surface shows nothing AI-blue).
+- **Not built:** notifying someone a task was given to them (it lands in their list and the sidebar count),
+  workload limits, and filtering the board by team.
