@@ -199,3 +199,46 @@ async def test_the_inbox_is_newest_activity_first_across_messages_and_calls(clie
     stamps = [r["last_message"]["at"] for r in (await client.get("/conversations", headers=owner)).json()["items"]
               if r["last_message"]["at"]]
     assert stamps == sorted(stamps, reverse=True)
+
+
+async def test_a_caller_who_rings_again_is_one_call_back_one_task_and_one_text(client, database):
+    channels.mock("sms").outbox.clear()
+    stranger = NEW_CALLERS[1]
+    for _ in range(3):
+        plan = await calls.start_call(from_number=stranger, to_number=DEALER, provider_call_sid=_sid())
+        await calls.finish_call(plan.tenant_id, plan.call_id, handled_by="missed", outcome="no answer")
+    await worker.run_once()
+    async with tenant_session(database["a"]) as db:
+        tasks = (await db.execute(select(Task).where(Task.contact_id == plan.contact_id))).scalars().all()
+        assert len(tasks) == 1 and tasks[0].title.endswith("(called 3 times)") and tasks[0].urgency == "high"
+    owner = await login(client, "owner@prestigemotors.example")
+    body = (await client.get("/calls?show=missed", headers=owner)).json()
+    mine = [c for c in body["items"] if c["from_number"] == stranger]
+    assert len(mine) == 1 and mine[0]["rings"] == 3 and mine[0]["callback_by"]
+    assert all(c["handled_by"] == "missed" for c in body["items"]) and body["counts"]["missed"] >= 1
+    assert {"all", "missed", "ondra", "people"} <= set(body["counts"])
+
+    # Rang back, voicemail: noted, still waiting.
+    r = (await client.post(f"/calls/{mine[0]['id']}/called-back", json={"result": "left_message"}, headers=owner)).json()
+    assert r["needs_callback"] and r["attempts"][0]["by"]
+    # Reached: all three calls and the task are done, with who did it.
+    r = (await client.post(f"/calls/{mine[0]['id']}/called-back", json={"result": "reached"}, headers=owner)).json()
+    assert not r["needs_callback"] and r["called_back"]["by"]
+    after = (await client.get("/calls", headers=owner)).json()["items"]
+    assert [c for c in after if c["from_number"] == stranger and c["needs_callback"]] == []
+    async with tenant_session(database["a"]) as db:
+        assert (await db.get(Task, tasks[0].id)).status == "done"
+    # Undo puts all of it back.
+    r = (await client.post(f"/calls/{mine[0]['id']}/reopen", headers=owner)).json()
+    assert r["needs_callback"]
+    again = [c for c in (await client.get("/calls?show=missed", headers=owner)).json()["items"] if c["from_number"] == stranger]
+    assert len(again) == 1 and again[0]["rings"] == 3
+    async with tenant_session(database["a"]) as db:
+        assert (await db.get(Task, tasks[0].id)).status == "open"
+
+    # Finishing the call-back task on Tasks clears the call-back list too.
+    await client.patch(f"/tasks/{tasks[0].id}", json={"status": "done"}, headers=owner)
+    assert not any(c["from_number"] == stranger and c["needs_callback"] for c in (await client.get("/calls", headers=owner)).json()["items"])
+    # Only missed calls take a call-back.
+    answered = next(c for c in after if c["handled_by"] == "ai")
+    assert (await client.post(f"/calls/{answered['id']}/called-back", headers=owner)).status_code == 409

@@ -110,7 +110,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Deals: salesperson from the start, next step on each card, drag between stages, Mine, deal panel | Done |
 | Tasks: Mine stays a list; Everyone is a board with a column per person, drag or menu to reassign | Done |
 | Inventory: days on the lot, buyers asking, make filter and sorts, hold/sold from the row, car panel with buyers | Done |
-| Calls actions | Next |
+| Calls: filters (missed, Ondra answered, put through), one row per waiting caller, call and mark done from the row, who rang back and how long it took, undo | Done |
 
 ## Voice backlog (parked 2026-11-27)
 

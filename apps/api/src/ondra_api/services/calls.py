@@ -13,11 +13,11 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from ondra_core.channels.identity import normalize_phone
-from ondra_core.models import Call, Contact, ContactIdentity, Conversation, Event, Message, Tenant, User
+from ondra_core.models import Call, Contact, ContactIdentity, Conversation, Event, Message, Task, Tenant, User
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,10 +153,58 @@ async def _has_text_consent(db: AsyncSession, contact_id: uuid.UUID) -> bool:
     return row == "opted_in"
 
 
+# The briefs on the call-back tasks a missed call creates. They tie a task to its missed calls: finishing the task
+# marks the calls called back, and marking a call called back finishes the task.
+CALLBACK_BRIEFS = ("Missed call.", "A VIP called and nobody answered.")
+# Someone who rings three times in ten minutes gets one "sorry we missed you" text, not three.
+TEXT_BACK_GAP = timedelta(hours=2)
+
+
+async def open_callback_tasks(db: AsyncSession, contact_id: uuid.UUID) -> list[Task]:
+    return list((await db.execute(select(Task).where(
+        Task.contact_id == contact_id, Task.source == "rule", Task.brief.in_(CALLBACK_BRIEFS),
+        Task.status.in_(("open", "in_progress"))))).scalars())
+
+
+async def waiting_calls(db: AsyncSession, call: Call) -> list[Call]:
+    """Every missed call from the same caller still waiting for a call-back: one call back answers them all."""
+    who = Call.contact_id == call.contact_id if call.contact_id else Call.from_number == call.from_number
+    return list((await db.execute(select(Call).where(who, Call.handled_by == "missed",
+                                                     Call.callback_done_at.is_(None)))).scalars())
+
+
+async def mark_called_back(db: AsyncSession, call: Call, by: uuid.UUID | None, *, finished: tuple[Task, ...] = ()) -> dict:
+    """Mark the caller's waiting missed calls as called back and finish the call-back task. Returns what changed, so
+    it can be undone."""
+    now = datetime.now(UTC)
+    calls = await waiting_calls(db, call)
+    tasks = await open_callback_tasks(db, call.contact_id) if call.contact_id else []
+    stamp = {"by": str(by) if by else None, "at": now.isoformat(), "calls": [str(c.id) for c in calls],
+             "tasks": [str(t.id) for t in (*finished, *tasks)]}
+    for c in calls:
+        c.callback_done_at = now
+        c.metrics = {**(c.metrics or {}), "callback": stamp}
+    for t in tasks:
+        t.status = "done"
+        db.add(Event(type="task.completed", payload={"task_id": str(t.id), "by": stamp["by"], "via": "call"}))
+    db.add(Event(type="call.called_back", payload={"call_id": str(call.id), **stamp}))
+    return stamp
+
+
 async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None:
     from ondra_api.services.tasks import new_task
 
     if contact is None:
+        return
+    if open_tasks := await open_callback_tasks(db, contact.id):
+        # They've called again before anyone rang back: one task, not one per ring. Make it more urgent instead.
+        n = len(await waiting_calls(db, call))
+        for t in open_tasks:
+            t.title = t.title.split(" (called ")[0] + f" (called {n} times)"
+            t.urgency = "high"
+        if contact.is_vip:  # a VIP ringing again still reaches the owner, every time
+            db.add(Event(type="alert.created", payload={"to": "owner", "urgency": "high", "reason": "VIP called again",
+                                                        "contact_id": str(contact.id)}))
         return
     first = contact.display_name.split()[0] if not contact.display_name.startswith("+") else "the caller"
     if contact.is_vip:
@@ -168,7 +216,12 @@ async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None
         db.add(Event(type="alert.created", payload={"to": "owner", "urgency": "high", "reason": "VIP call missed",
                                                     "contact_id": str(contact.id)}))
         return
-    if await _has_text_consent(db, contact.id):
+    recent_text = (await db.execute(select(Event.id).where(
+        Event.type == "call.text_back", Event.created_at > datetime.now(UTC) - TEXT_BACK_GAP,
+        Event.payload["contact_id"].astext == str(contact.id)).limit(1))).first()
+    if recent_text:
+        db.add(Event(type="call.text_back_skipped", payload={"call_id": str(call.id), "reason": "texted recently"}))
+    elif await _has_text_consent(db, contact.id):
         # Text back through the one send path (opt-outs re-checked there). Queued now: goes out within a minute.
         sms = (await db.execute(select(Conversation).where(Conversation.contact_id == contact.id, Conversation.channel == "sms",
                                                            Conversation.status != "closed").limit(1))).scalar_one_or_none()
@@ -182,7 +235,8 @@ async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None
         db.add(m)
         await db.flush()
         enqueue(db, "send_message", {"message_id": str(m.id)})
-        db.add(Event(type="call.text_back", payload={"call_id": str(call.id), "message_id": str(m.id)}))
+        db.add(Event(type="call.text_back", payload={"call_id": str(call.id), "message_id": str(m.id),
+                                                    "contact_id": str(contact.id)}))
     else:
         from ondra_api.services.inbound import contact_opted_out
 

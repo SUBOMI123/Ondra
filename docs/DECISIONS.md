@@ -804,3 +804,25 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   forty identical icons are clutter.
 - **Not built:** price changes from the list, aging alerts to the owner, and matching buyers from conversations that
   haven't become deals.
+
+## 2026-11-27: A call-back is per caller, and it's the same thing as the call-back task
+
+- **One row per waiting caller.** Someone who rings three times before anyone rings back is one row ("Rang 3 times
+  since 11:26 am"), one task ("Call Carmen back (called 3 times)", raised to high urgency), and one "sorry we missed
+  you" text: a second text inside two hours is skipped and recorded as "texted recently". A VIP ringing again still
+  alerts the owner every time.
+- **Marking a call called back and finishing the "Call X back" task are one action**, whichever screen it's done
+  from: "Spoke to them" on Calls finishes the task, and ticking the task on Tasks clears the caller from the
+  call-back list. The link is the task's rule source and its brief, not a new column. Undo puts the calls and the
+  task back together.
+- **Two outcomes, not one:** "Spoke to them" (done) and "No answer, left a message" (noted with who and when; they
+  stay on the list). A dealer's real call-back often reaches voicemail, and marking that "done" would lose the lead.
+- **Every row says who's on it and what's happened:** "For Daniel to call back" (the task's assignee), "Daniel left a
+  message at 12:21 pm", and once done, "Called back by Daniel 35 minutes later": the time to call back is what a
+  manager checks.
+- **Calling is a `tel:` link that shows the number.** On a phone it dials; at a desk the number is right there to
+  dial from the desk phone. Calling out through Ondra's own line (so the caller sees the dealer's number and the
+  call is logged) needs Twilio outbound and is not built.
+- **Filters:** All, Missed, Ondra answered, Put through (to staff or the owner), with `?show=` in the URL.
+- **Not built:** click-to-call through the dealer's line, logging call-backs automatically from that call, and a
+  time-to-call-back figure on Today.

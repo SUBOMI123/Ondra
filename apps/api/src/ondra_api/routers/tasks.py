@@ -22,6 +22,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
+from ondra_api.services.calls import CALLBACK_BRIEFS, mark_called_back
 from ondra_api.services.tasks import new_task
 
 router = APIRouter(tags=["tasks"])
@@ -122,6 +123,12 @@ async def update_task(task_id: uuid.UUID, body: TaskPatch,
         db.add(Event(type=f"task.{'completed' if body.status == 'done' else body.status}",
                      payload={"task_id": str(t.id), "by": str(caller.user_id)}))
         t.status = body.status
+        if t.status == "done" and t.source == "rule" and t.brief in CALLBACK_BRIEFS and t.contact_id:
+            # Finishing "Call Jordan back" is calling Jordan back: his missed calls leave the call-back list too.
+            waiting = (await db.execute(select(Call).where(Call.contact_id == t.contact_id, Call.handled_by == "missed",
+                                                           Call.callback_done_at.is_(None)).limit(1))).scalar_one_or_none()
+            if waiting is not None:
+                await mark_called_back(db, waiting, caller.user_id, finished=(t,))
     if body.assignee_user_id and body.assignee_user_id != t.assignee_user_id:
         await _active_user(db, body.assignee_user_id)
         t.assignee_user_id = body.assignee_user_id

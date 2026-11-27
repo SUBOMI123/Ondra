@@ -1,19 +1,17 @@
 "use client"
 
 /**
- * Calls. One job: who needs a call back, and what happened on each call.
- * A call Ondra is on sits on top. Call-backs come next, each saying why in words (including why no text went
- * out: the consent rule), then everything earlier. Details open in a side sheet with Ondra's summary and the
- * transcript. VIP calls ring the owner directly, so they never carry an Ondra summary or transcript.
- * Data: GET /calls, GET /calls/{id}, POST /calls/{id}/called-back; live updates refresh it.
+ * Calls. One job: ring back everyone who's waiting, and see what happened on every other call.
+ * A call Ondra is on sits on top. Call-backs come next, one row per caller however many times they rang, each saying
+ * why in words (including why no text went out: the consent rule), who's to ring them, and any try so far. Each row
+ * dials in one tap and is marked done ("Spoke to them") or tried ("Left a message") right there. Everything earlier
+ * says who rang back and how long it took. Filters: missed, Ondra answered, put through to a person.
+ * Details open in a side sheet with Ondra's summary and the transcript. VIP calls ring the owner directly, so they
+ * never carry an Ondra summary or transcript.
+ * Data: GET /calls?show=, GET /calls/{id}, POST /calls/{id}/called-back, POST /calls/{id}/reopen; live updates refresh it.
  */
 
-import {
-  IconPhone,
-  IconPhoneCall,
-  IconPhoneIncoming,
-  IconPhoneX,
-} from "@tabler/icons-react"
+import { IconChevronDown, IconPhone, IconPhoneCall, IconPhoneIncoming, IconPhoneX } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -23,13 +21,15 @@ import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
 import { VipTag } from "@/components/vip"
-import { clock, fmt, isToday } from "@/lib/time"
+import { clock, daysAgo, fmt, isToday } from "@/lib/time"
 
 type Handled = "ai" | "staff" | "owner" | "missed" | null
 type Call = {
@@ -48,7 +48,16 @@ type Call = {
   text_back: { sent: boolean; reason?: string } | null
   line: string
   recording_notice: boolean
+  called_back: Stamp | null
+  attempts: Stamp[]
+  /** On the call-back list only: how many times they rang before anyone rang back, and who's to ring them. */
+  rings?: number
+  first_rang_at?: string | null
+  callback_by?: string | null
 }
+type Stamp = { by: string | null; at: string | null }
+type Show = "all" | "missed" | "ondra" | "people"
+const SHOWS: [Show, string][] = [["all", "All"], ["missed", "Missed"], ["ondra", "Ondra answered"], ["people", "Put through"]]
 type CallDetail = Call & {
   transcript: { who: "agent" | "caller"; text: string }[]
   recording_url: string | null
@@ -88,14 +97,44 @@ function who(c: Call) {
   return c.contact && !c.contact.name.startsWith("+") ? c.contact.name : phone(c.from_number) || "Unknown caller"
 }
 
+function times(n: number) {
+  return n === 2 ? "twice" : `${n} times`
+}
+
+function firstName(name: string | null | undefined) {
+  return name?.split(" ")[0] ?? "Someone"
+}
+
+/** "35 minutes later", "3 hours later", "the next day": how long the caller waited. */
+function later(from: string | null, to: string | null) {
+  if (!from || !to) return ""
+  const mins = Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000))
+  if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"} later`
+  const h = Math.round(mins / 60)
+  if (h < 24) return `${h} ${h === 1 ? "hour" : "hours"} later`
+  return daysAgo(from) - daysAgo(to) === 1 ? "the next day" : `${Math.round(h / 24)} days later`
+}
+
+/** Who rang back, or who's to, and any tries so far: "Daniel left a message at 2:18 pm". */
+function progress(c: Call) {
+  if (c.called_back) return `Called back by ${firstName(c.called_back.by)} ${later(c.started_at, c.called_back.at)}`
+  const last = c.attempts[c.attempts.length - 1]
+  const tried = last ? `${firstName(last.by)} left a message ${isToday(last.at!) ? "at" : "on"} ${when(last.at)}` : ""
+  // Who's to ring them, unless it's the same person who already tried ("Daniel left a message" says it).
+  const owner = c.callback_by && (!last || last.by !== c.callback_by) ? `For ${firstName(c.callback_by)} to call back` : ""
+  return [owner, tried].filter(Boolean).join(". ")
+}
+
 /** Why a call is on the call-back list, or what happened, in plain words. */
 function why(c: Call) {
   if (c.handled_by === "missed") {
-    if (c.contact?.is_vip) return "Missed. Nobody picked up"
-    if (c.text_back?.sent) return "Missed. Ondra texted them back"
-    if (c.text_back?.reason === "opted out") return "Missed. No text sent: they opted out of texts"
-    if (c.text_back) return "Missed. No text sent: they haven't agreed to texts"
-    return "Missed call"
+    const missed = (c.rings ?? 1) > 1 ? `Rang ${times(c.rings!)} since ${when(c.first_rang_at ?? null)}` : "Missed"
+    if (c.contact?.is_vip) return `${missed}. Nobody picked up`
+    if (c.text_back?.sent) return `${missed}. Ondra texted them back`
+    if (c.text_back?.reason === "texted recently") return `${missed}. Ondra texted them back`
+    if (c.text_back?.reason === "opted out") return `${missed}. No text sent: they opted out of texts`
+    if (c.text_back) return `${missed}. No text sent: they haven't agreed to texts`
+    return (c.rings ?? 1) > 1 ? missed : "Missed call"
   }
   if (c.handled_by === "ai") return c.summary ?? "Answered by Ondra"
   if (c.handled_by === "staff" && c.transferred_to) return `Put through to ${c.transferred_to}`
@@ -135,6 +174,54 @@ function LiveCall({ c, onOpen }: { c: Call; onOpen: () => void }) {
   )
 }
 
+/* ---------------------------------------------------------------- call-back actions */
+
+function useCallBack() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ["calls"] })
+  return useMutation({
+    mutationFn: (v: { c: Call; result: "reached" | "left_message" }) =>
+      send<Call>("POST", `/calls/${v.c.id}/called-back`, { result: v.result }),
+    onSuccess: (_r, { c, result }) => {
+      const first = who(c).split(" ")[0]
+      if (result === "left_message") toast(`Noted. ${first} stays on the call-back list.`)
+      else
+        toast(`${first} is marked as called back.`, {
+          action: { label: "Undo", onClick: () => send("POST", `/calls/${c.id}/reopen`).then(refresh, () => toast("Couldn't undo it. Try again.")) },
+        })
+      refresh()
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "That didn't save. Try again."),
+  })
+}
+
+function CallBackActions({ c, compact }: { c: Call; compact?: boolean }) {
+  const done = useCallBack()
+  const first = who(c).split(" ")[0]
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {c.from_number && (
+        <Button variant={compact ? "outline" : "default"} size={compact ? "sm" : "default"} asChild>
+          <a href={`tel:${c.from_number}`} aria-label={`Call ${who(c)} on ${phone(c.from_number)}`}>
+            <IconPhone /> {compact ? <span className="tabular-nums">{phone(c.from_number)}</span> : `Call ${first} back`}
+          </a>
+        </Button>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size={compact ? "sm" : "default"} disabled={done.isPending}>
+            Called back <IconChevronDown />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => done.mutate({ c, result: "reached" })}>Spoke to {first}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => done.mutate({ c, result: "left_message" })}>No answer, left a message</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 /* ---------------------------------------------------------------- list */
 
 function CallRow({ c, onOpen }: { c: Call; onOpen: () => void }) {
@@ -142,35 +229,36 @@ function CallRow({ c, onOpen }: { c: Call; onOpen: () => void }) {
   const missed = c.handled_by === "missed"
   const ai = c.handled_by === "ai"
   const Icon = missed ? IconPhoneX : IconPhoneIncoming
+  const note = missed ? progress(c) : ""
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        data-vip={vip || undefined}
-        className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted"
-      >
-        <span className="pt-1">
-          <Icon
-            className={cn("size-4 shrink-0", missed && vip ? "text-foreground" : ai ? "text-ai" : "text-muted-foreground")}
-            aria-label={missed ? "Missed call" : "Incoming call"}
-          />
+    <li data-vip={vip || undefined} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/50">
+      <span className="pt-1">
+        <Icon
+          className={cn("size-4 shrink-0", missed && vip ? "text-foreground" : ai ? "text-ai" : "text-muted-foreground")}
+          aria-label={missed ? "Missed call" : "Incoming call"}
+        />
+      </span>
+      <button type="button" onClick={onOpen} className="min-w-0 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <span className="flex items-center gap-1.5 font-medium">
+          {vip && <VipTag />}
+          <span className="truncate">{who(c)}</span>
         </span>
-        <span className="min-w-0">
-          <span className="flex items-center gap-1.5 font-medium">
-            {vip && <VipTag />}
-            <span className="truncate">{who(c)}</span>
-          </span>
-          <span className="mt-0.5 flex items-start gap-1.5 text-sm text-muted-foreground">
-            {ai && <OndraMark className="mt-0.5 size-3.5 shrink-0 text-ai" />}
-            <span className="line-clamp-2">{why(c)}</span>
-          </span>
+        <span className="mt-0.5 flex items-start gap-1.5 text-sm text-muted-foreground">
+          {ai && <OndraMark className="mt-0.5 size-3.5 shrink-0 text-ai" />}
+          {ai && <span className="sr-only">Summary by Ondra:</span>}
+          <span className="line-clamp-2">{why(c)}</span>
         </span>
-        <span className="text-right text-xs text-muted-foreground tabular-nums">
-          {when(c.started_at)}
-          {c.duration_s ? <span className="block">{length(c.duration_s)}</span> : null}
-        </span>
+        {note && <span className="mt-0.5 block text-sm text-muted-foreground">{note}</span>}
       </button>
+      <span className="text-right text-xs text-muted-foreground tabular-nums">
+        {when(c.started_at)}
+        {c.duration_s ? <span className="block">{length(c.duration_s)}</span> : null}
+      </span>
+      {c.needs_callback && (
+        <div className="col-start-2 col-end-4">
+          <CallBackActions c={c} compact />
+        </div>
+      )}
     </li>
   )
 }
@@ -197,16 +285,7 @@ function Group({ id, title, calls, onOpen, empty }: { id: string; title: string;
 /* ---------------------------------------------------------------- details */
 
 function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const qc = useQueryClient()
   const q = useQuery({ queryKey: ["calls", id], queryFn: () => api<CallDetail>(`/calls/${id}`), enabled: !!id })
-  const done = useMutation({
-    mutationFn: () => send("POST", `/calls/${id}/called-back`),
-    onSuccess: () => {
-      toast("Marked as called back.")
-      qc.invalidateQueries({ queryKey: ["calls"] })
-    },
-    onError: (e) => toast(e instanceof Error ? e.message : "That didn't save. Try again."),
-  })
   const c = q.data
   const vip = !!c?.contact?.is_vip
   const first = c ? who(c).split(" ")[0] : ""
@@ -239,20 +318,7 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
               </SheetDescription>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 text-sm">
-              {c.needs_callback && (
-                <div className="flex flex-wrap gap-2">
-                  {c.from_number && (
-                    <Button asChild>
-                      <a href={`tel:${c.from_number}`}>
-                        <IconPhone /> Call {first} back
-                      </a>
-                    </Button>
-                  )}
-                  <Button variant="outline" disabled={done.isPending} onClick={() => done.mutate()}>
-                    Mark as called back
-                  </Button>
-                </div>
-              )}
+              {c.needs_callback && <CallBackActions c={c} />}
               <p className={cn(c.handled_by === "missed" && vip && "font-medium text-foreground", c.handled_by === "ai" && "text-ai")}>
                 {vip && c.handled_by !== "missed"
                   ? "Rang you directly. Ondra doesn't answer VIP calls."
@@ -260,6 +326,7 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
                     ? "Answered by Ondra."
                     : why(c)}
               </p>
+              {c.handled_by === "missed" && progress(c) && <p className="text-muted-foreground">{progress(c)}</p>}
               {c.recording_notice && <p className="text-muted-foreground">Recording notice played</p>}
 
               {!vip && c.summary && (
@@ -337,30 +404,56 @@ function CallSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
 
 /* ---------------------------------------------------------------- page */
 
+const EMPTY: Record<Show, string> = {
+  all: "No other calls yet.",
+  missed: "No missed calls.",
+  ondra: "Ondra hasn't answered a call yet.",
+  people: "No calls have been put through to your team yet.",
+}
+
 export default function CallsPage() {
   useLiveInbox()
-  const q = useQuery({ queryKey: ["calls"], queryFn: () => api<{ items: Call[] }>("/calls") })
+  const [show, setShowState] = useState<Show>("all")
+  const q = useQuery({ queryKey: ["calls", "list", show], queryFn: () => api<{ items: Call[] }>(`/calls?show=${show}`) })
   const [open, setOpen] = useState<string | null>(null)
-  // Deep link from the Inbox: /calls?call=<id> opens that call.
+  // Deep links: /calls?call=<id> opens that call (from the Inbox); /calls?show=missed picks a filter.
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("call")
+    const p = new URLSearchParams(window.location.search)
+    const id = p.get("call")
     if (id) setOpen(id)
+    const s = p.get("show") as Show | null
+    if (s && SHOWS.some(([k]) => k === s)) setShowState(s)
   }, [])
+  const setShow = (s: Show) => {
+    setShowState(s)
+    const url = new URL(window.location.href)
+    if (s === "all") url.searchParams.delete("show")
+    else url.searchParams.set("show", s)
+    window.history.replaceState(null, "", url)
+  }
 
   const items = q.data?.items ?? []
   const live = items.filter((c) => c.live)
   const callbacks = items.filter((c) => !c.live && c.needs_callback)
   const earlier = items.filter((c) => !c.live && !c.needs_callback)
+  const nothingAtAll = show === "all" && items.length === 0
 
   return (
     <>
       <SiteHeader title="Calls" />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
+        {!nothingAtAll && (
+          <Tabs value={show} onValueChange={(v) => setShow(v as Show)}>
+            <TabsList aria-label="Show" className="max-w-full justify-start overflow-x-auto">
+              {SHOWS.map(([k, label]) => <TabsTrigger key={k} value={k}>{label}</TabsTrigger>)}
+            </TabsList>
+          </Tabs>
+        )}
         {q.isPending ? (
           <TableSkeleton rows={6} />
         ) : q.isError ? (
           <LoadError message={q.error.message} onRetry={() => q.refetch()} />
-        ) : items.length === 0 ? (
+        ) : nothingAtAll ? (
           <div className="rounded-xl border p-6">
             <p className="font-medium">No calls yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -369,13 +462,21 @@ export default function CallsPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="flex flex-col gap-8">
             {live.map((c) => (
               <LiveCall key={c.id} c={c} onOpen={() => setOpen(c.id)} />
             ))}
-            <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty="Nobody is waiting for a call back." />
-            <Group id="earlier" title="Earlier" calls={earlier} onOpen={(c) => setOpen(c.id)} empty="No other calls yet." />
-          </>
+            {(show === "all" || show === "missed") && (
+              <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty="Nobody is waiting for a call back." />
+            )}
+            <Group
+              id="earlier"
+              title={show === "all" || show === "missed" ? "Earlier" : (SHOWS.find(([k]) => k === show)?.[1] ?? "Calls")}
+              calls={earlier}
+              onOpen={(c) => setOpen(c.id)}
+              empty={EMPTY[show]}
+            />
+          </div>
         )}
       </div>
       <CallSheet id={open} onClose={() => setOpen(null)} />

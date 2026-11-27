@@ -281,7 +281,7 @@ async def _seed_after_hours_lead(db, t, contacts: dict, users: dict) -> None:
 
 
 async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
-    """Four example calls, one per state the Calls screen shows. Example data, like the rest of the seed."""
+    """Example calls, one per state the Calls screen shows. Example data, like the rest of the seed."""
     now = datetime.now(UTC)
 
     def at(minutes_ago: int) -> datetime:
@@ -295,7 +295,7 @@ async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
         await db.flush()
         phone = (await db.execute(select(ContactIdentity.value).where(ContactIdentity.contact_id == c.id,
                                                                       ContactIdentity.kind == "phone"))).scalar_one()
-        k = Call(tenant_id=t, conversation_id=conv.id, contact_id=c.id, provider_call_sid=f"seed-{name}", direction="inbound",
+        k = Call(tenant_id=t, conversation_id=conv.id, contact_id=c.id, provider_call_sid=kw.pop("sid", f"seed-{name}"), direction="inbound",
                  started_at=at(minutes_ago), ended_at=at(minutes_ago) + timedelta(seconds=secs), duration_s=secs,
                  handled_by=handled_by, outcome=outcome, from_number=phone, to_number=DEALER_PHONE, **kw)
         db.add(k)
@@ -329,6 +329,22 @@ async def _seed_calls(db, t, contacts: dict, users: dict) -> None:
     db.add(Task(tenant_id=t, title="Jordan Price: Call Jordan back", contact_id=contacts["Jordan Price"].id,
                 conversation_id=conv.id, assignee_user_id=users["sales"].id, source="rule", urgency="normal",
                 brief="Missed call.", due_at=at(-100)))
+    # 5. Rang twice before anyone rang back: one text (the second ring doesn't text again), one task, one try so far.
+    sales = str(users["sales"].id)
+    conv, first_ring = await call("Carmen Ortiz", 95, 0, "missed", "no answer", status="waiting_staff")
+    db.add(Event(tenant_id=t, type="call.text_back", payload={"call_id": str(first_ring.id),
+                                                              "contact_id": str(contacts["Carmen Ortiz"].id)}))
+    _, second = await call("Carmen Ortiz", 70, 0, "missed", "no answer", status="waiting_staff", sid="seed-Carmen Ortiz-2",
+                           metrics={"callback_attempts": [{"by": sales, "at": at(40).isoformat()}]})
+    db.add(Event(tenant_id=t, type="call.text_back_skipped", payload={"call_id": str(second.id), "reason": "texted recently"}))
+    db.add(Task(tenant_id=t, title="Carmen Ortiz: Call Carmen back (called 2 times)", contact_id=contacts["Carmen Ortiz"].id,
+                conversation_id=conv.id, assignee_user_id=users["sales"].id, source="rule", urgency="high",
+                brief="Missed call.", due_at=at(-30)))
+    # 6. Missed yesterday, and Daniel rang back within the hour.
+    _, k = await call("Andre Jackson", 26 * 60, 0, "missed", "no answer", status="waiting_customer")
+    k.callback_done_at = at(26 * 60 - 35)
+    k.metrics = {"callback": {"by": sales, "at": k.callback_done_at.isoformat(), "calls": [str(k.id)], "tasks": []}}
+    db.add(Event(tenant_id=t, type="call.text_back_skipped", payload={"call_id": str(k.id), "reason": "no recorded consent"}))
 
 
 async def seed(if_empty: bool = False) -> uuid.UUID | None:
