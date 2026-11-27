@@ -107,3 +107,34 @@ def test_discount_and_price_checks_on_spoken_replies(sentence, blocked):
 ])
 def test_delivery_date_promises(sentence, blocked):
     assert bool(review_reply(sentence, ReplyContext())) is blocked
+
+
+@pytest.mark.parametrize("said, amounts", [
+    ("What do you have in SUVs under thirty grand?", [30000]),
+    ("my budget is about 25 thousand", [25000]),
+    ("around twenty five thousand five hundred", [25500]),
+    ("thirty-five k tops", [35000]),
+    ("it has forty thousand miles on it", []),  # mileage isn't money
+    ("three works for me", []),
+    ("Can you do five hundred off if I come in today?", [500]),
+    ("knock a grand off", [1000]),
+    ("seven hundred fifty down", [750]),
+    ("it's done five hundred miles", []),
+])
+def test_amounts_as_a_caller_says_them(said, amounts):
+    from ondra_core.agent.detectors import spoken_amounts
+    assert spoken_amounts(said) == amounts
+
+
+def test_a_callers_spoken_budget_said_back_is_not_a_quote():
+    # A test call: "under thirty grand" -> "We have five SUVs under $30,000." was replaced with the safe line.
+    ctx = ReplyContext(price_disclosure="listed", listed_prices={25100}, customer_text="What SUVs do you have under thirty grand?")
+    assert not review_reply("We have five SUVs under $30,000.", ctx)
+    assert "quotes_final_price" in review_reply("We can do $30,000 on it.", ctx)  # still a quote
+    assert "quotes_final_price" in review_reply("We have five SUVs under $28,000.", ctx)  # not their number
+
+
+def test_a_callers_spoken_ask_said_back_in_a_referral_is_not_a_quote():
+    ctx = ReplyContext(price_disclosure="listed", listed_prices={25100}, customer_text="Can you do five hundred off if I come in today?")
+    assert not review_reply("Our sales team will get back to you shortly about the $500.", ctx)
+    assert review_reply("Sure, we can do $500 off.", ctx)

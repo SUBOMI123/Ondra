@@ -395,3 +395,28 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   normalisation on (slower, and it already misread). Both stay one env change away (`VOICE_TTS_*`).
 - **Still to do:** the spoken style of the instructions (short sentences, one fact each) is the bigger change to
   how human the call sounds; and a guard test for how each voice reads prices belongs in the 5e voice test set.
+
+## 2026-11-27: Voice instructions rewritten for speech; what the model is handed is shaped for speech too
+
+- **Why:** the founder found calls "very much AI". Three scripted calls against the real call model (text mode: a
+  buyer, a service booking, a vague caller) showed it: 62-word replies, a car, mileage and price in one sentence,
+  "Thanks for calling Prestige Motors" said mid-call after every handoff, the same thing said twice.
+- **The rules** (`VOICE_RULES` in `apps/voice/src/ondra_voice/agents.py`) now say how to sound, with the reason for
+  each: answer in the first words; one piece of information per sentence; a car is year, model and price, with
+  mileage and trim only when asked; say each thing once; no call-centre phrases; at most two times offered;
+  goodbye only when the caller is done. Prices stay exact and in digits (the spoken checks need them); only
+  mileage may be rounded.
+- **Measured on the same three calls, before and after:** average reply 21.7 -> 15 words, longest reply 62 -> 31-35,
+  sentences over 18 words 9 -> 2, sentences replaced by the safe line 3 -> 0, mid-call goodbyes several -> 0. Two
+  runs after; text mode, so no audio or timing.
+- **Instructions alone weren't enough, so the data helps:** on calls the stock result's note says "year, model and
+  price, nothing else"; staff come back as first names; slot names carry the time (below).
+- **Bugs the test calls found, fixed:**
+  - "Three works" (three o'clock) booked the third slot, 1 pm, because the model saw `slot1, slot2, slot3`.
+    Slot names now carry the day and time (`fri-2pm`, `sat-9am`).
+  - The caller's own budget or ask said back ("under $30,000" after "under thirty grand"; "about the $500" after
+    "five hundred off") was replaced by the safe line: the check only knew amounts written in digits.
+    `spoken_amounts` reads amounts as callers say them, for the customer's words only.
+- **Not done:** rounding prices ("about 25 grand") was considered and rejected: a rounded price is a wrong price,
+  and the checks compare exact amounts. Still imperfect after the rewrite: it sometimes tells the caller about
+  the handoff both before and after doing it, and now and then says "is there anything else I can help with".

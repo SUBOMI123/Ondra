@@ -42,6 +42,38 @@ def money_amounts(text: str) -> list[int]:
     return out
 
 
+_UNIT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+               "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+_TEN_WORDS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+_UNITS = {w: i for i, w in enumerate(_UNIT_WORDS)}
+_TENS = {w: 10 * i for i, w in enumerate(_TEN_WORDS, start=2)}
+_NUMBER_WORD = "|".join([*_TENS, *_UNITS])
+_NOT_MILES = r"(?!\s+(?:miles?|kilomet|km)\b)"
+_SPOKEN_MONEY = re.compile(
+    rf"\b(?:(\d{{1,3}})|((?:{_NUMBER_WORD})(?:[ -](?:{_NUMBER_WORD}))?)|(a))\s*(?:grand|thousand|k)\b"
+    rf"(?:\s+(?:and\s+)?({_NUMBER_WORD})\s+hundred)?{_NOT_MILES}"
+    rf"|\b({_NUMBER_WORD}|a)\s+hundred\b(?:\s+(?:and\s+)?({_NUMBER_WORD}))?{_NOT_MILES}", re.IGNORECASE)
+
+
+def _words(text: str) -> int:
+    return sum(_TENS.get(w, _UNITS.get(w, 1 if w == "a" else 0)) for w in re.split(r"[ -]", text.lower()))
+
+
+def spoken_amounts(text: str) -> list[int]:
+    """Amounts as a caller says them, which speech recognition often leaves as words: "thirty grand", "under 30
+    thousand", "twenty five thousand five hundred", "five hundred off". Used for the customer's own words only
+    (their budget or their ask said back to them isn't a quote); what Ondra says is checked on digits, which its
+    voice rules require. Mileage is skipped."""
+    out = []
+    for m in _SPOKEN_MONEY.finditer(text):
+        if m.group(5):  # "five hundred", "seven hundred fifty"
+            out.append(_words(m.group(5)) * 100 + (_words(m.group(6)) if m.group(6) else 0))
+        else:
+            n = int(m.group(1)) if m.group(1) else _words(m.group(2) or "a")
+            out.append(n * 1000 + (_words(m.group(4)) * 100 if m.group(4) else 0))
+    return out
+
+
 def _flag_unnegated(text: str, pattern: re.Pattern[str]) -> list[str]:
     return [s for s in sentences(text) if pattern.search(s) and not _NEGATION.search(s)]
 
@@ -137,7 +169,7 @@ class ReplyContext:
 def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
     hits = [h for h in _flag_unnegated(reply, _FINAL_PRICE) if not _referral(h)]
     allowed = set(ctx.listed_prices) if ctx.price_disclosure in ("listed", "range") else set()
-    customer_amounts = set(money_amounts(ctx.customer_text))
+    customer_amounts = set(money_amounts(ctx.customer_text)) | set(spoken_amounts(ctx.customer_text))
     for s in sentences(reply):
         if _referral(s):
             continue  # handing the number to a person isn't quoting it

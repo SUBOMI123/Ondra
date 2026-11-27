@@ -8,6 +8,7 @@ recognition, the voice and real latency, which need a real call (Step 5e).
 
 from __future__ import annotations
 
+import re
 import uuid
 
 import pytest
@@ -162,7 +163,7 @@ async def test_service_books_through_the_shared_calendar(database):
 
     def first_slot(chat_ctx):
         slots = last_tool_output(chat_ctx)["slots"]
-        slot["id"] = slots[0]["slot_id"]
+        slot["id"], slot["with"] = slots[0]["slot_id"], slots[0]["with"]
         return f"I have {slots[0]['when']}. Does that work?"
 
     model = ScriptedLLM([
@@ -173,7 +174,7 @@ async def test_service_books_through_the_shared_calendar(database):
         await session.start(agents.OndraAgent(desk))
         await session.run(user_input="I need an oil change for my Camry.")
         model.steps = [Step(calls=[("book_appointment", {"slot_id": slot["id"], "details": {"transport": "wait"}})]),
-                       Step(text=lambda c: "You're booked." if last_tool_output(c).get("booked") else "Hmm.")]
+                       Step(text=lambda c: "You're booked." if " " not in last_tool_output(c)["booked"]["with"] else "Hmm.")]
         result = await session.run(user_input="Yes, that works, I'll wait for it.")
         result.expect.skip_next_event_if(type="message")  # "One moment." while it books
         result.expect.next_event().is_function_call(name="book_appointment")
@@ -181,7 +182,9 @@ async def test_service_books_through_the_shared_calendar(database):
         assert result.expect.next_event().is_message(role="assistant").event().item.text_content == "You're booked."
     assert desk.tools_called == ["check_availability", "book_appointment"]
     # The model only ever saw short slot names; the calendar got the real id.
-    assert slot["id"] == "slot1" and len(desk.slot_aliases["slot1"]) > 100
+    assert " " not in slot["with"]  # first names on the phone
+    # The name carries the day and time, never a position: "three works" must not pick the third slot.
+    assert re.fullmatch(r"[a-z]{3}-\d{1,4}(am|pm)", slot["id"]) and len(desk.slot_aliases[slot["id"]]) > 100
 
 
 async def test_the_call_record_keeps_the_transcript_and_latency(database):

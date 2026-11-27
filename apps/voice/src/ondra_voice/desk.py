@@ -128,9 +128,10 @@ class CallDesk:
         newest = max(cars, key=lambda c: (c.get("year") or 0, -(c.get("mileage") or 0)))
         best = [cheapest] + ([newest] if newest is not cheapest else [cars[1]])
         return {"total_found": len(cars), "best": [_spoken(c) for c in best],
-                "next": f"Say there are {len(cars)} and describe only these two in a sentence or two, then ask one "
-                        "question to narrow it down (budget, newer or lower miles, trim). Offer to text all of them; "
-                        "call text_details once they ask for it or say yes."}
+                "next": f"Say there are {len(cars)}. Then name only these two, each as year, model and price, "
+                        "nothing else: mileage and trim only if they ask. Ask one question to narrow it down "
+                        "(budget, newer or lower miles). Offer to text all of them; call text_details once they "
+                        "ask for it or say yes."}
 
     async def text_details(self, stock_numbers: list[str] | None, said: str) -> dict:
         """Text the caller the cars from the last search, after they agreed on the call. Their yes is recorded as
@@ -170,13 +171,32 @@ class CallDesk:
         return {"sent": True, "cars": len(cars), "tell_caller": "It's on its way to the number you're calling from."}
 
     def _short_slots(self, out: Any) -> Any:
+        """Swap each long slot id for a short name the model can copy quickly. The name carries the day and time
+        ("sat-9am", "fri-1230pm"), not a position: with "slot1, slot2, slot3" a caller who said "three works"
+        (three o'clock) got the third slot, 1 pm, on a test call."""
         if isinstance(out, dict) and isinstance(out.get("slots"), list):
+            known = {real: alias for alias, real in self.slot_aliases.items()}
             for slot in out["slots"]:
                 if isinstance(slot, dict) and slot.get("slot_id"):
-                    alias = f"slot{len(self.slot_aliases) + 1}"
-                    self.slot_aliases[alias] = slot["slot_id"]
+                    real = slot["slot_id"]
+                    alias = known.get(real) or self._slot_name(str(slot.get("when") or ""))
+                    self.slot_aliases[alias] = known[real] = real
                     slot["slot_id"] = alias
+                if isinstance(slot, dict) and isinstance(slot.get("with"), str):
+                    slot["with"] = slot["with"].split()[0]  # on the phone it's "with Maria", not "with Maria Lopez"
+        for appointment in ([out.get(k) for k in ("booked", "moved", "cancelled")] if isinstance(out, dict) else []):
+            if isinstance(appointment, dict) and isinstance(appointment.get("with"), str):
+                appointment["with"] = appointment["with"].split()[0]
         return out
+
+    def _slot_name(self, when: str) -> str:
+        """"Sat 9:00 am, Bay 1" -> "sat-9am". Two people free at the same time get "sat-9am-b", "-c"."""
+        base = re.sub(r"[^a-z0-9]+", "-", when.split(",")[0].lower().replace(":00", "").replace(":", "").replace(" am", "am").replace(" pm", "pm")).strip("-") or "slot"
+        name, n = base, 1
+        while name in self.slot_aliases:
+            n += 1
+            name = f"{base}-{chr(96 + n)}"
+        return name
 
     def _real_slots(self, name: str, args: dict) -> dict:
         keys = {"book_appointment": "slot_id", "reschedule_or_cancel": "new_slot_id"}
