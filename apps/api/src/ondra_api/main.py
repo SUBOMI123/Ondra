@@ -22,6 +22,9 @@ from ondra_api.routers import (
     webhooks,
 )
 
+if problems := get_settings().public_site_problems():
+    raise SystemExit("Refusing to start on a public site: " + "; ".join(problems) + ". Set them as secrets.")
+
 app = FastAPI(title="Ondra API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,

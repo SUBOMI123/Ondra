@@ -8,4 +8,6 @@ COPY apps/voice apps/voice
 RUN uv sync --frozen --no-dev --package ondra-voice
 ENV PATH="/repo/.venv/bin:$PATH"
 WORKDIR /repo/apps/voice
+# Bake the turn-detector and other local models into the image, so a new Machine doesn't download them on its first call.
+RUN python -m ondra_voice download-files
 CMD ["python", "-m", "ondra_voice", "start"]

@@ -45,6 +45,19 @@ from ondra_api.services.sla import business_seconds
 
 DEV_PASSWORD = "ondra-dev-password"
 
+
+def seed_password() -> str:
+    """The demo users' password. Locally it's DEV_PASSWORD (in the repo, so anyone can read it). Anywhere served over
+    https (staging) it must come from the SEED_PASSWORD secret: a public site with a published password lets anyone
+    in as the owner."""
+    pw = os.getenv("SEED_PASSWORD", "")
+    if get_settings().app_base_url.startswith("https://"):
+        if len(pw) < 12 or pw == DEV_PASSWORD:
+            raise SystemExit("seed: refusing to create demo users on a public site without SEED_PASSWORD "
+                             "(at least 12 characters, not the development password).")
+        return pw
+    return pw or DEV_PASSWORD
+
 USERS = [
     ("owner@prestigemotors.example", "Samuel Adeyemi", "owner", "+12145550100"),
     ("manager@prestigemotors.example", "Grace Thompson", "manager", "+12145550101"),
@@ -380,7 +393,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             # The demo dealership's service lane answers from demo repair orders (ondra_core.dms.DEMO_ORDERS).
             db.add(Integration(tenant_id=t, kind="dms", config={"provider": "mock"}, status="ok"))
 
-            pw = hash_password(DEV_PASSWORD)
+            password = seed_password()
+            pw = hash_password(password)
             users = [User(tenant_id=t, email=e, name=n, role=r, phone=p, password_hash=pw) for e, n, r, p in USERS]
             db.add_all(users)
             await db.flush()
@@ -464,7 +478,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
 
             await db.flush()
             await backfill(db)
-            print(f"seed: Prestige Motors ({t}) with 5 users, 50 vehicles, 30 contacts. Password: {DEV_PASSWORD}")
+            print(f"seed: Prestige Motors ({t}) with 5 users, 50 vehicles, 30 contacts. "
+                  f"Password: {'SEED_PASSWORD' if password != DEV_PASSWORD else DEV_PASSWORD}")
             return t
     finally:
         await engine.dispose()

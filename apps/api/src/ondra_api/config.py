@@ -61,6 +61,18 @@ class Settings(BaseSettings):
     postmark_inbound_user: str = ""
     postmark_inbound_password: str = ""
 
+    def public_site_problems(self) -> list[str]:
+        """Development defaults that are in the repo, so must never guard a public (https) site: with them, anyone
+        could sign tokens as any user or post fake customer messages."""
+        if not self.app_base_url.startswith("https://"):
+            return []
+        problems = []
+        if len(self.jwt_secret) < 32 or self.jwt_secret.startswith("dev-only"):
+            problems.append("JWT_SECRET is the development default or shorter than 32 characters")
+        if self.mock_webhook_secret in ("", "mock-secret"):
+            problems.append("MOCK_WEBHOOK_SECRET is the development default")
+        return problems
+
     @property
     def cookie_secure(self) -> bool:
         return self.app_base_url.startswith("https://")
