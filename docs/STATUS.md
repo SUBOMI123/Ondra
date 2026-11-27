@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable; follow-up sequences with approval and quiet hours work end to end and are set up in Settings > Follow-ups. Next: the learning loop. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Step 6 is built and its three acceptance checks are met; waiting for the founder to accept it before Step 7. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -14,7 +14,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
-| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a), "Who gets what" screen (6b), follow-ups and quiet hours with their settings section (6c) done, tested, and checked in a browser. Next: learning loop (6d), acceptance (6e) |
+| 6 | Routing, follow-ups, learning loop | **Built; all 3 acceptance checks met** (2026-11-27). Two parts of the plan's learning loop are not built: exporting ratings into the eval set, and automatic pattern-finding across draft edits (see Known gaps) |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
@@ -74,7 +74,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 |---|---|---|
 | Rules route test messages correctly across 10 scenarios | Met in tests; rules created, reordered, switched off and checked in a real browser | `apps/api/tests/test_routing.py`: 12 routing scenarios plus tenant isolation, each a real message through the webhook, job queue and Postgres (round-robin, keeping a customer's rep, service, complaint rule with alert, VIP over any rule, a named person per channel, AI kept out of a topic, capacity, nobody in, Lagos covering Dallas, drafts after hours, rule order, empty team) |
 | STOP on SMS blocks all outbound to that contact | Met in tests | `test_stop_on_sms_blocks_all_outbound_on_every_channel`: after STOP by text, the lined-up follow-up is cancelled, consent is opted out on all four channels, a person's reply is refused on text and WhatsApp, a reminder is blocked, a later message gets no AI reply, and nothing leaves any channel |
-| An unanswered question answered by the dealer is used by the AI on the next identical question | Not started (6d) | |
+| An unanswered question answered by the dealer is used by the AI on the next identical question | Met | Real model, 2026-11-27: "Do you install remote starters on cars you sell?" was handed to service and listed as unanswered; after the answer was saved, the next customer asking the same got "Yes, our service department installs remote starters on most models, and it's usually done the same day". Also `test_an_unanswered_question_answered_once_is_used_next_time`; answering checked in a real browser |
 
 ## Voice backlog (parked 2026-11-27)
 
@@ -114,6 +114,10 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Container host and managed Postgres | First staging deploy | Not decided |
 
 ## Known gaps (honest list)
+
+- **Learning loop, not built:** (1) ratings aren't exported into the eval set (needs redaction of customer data and a home for such cases); (2) no automatic pattern-finding across draft edits, each edit is listed for the dealer to act on; (3) no note field when rating in the Inbox; (4) prices inside a dealer's own answers ("remote starter, $450") aren't repeated by Ondra, because only listed vehicle prices are allowed.
+- **Follow-ups by text mostly become tasks** until counsel says whether an inbound text is consent to a later follow-up; WhatsApp follow-ups after 24 hours need templates, which aren't built.
+- **Routing alerts are records only** (VIP re-alert, urgent rules) until the owner's WhatsApp layer in Step 8.
 
 - **In draft mode, a booking happens at once; only the reply waits for approval.** The slot is held, so nobody else takes it, but the customer isn't told until a person approves. That's arguably right (holding the slot), but it's your call.
 - **Transport can't be changed after booking** (for example, adding a loaner later). Ondra asks wait, loaner or drop-off before booking a service. A person can edit it from the calendar in a later step.

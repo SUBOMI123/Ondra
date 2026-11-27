@@ -66,6 +66,7 @@ const SECTIONS = [
   { id: "team", title: "Team" },
   { id: "routing", title: "Who gets what" },
   { id: "ondra", title: "How Ondra replies" },
+  { id: "knowledge", title: "What Ondra knows" },
   { id: "follow-ups", title: "Follow-ups" },
   { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
@@ -297,6 +298,36 @@ function RoutingSummary() {
           <div>
             <Button asChild>
               <Link href="/settings/routing">Set who gets what</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// --- What Ondra knows ------------------------------------------------------------------------------------------
+
+function KnowledgeSummary() {
+  const k = useQuery({ queryKey: ["knowledge"], queryFn: () => api<{ unanswered: unknown[]; answers: unknown[] }>("/knowledge"), retry: false })
+  const waiting = k.data?.unanswered.length ?? 0
+  return (
+    <Section id="knowledge" title="What Ondra knows" description="Your answers to what customers ask, and the questions Ondra couldn't answer. Answer one once and Ondra can from then on.">
+      {k.isPending ? (
+        <Skeleton className="h-16 w-full" />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm">
+            {k.isError ? "Couldn't load what Ondra knows." : (
+              <>
+                <span className="tabular-nums">{k.data.answers.length}</span> {k.data.answers.length === 1 ? "answer" : "answers"}.{" "}
+                {waiting === 0 ? "No questions waiting." : <><span className="tabular-nums">{waiting}</span> {waiting === 1 ? "question is" : "questions are"} waiting for an answer.</>}
+              </>
+            )}
+          </p>
+          <div>
+            <Button asChild>
+              <Link href="/settings/knowledge">{waiting > 0 ? "Answer them" : "See what Ondra knows"}</Link>
             </Button>
           </div>
         </div>
@@ -614,6 +645,7 @@ export default function SettingsPage() {
               <TeamSection />
               <RoutingSummary />
               <RepliesSection data={settings.data} canEdit={canEdit} />
+              <KnowledgeSummary />
               <Section id="follow-ups" title="Follow-ups" description="Checking back with customers who went quiet: when, what's said, and whether someone approves it first.">
                 <FollowUpsSection />
               </Section>

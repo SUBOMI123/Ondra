@@ -514,3 +514,27 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   The customer's own time zone isn't known, so a Lagos buyer gets Dallas quiet hours.
 - **Limits:** 50 routing rules, 20 sequences, 6 steps. Guards against runaway lists, not product limits; raise
   them when a real dealer hits one.
+
+## 2026-11-27: The learning loop (Step 6d)
+
+- **Unanswered questions.** When the AI hands off because it didn't know, the question is kept (the model's own
+  search words, which are focused) with the customer's actual message saved alongside at that moment. The same
+  question in other words is one line "asked 4 times": matched by embedding against open questions (0.80 for
+  Voyage, 0.70 for the local mock), stricter than search, because merging two different questions hides one from
+  the dealer. If embeddings are down, only exact matches merge.
+- **Answering** turns the question into a knowledge doc and embeds it on the spot, so the next message can find it.
+  "A person should always handle this" takes a question off the list for good (with Undo).
+- **Who can answer:** owners, admins and managers (a new `knowledge:write` permission). Managers know the answers;
+  making them ask an admin would leave the list unread. Anyone who can reply to customers can rate a reply.
+- **Ratings:** good, wrong, or off in tone, one per reply (the latest wins), from the Inbox. Wrong and off-tone
+  replies are listed under Corrections with what the customer said. No free-text note in the Inbox yet (the API
+  takes one).
+- **Corrections** also lists drafts a person changed before sending (recorded since Step 3), with "save what was
+  sent as an answer". The plan asks for patterns across edits to be surfaced as suggestions; this shows each edit
+  and leaves spotting the pattern to the dealer. Automatic pattern-finding is not built.
+- **"Ratings feed the eval set" is not built.** Ratings are stored with the reply and the customer's message, which
+  is what an eval case needs, but nothing exports them into `evals/` yet. Real conversations contain customer data,
+  so that export needs a redaction step and a decision about where such cases live.
+- **Seen in the real-model acceptance run:** the dealer's answer included a service price ("$450"); Ondra's reply
+  used the answer but left the price out. The price rules only allow listed vehicle prices, so prices inside
+  dealer answers aren't repeated today. Whether they should be is a product decision.

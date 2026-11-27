@@ -8,8 +8,8 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from ondra_core.models import AuditLog, Contact, Conversation, Event, KnowledgeDoc, KnowledgeGap, Message, MessageRating, User
-from ondra_core.permissions import Perm, can_see_vips, has_perm
+from ondra_core.models import AuditLog, Event, KnowledgeDoc, KnowledgeGap, Message, MessageRating, User
+from ondra_core.permissions import Perm, has_perm
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,23 +47,6 @@ def _clean(body: AnswerIn) -> tuple[str, str]:
     return q, a
 
 
-async def _asked(db: AsyncSession, caller: Caller, gap: KnowledgeGap) -> str | None:
-    """A customer's own words for this gap: their last message in the most recent conversation that raised it.
-    Never a VIP's words to someone who can't see VIPs."""
-    for conv_id in reversed(gap.example_conversation_ids or []):
-        conv = await db.get(Conversation, conv_id)
-        if conv is None:
-            continue
-        contact = await db.get(Contact, conv.contact_id)
-        if contact is None or (contact.is_vip and not can_see_vips(caller.role) and contact.vip_owner_user_id != caller.user_id):
-            continue
-        body = (await db.execute(select(Message.body).where(Message.conversation_id == conv_id, Message.direction == "inbound")
-                                 .order_by(Message.created_at.desc()).limit(1))).scalar_one_or_none()
-        if body:
-            return body[:400]
-    return None
-
-
 @router.get("")
 async def get_knowledge(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
     caller, db = ctx
@@ -73,7 +56,7 @@ async def get_knowledge(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> d
     ignored = (await db.execute(select(func.count()).select_from(KnowledgeGap).where(KnowledgeGap.status == "ignored"))).scalar_one()
     return {
         "unanswered": [{"id": str(g.id), "question": g.question, "times": g.occurrences, "last_asked_at": g.last_asked_at.isoformat(),
-                        "asked": await _asked(db, caller, g)} for g in gaps],
+                        "asked": g.asked} for g in gaps],
         "answers": [_doc(d) for d in docs],
         "ignored": ignored,
         "can_edit": has_perm(caller.role, Perm.KNOWLEDGE_WRITE),

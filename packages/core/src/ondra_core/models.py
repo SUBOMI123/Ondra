@@ -368,6 +368,7 @@ class KnowledgeGap(Base, TenantScoped):
     embedding = mapped_column(Vector(1024), nullable=True)  # so the same question in other words is one gap
     embedding_space: Mapped[str | None] = mapped_column(String(40))
     last_asked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    asked: Mapped[str | None] = mapped_column(Text)  # a customer's own words, saved when they asked (never a VIP's)
 
 
 class MessageRating(Base, TenantScoped):

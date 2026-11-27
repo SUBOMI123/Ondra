@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
 import { cn } from "@/lib/utils"
@@ -63,7 +64,8 @@ type Summary = {
   overdue: boolean
 }
 type ListData = { items: Summary[]; counts: Record<Bucket, number> }
-type Msg = { id: string; direction: string; author: "customer" | "ai" | "user" | "system"; author_name: string | null; body: string | null; status: string; is_draft: boolean; at: string; channel: Channel }
+type Rating = "good" | "wrong" | "tone"
+type Msg = { id: string; direction: string; author: "customer" | "ai" | "user" | "system"; author_name: string | null; body: string | null; status: string; is_draft: boolean; at: string; channel: Channel; rating?: Rating | null }
 type Detail = {
   id: string
   channel: Channel
@@ -241,6 +243,36 @@ function Draft({ m, conversationId }: { m: Msg; conversationId: string }) {
   )
 }
 
+const RATING_LABEL: Record<Rating, string> = { good: "Rated good", wrong: "Rated wrong", tone: "Rated off in tone" }
+
+/** A person's verdict on one of Ondra's sent replies. It feeds What Ondra knows > Corrections. */
+function RateReply({ m }: { m: Msg }) {
+  const qc = useQueryClient()
+  const rate = useMutation({
+    mutationFn: (rating: Rating | null) => (rating ? send("PUT", `/messages/${m.id}/rating`, { rating }) : send("DELETE", `/messages/${m.id}/rating`)),
+    onSuccess: (_r, rating) => {
+      qc.invalidateQueries({ queryKey: ["conversation"] })
+      if (rating === "wrong" || rating === "tone") toast("Noted. It's listed under Corrections in What Ondra knows.")
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Couldn't save the rating. Try again."),
+  })
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="rounded underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring" aria-label={m.rating ? `${RATING_LABEL[m.rating]}. Change rating` : "Rate this reply"}>
+          {m.rating ? RATING_LABEL[m.rating] : "Rate"}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => rate.mutate("good")}>Good reply</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => rate.mutate("wrong")}>Wrong</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => rate.mutate("tone")}>Right, but off in tone</DropdownMenuItem>
+        {m.rating && <DropdownMenuItem onSelect={() => rate.mutate(null)}>Clear rating</DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function Bubbled({ m, showChannel }: { m: Msg; showChannel: boolean }) {
   const end = m.direction === "outbound"
   const ai = m.author === "ai"
@@ -260,6 +292,7 @@ function Bubbled({ m, showChannel }: { m: Msg; showChannel: boolean }) {
           {showChannel && <span>{CHANNEL[m.channel]?.label}</span>}
           {m.status === "failed" && <span>Not delivered</span>}
           <span className="tabular-nums">{when(m.at)}</span>
+          {ai && !m.is_draft && m.status !== "failed" && <RateReply m={m} />}
         </MessageFooter>
       </MessageContent>
     </Message>
