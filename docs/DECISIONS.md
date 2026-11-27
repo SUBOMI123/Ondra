@@ -710,3 +710,16 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   keys to the phrase they mean.
 - **Alternatives:** a left-hand section menu with one form per page (like Linear). Rejected for now: with eleven
   pages, a status line per row is worth more than a menu that's always visible.
+
+## 2026-11-27: The person looking after a VIP is told, and "Saved views" are called Shortcuts
+
+- **Decision:** choosing someone to look after a VIP gives them a task ("You now look after Robert (VIP)") with a
+  brief on what changes for them, and a WhatsApp alert to their own mobile. Before this, nothing told them: a
+  salesperson found out when the VIP's call rang through.
+- **The alert goes to them or nobody.** Ordinary alerts fall back to every owner when a handler has no mobile; this
+  one doesn't, because the owners didn't ask to be told who they just picked. Instead the task says "add your mobile,
+  or their calls ring the owner instead". Choosing yourself, or re-saving the same person, tells nobody anything.
+- **"VIPs waiting" shows to anyone who looks after a VIP,** not only owners and managers. The Inbox list already
+  holds only the VIPs a person may see, so for a salesperson it counts their own.
+- **"Saved views" is now "Shortcuts".** Nobody saves them: they're three fixed filters. The template's name invited
+  "who saved this?". Code names follow (`lib/shortcuts.ts`, `nav-shortcuts.tsx`).

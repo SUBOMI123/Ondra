@@ -51,3 +51,51 @@ async def test_owners_and_managers_mark_vips_and_ondra_stops_at_once(client, dat
     async with tenant_session(t) as db:
         await db.execute(delete(FollowUpSequence).where(FollowUpSequence.id == ids[3]))
         await db.execute(update(Contact).where(Contact.id == ids[0]).values(is_vip=False, vip_owner_user_id=None))
+
+
+async def test_the_person_chosen_for_a_vip_hears_about_it_and_only_they_do(client, database):
+    from ondra_api import channels
+    from ondra_api.services.owner import deliver_alert
+    from ondra_core.models import Event, Job, Task, User
+
+    t = database["a"]
+    manager = await login(client, "manager@prestigemotors.example")
+    async with tenant_session(t) as db:
+        c = (await db.execute(select(Contact).where(Contact.display_name == "Ben Carter"))).scalar_one()
+        daniel = (await db.execute(select(User).where(User.email == "daniel@prestigemotors.example"))).scalar_one()
+        phone_before = daniel.phone
+        daniel.phone = None
+        ids = (c.id, daniel.id)
+    for ch in channels.CHANNELS:
+        channels.mock(ch).outbox.clear()
+    started = datetime.now(UTC)
+    try:
+        r = await client.put(f"/contacts/{ids[0]}/vip", json={"vip": True, "handler_user_id": str(ids[1])}, headers=manager)
+        assert r.status_code == 200, r.text
+        async with tenant_session(t) as db:
+            task = (await db.execute(select(Task).where(Task.contact_id == ids[0], Task.created_at >= started))).scalar_one()
+            assert (task.assignee_user_id, task.title) == (ids[1], "Ben Carter: You now look after Ben (VIP)")
+            assert "Add your mobile" in task.brief  # Daniel has no mobile, so his calls would ring the owner
+            alert = (await db.execute(select(Event).where(Event.type == "alert.created", Event.created_at >= started))).scalar_one()
+            payload = dict(alert.payload)
+        # No mobile: nobody is messaged. The owners don't get a note that was meant for Daniel.
+        assert await deliver_alert(t, payload) == "skipped: no owner with a mobile on file"
+        assert channels.mock("whatsapp").outbox == []
+        async with tenant_session(t) as db:
+            (await db.get(User, ids[1])).phone = "+12145558111"
+        assert await deliver_alert(t, payload) == "sent to 1 of 1"
+        sent = channels.mock("whatsapp").outbox
+        assert [m.to_address for m in sent] == ["+12145558111"] and "You now look after Ben Carter" in str(sent[0].template or sent[0].body)
+        # Choosing the same person again, or yourself, tells nobody anything new.
+        again = await client.put(f"/contacts/{ids[0]}/vip", json={"vip": True, "handler_user_id": str(ids[1])}, headers=manager)
+        me = (await client.get("/me", headers=manager)).json()["id"]
+        mine = await client.put(f"/contacts/{ids[0]}/vip", json={"vip": True, "handler_user_id": me}, headers=manager)
+        assert again.status_code == mine.status_code == 200
+        async with tenant_session(t) as db:
+            assert len((await db.execute(select(Task).where(Task.contact_id == ids[0], Task.created_at >= started))).scalars().all()) == 1
+    finally:
+        async with tenant_session(t) as db:
+            await db.execute(delete(Task).where(Task.contact_id == ids[0], Task.created_at >= started))
+            await db.execute(delete(Job).where(Job.created_at >= started))
+            await db.execute(update(User).where(User.id == ids[1]).values(phone=phone_before))
+            await db.execute(update(Contact).where(Contact.id == ids[0]).values(is_vip=False, vip_owner_user_id=None))

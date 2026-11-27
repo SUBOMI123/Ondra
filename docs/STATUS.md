@@ -103,7 +103,8 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Screen | State |
 |---|---|
 | VIPs: made from the client, ink tag and ring, out of Settings | Done |
-| Saved views as working Inbox filters (drafts, VIPs waiting, after-hours leads) | Done |
+| Shortcuts (were "Saved views") as working Inbox filters: drafts, VIPs waiting, after-hours leads | Done |
+| VIP handler is told (task and WhatsApp) and sees "VIPs waiting" | Done |
 | Settings as an index of pages in four groups | Done |
 | Clients list | Next |
 | Deals detail, Tasks team board, Inventory, Calls actions | To do |

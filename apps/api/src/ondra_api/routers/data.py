@@ -120,6 +120,27 @@ class VipIn(BaseModel):
     handler_user_id: uuid.UUID | None = None  # who looks after them; null: the owner
 
 
+async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> None:
+    """Whoever is chosen to look after a VIP hears about it now, not when the VIP's call rings through to them:
+    a task in their list, and a WhatsApp alert to their own mobile (never to the owners instead)."""
+    from ondra_core.models import Event
+
+    from ondra_api.services.tasks import new_task
+
+    handler = await db.get(User, c.vip_owner_user_id)
+    by = await db.get(User, caller.user_id)
+    first = c.display_name.split()[0]
+    brief = (f"{by.name if by else 'A manager'} made {first} a VIP and chose you to look after them. Their calls ring your "
+             "mobile, their messages come to you, and Ondra never replies to them.")
+    if handler is not None and not handler.phone:
+        brief += " Add your mobile under Settings, People, or their calls ring the owner instead."
+    task = await new_task(db, title=f"{c.display_name}: You now look after {first} (VIP)", contact_id=c.id,
+                          assignee_user_id=c.vip_owner_user_id, source="rule", urgency="normal", brief=brief)
+    db.add(Event(type="alert.created", payload={
+        "task_id": str(task.id), "to": "owner", "urgency": "normal", "contact_id": str(c.id), "only_handler": True,
+        "reason": f"You now look after {c.display_name}, a VIP. Their calls ring you directly and Ondra never replies to them"}))
+
+
 @router.put("/contacts/{contact_id}/vip", response_model=ContactOut)
 async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
                   ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
@@ -152,6 +173,8 @@ async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
             await db.delete(d)
         stopped = {"drafts": len(drafts), "follow_ups": await cancel_for(db, c.id, "vip")}
     db.add(Event(type="contact.vip_changed", payload={"contact_id": str(c.id), "vip": body.vip, "by": str(caller.user_id), **stopped}))
+    if c.is_vip and c.vip_owner_user_id and c.vip_owner_user_id != caller.user_id and str(c.vip_owner_user_id) != before["handler"]:
+        await _tell_vip_handler(db, c, caller)
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.vip", resource=f"contact:{c.id}", before=before,
                     after={"vip": c.is_vip, "handler": str(c.vip_owner_user_id) if c.vip_owner_user_id else None},
                     ip=request.client.host if request.client else None))

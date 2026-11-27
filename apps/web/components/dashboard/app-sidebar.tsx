@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import * as React from "react"
 
 import { api } from "@/lib/api"
-import type { ViewRow } from "@/lib/saved-views"
+import type { ViewRow } from "@/lib/shortcuts"
 import {
   IconCalendarEvent,
   IconCar,
@@ -20,7 +20,7 @@ import {
 } from "@tabler/icons-react"
 
 import { useAuth } from "@/components/providers"
-import { NavSavedViews } from "@/components/dashboard/nav-saved-views"
+import { NavShortcuts } from "@/components/dashboard/nav-shortcuts"
 import { NavMain } from "@/components/dashboard/nav-main"
 import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
@@ -84,7 +84,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <React.Suspense fallback={null}>
           <NavMain items={navMain} />
-          <NavSavedViews rows={inbox.data?.items} seesVips={me?.role === "owner" || me?.role === "manager"} />
+          <NavShortcuts rows={inbox.data?.items} seesVips={me?.role === "owner" || me?.role === "manager"} />
         </React.Suspense>
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

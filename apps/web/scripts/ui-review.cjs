@@ -40,8 +40,9 @@ for (const scheme of ["light", "dark"]) {
   await page.click("button[type=submit]")
   await page.waitForURL(`${BASE}/`)
   // Plus one real client profile and one VIP profile, found through the Clients list.
-  await page.goto(`${BASE}/clients`)
-  await page.waitForSelector("a[href^='/clients/profile']")
+  // The first load after sign-in can wait on a token refresh; give it time rather than fail the whole review.
+  await page.goto(`${BASE}/clients`, { waitUntil: "networkidle" })
+  await page.waitForSelector("a[href^='/clients/profile']", { timeout: 30000 })
   const profiles = await page.$$eval("a[href^='/clients/profile']", (as) => [as[0].getAttribute("href"), as.find((a) => a.closest("[data-vip]"))?.getAttribute("href")].filter(Boolean))
   for (const path of [...PAGES, ...profiles]) {
     for (const width of WIDTHS) {

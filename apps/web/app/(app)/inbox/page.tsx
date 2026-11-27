@@ -45,7 +45,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { api, send } from "@/lib/api"
 import { useLiveInbox } from "@/lib/live"
-import { viewById } from "@/lib/saved-views"
+import { viewById } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { ClientAvatar, VipTag } from "@/components/vip"
 
@@ -641,7 +641,7 @@ export default function InboxPage() {
 function Inbox() {
   useLiveInbox()
   const router = useRouter()
-  // A saved view from the sidebar (/inbox?filter=drafts). It replaces the tabs while it's on, so filters never stack.
+  // A shortcut from the sidebar (/inbox?filter=drafts). It replaces the tabs while it's on, so filters never stack.
   const saved = viewById(useSearchParams().get("filter"))
   const [view, setView] = useState<View>("needs")
   const [q, setQ] = useState("")

@@ -1,5 +1,5 @@
 /**
- * Saved views: one-click slices of the Inbox, linked from the sidebar. The sidebar's counts and the Inbox's
+ * Shortcuts: one-click slices of the Inbox, linked from the sidebar. The sidebar's counts and the Inbox's
  * filter both use `matches` below, so the number next to a view is always the number of rows it opens.
  */
 
@@ -12,7 +12,7 @@ export type ViewRow = {
   contact: { is_vip: boolean }
 }
 
-export type SavedView = {
+export type Shortcut = {
   id: string
   name: string
   icon: Icon
@@ -22,7 +22,7 @@ export type SavedView = {
   empty: string
 }
 
-export const SAVED_VIEWS: SavedView[] = [
+export const SHORTCUTS: Shortcut[] = [
   {
     id: "drafts",
     name: "Drafts to approve",
@@ -47,4 +47,4 @@ export const SAVED_VIEWS: SavedView[] = [
   },
 ]
 
-export const viewById = (id: string | null) => SAVED_VIEWS.find((v) => v.id === id) ?? null
+export const viewById = (id: string | null) => SHORTCUTS.find((v) => v.id === id) ?? null

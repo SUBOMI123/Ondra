@@ -27,9 +27,9 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
-  // On a saved view (/inbox?filter=…) the view is the highlighted item, not Inbox: one place you are, one highlight.
-  const onSavedView = !!useSearchParams().get("filter")
-  const active = (url: string) => isActivePath(pathname, url) && !(url === "/inbox" && onSavedView)
+  // On a shortcut (/inbox?filter=…) the shortcut is the highlighted item, not Inbox: one place you are, one highlight.
+  const onShortcut = !!useSearchParams().get("filter")
+  const active = (url: string) => isActivePath(pathname, url) && !(url === "/inbox" && onShortcut)
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
