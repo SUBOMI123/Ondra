@@ -57,6 +57,10 @@ class UserOut(_Out):
     active: bool
     invited: bool = False  # hasn't set a password yet
     phone: str | None = None  # where Ondra puts calls through to them
+    # Routing: their own hours and time zone (null: the dealership's) and a limit on open tasks (null: none).
+    work_hours: dict | None = None
+    timezone: str | None = None
+    max_open_tasks: int | None = None
 
 
 class Page[T](BaseModel):

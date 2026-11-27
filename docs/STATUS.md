@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 6. The routing engine is built and tested (13 scenarios through the webhook and job queue); rules can't be edited in the dashboard yet. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable: Settings > Who gets what (rules as sentences, reorder, switch off, check a message) and each person's hours and task limit on Team. Next: follow-ups and quiet hours. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -14,7 +14,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
-| 6 | Routing, follow-ups, learning loop | In progress: routing engine done (6a). Next: routing settings screen (6b), follow-ups and quiet hours (6c), learning loop (6d), acceptance (6e) |
+| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a) and the "Who gets what" settings screen with per-person hours (6b) done. Next: follow-ups and quiet hours (6c), learning loop (6d), acceptance (6e) |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
@@ -72,7 +72,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 
 | Check | Status | Evidence |
 |---|---|---|
-| Rules route test messages correctly across 10 scenarios | Met in tests | `apps/api/tests/test_routing.py`: 12 routing scenarios plus tenant isolation, each a real message through the webhook, job queue and Postgres (round-robin, keeping a customer's rep, service, complaint rule with alert, VIP over any rule, a named person per channel, AI kept out of a topic, capacity, nobody in, Lagos covering Dallas, drafts after hours, rule order, empty team) |
+| Rules route test messages correctly across 10 scenarios | Met in tests; rules created, reordered, switched off and checked in a real browser | `apps/api/tests/test_routing.py`: 12 routing scenarios plus tenant isolation, each a real message through the webhook, job queue and Postgres (round-robin, keeping a customer's rep, service, complaint rule with alert, VIP over any rule, a named person per channel, AI kept out of a topic, capacity, nobody in, Lagos covering Dallas, drafts after hours, rule order, empty team) |
 | STOP on SMS blocks all outbound to that contact | Built in Step 2; to be re-proven with follow-ups in 6c | `test_stop_opts_out_on_every_channel_and_blocks_later_ai` |
 | An unanswered question answered by the dealer is used by the AI on the next identical question | Not started (6d) | |
 

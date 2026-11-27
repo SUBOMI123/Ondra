@@ -51,7 +51,8 @@ async def load_people(db: AsyncSession, tenant: Tenant) -> list[routing.Person]:
         select(Task.assignee_user_id, func.count()).where(Task.status.in_(("open", "in_progress")))
         .group_by(Task.assignee_user_id)
     )).all())
-    users = (await db.execute(select(User).where(User.active.is_(True), User.invite_token_hash.is_(None)))).scalars()
+    users = (await db.execute(select(User).where(
+        User.active.is_(True), User.password_hash.isnot(None) | User.clerk_user_id.isnot(None)))).scalars()
     tz = (tenant.timezones or ["America/Chicago"])[0]
     return [routing.Person(u.id, u.role, u.timezone or tz, u.work_hours if u.work_hours is not None else (tenant.business_hours or {}),
                            load.get(u.id, 0), u.max_open_tasks, u.last_assigned_at, u.created_at) for u in users]

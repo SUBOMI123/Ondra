@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+from zoneinfo import available_timezones
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from ondra_core.channels.identity import normalize_phone
@@ -50,6 +52,11 @@ class UserPatch(BaseModel):
     active: bool | None = None
     # The mobile Ondra rings to put a call through (VIP calls to the owner, warm transfers). "" clears it.
     phone: str | None = Field(None, max_length=40)
+    # Routing: their own working hours and time zone (null: the dealership's), and how many open tasks they can
+    # hold before new work goes to someone else (null: no limit).
+    work_hours: dict[str, list[str] | None] | None = None
+    timezone: str | None = None
+    max_open_tasks: int | None = Field(None, ge=1, le=500)
 
 
 def clean_phone(raw: str | None) -> str | None:
@@ -61,9 +68,33 @@ def clean_phone(raw: str | None) -> str | None:
         raise HTTPException(422, "That doesn't look like a phone number.") from None
 
 
+_HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+def clean_hours(hours: dict | None) -> dict | None:
+    """A person's own working hours: {"mon": ["09:00", "17:00"], ...} with only the days they work, or None for
+    "same as the dealership"."""
+    if hours is None:
+        return None
+    out = {}
+    for day, span in hours.items():
+        if day not in _DAYS:
+            raise HTTPException(422, "Working hours use the days of the week.")
+        if span is None:
+            continue
+        if len(span) != 2 or not all(_HHMM.match(x or "") for x in span) or span[0] >= span[1]:
+            raise HTTPException(422, "Each working day needs a start time before its finish time.")
+        out[day] = list(span)
+    if not out:
+        raise HTTPException(422, "Pick at least one working day, or use the dealership's hours.")
+    return out
+
+
 def user_out(u: User) -> dict:
     return {"id": str(u.id), "email": u.email, "name": u.name, "role": u.role, "active": u.active,
-            "invited": u.password_hash is None and u.clerk_user_id is None, "phone": u.phone}
+            "invited": u.password_hash is None and u.clerk_user_id is None, "phone": u.phone,
+            "work_hours": u.work_hours, "timezone": u.timezone, "max_open_tasks": u.max_open_tasks}
 
 
 def new_invite_token(tenant_id: uuid.UUID) -> str:
@@ -160,6 +191,16 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
         u.active = body.active
     if "phone" in body.model_fields_set:
         u.phone = clean_phone(body.phone)
+    if "work_hours" in body.model_fields_set:
+        u.work_hours = clean_hours(body.work_hours)
+        if u.work_hours is None:
+            u.timezone = None  # back on the dealership's hours, in the dealership's time zone
+    if "timezone" in body.model_fields_set and u.work_hours is not None:
+        if body.timezone is not None and body.timezone not in available_timezones():
+            raise HTTPException(422, "Choose a time zone from the list.")
+        u.timezone = body.timezone
+    if "max_open_tasks" in body.model_fields_set:
+        u.max_open_tasks = body.max_open_tasks
     await db.flush()
     owners = (await db.execute(
         select(func.count()).select_from(User).where(User.role == "owner", User.active.is_(True))

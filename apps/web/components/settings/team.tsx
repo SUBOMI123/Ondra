@@ -7,21 +7,29 @@
  */
 
 import { IconCopy, IconDotsVertical } from "@tabler/icons-react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import type { Me } from "@/lib/api"
-import { CLERK, send } from "@/lib/api"
+import { api, CLERK, send } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
-export type User = { id: string; email: string; name: string; role: string; active: boolean; invited: boolean; phone: string | null }
+type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
+type Hours = Partial<Record<Day, [string, string] | null>>
+export type User = {
+  id: string; email: string; name: string; role: string; active: boolean; invited: boolean; phone: string | null
+  /** Their own working hours and time zone (null: the dealership's), and a limit on open tasks (null: none). */
+  work_hours: Hours | null; timezone: string | null; max_open_tasks: number | null
+}
 export type TeamData = { items: User[]; total: number; counts: { role: Record<string, number>; status: Record<"active" | "invited" | "deactivated", number> } }
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -144,8 +152,84 @@ function Mobile({ u, self, canEdit }: { u: User; self: boolean; canEdit: boolean
   )
 }
 
+const DAYS: [Day, string][] = [
+  ["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"],
+]
+const WEEKDAYS: Hours = { mon: ["09:00", "18:00"], tue: ["09:00", "18:00"], wed: ["09:00", "18:00"], thu: ["09:00", "18:00"], fri: ["09:00", "18:00"] }
+
+/** When a person works and how much they can hold. Decides who new work goes to (Settings > Who gets what). */
+function HoursForm({ u, onDone }: { u: User; onDone: () => void }) {
+  const qc = useQueryClient()
+  const zones = useQuery({ queryKey: ["settings"], queryFn: () => api<{ timezones: string[]; business: { timezone: string } }>("/settings") })
+  const [own, setOwn] = useState(u.work_hours != null)
+  const [hours, setHours] = useState<Hours>(u.work_hours ?? WEEKDAYS)
+  const [tz, setTz] = useState(u.timezone ?? "")
+  const [limit, setLimit] = useState(u.max_open_tasks ? String(u.max_open_tasks) : "")
+  const zone = tz || zones.data?.business.timezone || ""
+  const save = useMutation({
+    mutationFn: () => send("PATCH", `/users/${u.id}`, {
+      work_hours: own ? hours : null, ...(own ? { timezone: zone || null } : {}), max_open_tasks: limit.trim() ? Number(limit) : null,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); toast(`Saved. New work for ${u.name.split(" ")[0]} follows this from now.`); onDone() },
+  })
+  return (
+    <form className="grid gap-6 px-4 pb-6" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      <div className="flex items-start gap-3">
+        <Switch id="own-hours" checked={own} onCheckedChange={setOwn} className="mt-0.5" />
+        <div className="grid gap-1">
+          <Label htmlFor="own-hours">Works their own hours</Label>
+          <p className="text-sm text-muted-foreground">Off: they follow the dealership&apos;s opening hours.</p>
+        </div>
+      </div>
+      {own && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="own-tz">Their time zone</Label>
+            <Select value={zone} onValueChange={setTz}>
+              <SelectTrigger id="own-tz" className="w-full"><SelectValue placeholder="Choose a time zone" /></SelectTrigger>
+              <SelectContent>{(zones.data?.timezones ?? (zone ? [zone] : [])).map((z) => <SelectItem key={z} value={z}>{z.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">Hours below are in this time zone, so someone in Lagos can cover a Dallas night.</p>
+          </div>
+          <ul className="divide-y rounded-xl border" aria-label="Working days">
+            {DAYS.map(([d, label]) => {
+              const span = hours[d]
+              return (
+                <li key={d} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+                  <Switch checked={!!span} onCheckedChange={(on) => setHours({ ...hours, [d]: on ? ["09:00", "18:00"] : null })} aria-label={`Works ${label}`} />
+                  <span className="w-24 text-sm">{label}</span>
+                  {span ? (
+                    <span className="flex items-center gap-2">
+                      <Input type="time" value={span[0]} aria-label={`${label} starts`} className="w-32" onChange={(e) => setHours({ ...hours, [d]: [e.target.value, span[1]] })} />
+                      <span className="text-sm text-muted-foreground">to</span>
+                      <Input type="time" value={span[1]} aria-label={`${label} finishes`} className="w-32" onChange={(e) => setHours({ ...hours, [d]: [span[0], e.target.value] })} />
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Off</span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+      <div className="grid gap-2">
+        <Label htmlFor="own-limit">Most open tasks at once</Label>
+        <Input id="own-limit" inputMode="numeric" pattern="[0-9]*" value={limit} onChange={(e) => setLimit(e.target.value.replace(/\D/g, ""))} placeholder="No limit" className="w-32" />
+        <p className="text-sm text-muted-foreground">At the limit, new work goes to a teammate. Leave empty for no limit.</p>
+      </div>
+      {save.isError && <p role="alert" className="text-sm">{errorText(save.error)}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save hours and limit"}</Button>
+        <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
+      </div>
+    </form>
+  )
+}
+
 /** The people in `users`, each with their role and actions. */
 export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
+  const [hoursFor, setHoursFor] = useState<string | null>(null)
   const qc = useQueryClient()
   const canManage = canManageTeam(me)
   const assignable = assignableRoles(me)
@@ -163,7 +247,22 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
     onError: (e) => toast(errorText(e)),
   })
 
+  const hoursUser = users.find((u) => u.id === hoursFor)
   return (
+    <>
+    <Sheet open={!!hoursUser} onOpenChange={(o) => !o && setHoursFor(null)}>
+      <SheetContent className="overflow-y-auto">
+        {hoursUser && (
+          <>
+            <SheetHeader>
+              <SheetTitle>{hoursUser.name}&apos;s hours and workload</SheetTitle>
+              <SheetDescription>New messages, calls and handoffs go to people who are in and under their limit.</SheetDescription>
+            </SheetHeader>
+            <HoursForm key={hoursUser.id} u={hoursUser} onDone={() => setHoursFor(null)} />
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
     <ul className="divide-y rounded-xl border">
 {users.map((u) => {
         const self = u.id === me?.id
@@ -192,16 +291,17 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
             ) : (
               <span className="w-36 text-sm text-muted-foreground sm:text-right">{ROLE_LABEL[u.role] ?? u.role}</span>
             )}
-            {canManage && !self && !ownerLocked ? (
+            {canManage && !ownerLocked && (u.active || !self) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label={`More for ${u.name}`}><IconDotsVertical /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {u.active && <DropdownMenuItem onSelect={() => setHoursFor(u.id)}>Hours and workload</DropdownMenuItem>}
                   {u.invited && u.active && (
                     <DropdownMenuItem onSelect={() => reinvite.mutate(u.id)}>{CLERK ? "Email the invitation again" : "Copy a new invite link"}</DropdownMenuItem>
                   )}
-                  {u.active ? (
+                  {self ? null : u.active ? (
                     <DropdownMenuItem onSelect={() => update.mutate({ id: u.id, patch: { active: false } })}>
                       Deactivate and sign out
                     </DropdownMenuItem>
@@ -217,5 +317,6 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
         )
       })}
     </ul>
+    </>
   )
 }

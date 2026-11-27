@@ -108,5 +108,6 @@ async def list_users(
         "deactivated": (await db.execute(select(func.count()).where(User.active.is_(False)))).scalar_one(),
     }
     return TeamPage(items=[UserOut(id=u.id, email=u.email, name=u.name, role=u.role, active=u.active,
-                                   invited=u.password_hash is None and u.clerk_user_id is None, phone=u.phone)
+                                   invited=u.password_hash is None and u.clerk_user_id is None, phone=u.phone,
+                                   work_hours=u.work_hours, timezone=u.timezone, max_open_tasks=u.max_open_tasks)
                            for u in rows], total=total, counts={"role": by_role, "status": by_status})

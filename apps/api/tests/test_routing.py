@@ -48,7 +48,8 @@ async def floor(database, monkeypatch):
         draft_before = (await db.execute(select(Policy.draft_mode))).scalar_one()
         await db.execute(update(Policy).values(draft_mode=False))
         await db.execute(update(User).values(work_hours=ALWAYS, last_assigned_at=None, max_open_tasks=None))
-        ana = User(email=f"ana-{uuid.uuid4().hex[:8]}@prestigemotors.example", name="Ana Ruiz", role="sales", work_hours=ALWAYS)
+        ana = User(email=f"ana-{uuid.uuid4().hex[:8]}@prestigemotors.example", name="Ana Ruiz", role="sales", work_hours=ALWAYS,
+                   password_hash="joined")
         db.add(ana)
         await db.flush()
         people = {u.name.split()[0]: u.id for u in (await db.execute(select(User).where(User.active.is_(True)))).scalars()}
@@ -272,3 +273,69 @@ async def test_rules_never_cross_dealerships(database, floor):
     async with tenant_session(database["b"]) as db:
         assert (await db.execute(select(RoutingRule))).scalars().all() == []
         assert not any(u.name == "Ana Ruiz" for u in (await db.execute(select(User))).scalars())
+
+
+# --- the settings API ---------------------------------------------------------------------------------------------
+
+async def test_rules_api_add_order_switch_preview_and_permissions(client, database, floor):
+    from tests.conftest import login
+
+    owner = await login(client, "owner@prestigemotors.example")
+    sales = await login(client, "daniel@prestigemotors.example")
+    got = (await client.get("/routing", headers=sales)).json()
+    assert got["rules"] == [] and got["can_edit"] is False and got["owner"] == "Samuel Adeyemi"
+    rule = {"topics": ["complaint"], "team": "manager", "alert": True, "ai": "off"}
+    assert (await client.post("/routing/rules", json=rule, headers=sales)).status_code == 403  # read-only for sales
+
+    a = (await client.post("/routing/rules", json=rule, headers=owner)).json()
+    b = (await client.post("/routing/rules", json={"team": "sales", "hours": "closed", "ai": "draft"}, headers=owner)).json()
+    assert (a["position"], b["position"]) == (1, 2) and a["topics"] == ["complaint"] and a["ai"] == "off"
+    # A rule must send the work somewhere, to a team or a person, not both; and only to someone who works here.
+    assert (await client.post("/routing/rules", json={"topics": ["sales"]}, headers=owner)).status_code == 422
+    other_dealer = await login(client, "owner@lonestar.example")
+    stranger = (await client.get("/users", headers=other_dealer)).json()["items"][0]["id"]
+    r = await client.post("/routing/rules", json={"user_id": stranger}, headers=owner)
+    assert r.status_code == 422 and "works here" in r.json()["detail"]
+
+    # Preview: what happens to a message right now, without sending or assigning anything.
+    p = (await client.post("/routing/preview", json={"text": "This is unacceptable, I want a refund", "channel": "sms"}, headers=sales)).json()
+    assert (p["topic"], p["person"], p["ai"], p["alert"], p["rule_id"]) == ("complaint", "Grace Thompson", "off", True, a["id"])
+    p = (await client.post("/routing/preview", json={"text": "is the tahoe in stock?"}, headers=sales)).json()
+    assert p["topic"] == "sales" and p["team"] == "sales" and p["rule_id"] is None and p["in_now"] is True
+
+    # Order decides: move the catch-all first and the complaint now matches it instead (if the dealership is closed).
+    r = await client.put("/routing/order", json={"ids": [b["id"], a["id"]]}, headers=owner)
+    assert [x["id"] for x in r.json()["rules"]] == [b["id"], a["id"]]
+    assert (await client.put("/routing/order", json={"ids": [a["id"]]}, headers=owner)).status_code == 409
+
+    off = (await client.patch(f"/routing/rules/{a['id']}", json={"active": False}, headers=owner)).json()
+    assert off["active"] is False
+    p = (await client.post("/routing/preview", json={"text": "I want a refund, this is unacceptable"}, headers=sales)).json()
+    assert p["rule_id"] != a["id"]  # switched off: no longer applies
+    edited = (await client.put(f"/routing/rules/{a['id']}", json={**rule, "channels": ["email"], "active": True}, headers=owner)).json()
+    assert edited["channels"] == ["email"] and edited["active"] is True
+    assert (await client.delete(f"/routing/rules/{b['id']}", headers=owner)).status_code == 204
+    assert [x["id"] for x in (await client.get("/routing", headers=owner)).json()["rules"]] == [a["id"]]
+    assert (await client.get("/routing", headers=other_dealer)).json()["rules"] == []  # never another dealer's
+    async with tenant_session(database["a"]) as db:
+        actions = (await db.execute(text("SELECT action FROM audit_log WHERE action LIKE 'routing.%' ORDER BY created_at DESC LIMIT 6"))).scalars().all()
+    assert {"routing.rule.add", "routing.rule.update", "routing.rule.delete", "routing.order"} <= set(actions)
+
+
+async def test_a_persons_hours_and_limit_are_set_from_the_team_api(client, database, floor):
+    from tests.conftest import login
+
+    owner = await login(client, "owner@prestigemotors.example")
+    daniel = str(floor.who["Daniel"])
+    r = await client.patch(f"/users/{daniel}", headers=owner, json={
+        "work_hours": {"mon": ["08:00", "16:00"], "tue": None}, "timezone": "Africa/Lagos", "max_open_tasks": 12})
+    assert r.status_code == 200, r.text
+    assert (r.json()["work_hours"], r.json()["timezone"], r.json()["max_open_tasks"]) == ({"mon": ["08:00", "16:00"]}, "Africa/Lagos", 12)
+    listed = next(u for u in (await client.get("/users", headers=owner)).json()["items"] if u["id"] == daniel)
+    assert (listed["work_hours"], listed["timezone"], listed["max_open_tasks"]) == ({"mon": ["08:00", "16:00"]}, "Africa/Lagos", 12)
+    bad = await client.patch(f"/users/{daniel}", headers=owner, json={"work_hours": {"mon": ["18:00", "09:00"]}})
+    assert bad.status_code == 422
+    assert (await client.patch(f"/users/{daniel}", headers=owner, json={"work_hours": {"mon": None}})).status_code == 422
+    assert (await client.patch(f"/users/{daniel}", headers=owner, json={"timezone": "Mars/Olympus"})).status_code == 422
+    back = (await client.patch(f"/users/{daniel}", headers=owner, json={"work_hours": None, "max_open_tasks": None})).json()
+    assert (back["work_hours"], back["timezone"], back["max_open_tasks"]) == (None, None, None)

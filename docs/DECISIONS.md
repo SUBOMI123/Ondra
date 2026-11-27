@@ -465,3 +465,22 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   nothing is sent). They can't make the AI answer a VIP or an opted-out contact: those checks run first.
 - **VIP re-alert:** a VIP's task still open after `settings.vip_realert_minutes` (default 10) raises the alert
   again, up to 3 times. The alert is an event until the owner's WhatsApp layer (Step 8) delivers it.
+
+## 2026-11-27: "Who gets what" settings screen (Step 6b)
+
+- **Its own page** (`/settings/routing`, linked from a summary in Settings), like Team: the rule list is a
+  workspace, and Settings was already six sections long.
+- **Rules read as sentences**, built from the form ("Complaints go to Managers, marked urgent."), numbered in the
+  order they're checked. The form shows the sentence as you build it. Rules have no name field: the sentence is the
+  name, and one less thing to fill in.
+- **Two fixed lines frame the list:** VIPs first (crown, can't be changed) and "everything else goes to the usual
+  team" last, so the dealer sees the whole decision, not only their own rules.
+- **"Check a message"** runs a typed message through the same classifier and rules (`POST /routing/preview`) and
+  says who would get it now, which rule decided, and what Ondra would do. Sends nothing, takes nobody's turn.
+- **Reorder with Move up / Move down in the menu**, not drag and drop: works on a phone and by keyboard, and the
+  list is short (limit 50).
+- **Delete has Undo** (the rule is re-added and put back in its place) rather than a confirmation.
+- **A person's hours, time zone and task limit** are in a sheet from the Team page ("Hours and workload"), also
+  for yourself. Off by default: people follow the dealership's hours.
+- **Found by the browser run, not the tests:** the Team list endpoint didn't return the new fields, so the sheet
+  thought everyone had their own hours. Fixed and covered by a test.

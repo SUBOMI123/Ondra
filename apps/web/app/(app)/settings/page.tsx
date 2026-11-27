@@ -63,6 +63,7 @@ type SettingsData = { business: Business; replies: Replies; channels: Channel[];
 const SECTIONS = [
   { id: "business", title: "Business" },
   { id: "team", title: "Team" },
+  { id: "routing", title: "Who gets what" },
   { id: "ondra", title: "How Ondra replies" },
   { id: "booking", title: "Booking" },
   { id: "vips", title: "VIPs" },
@@ -269,6 +270,33 @@ function TeamSection() {
               )}
             </div>
           )}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// --- Who gets what ---------------------------------------------------------------------------------------------
+
+function RoutingSummary() {
+  const routing = useQuery({ queryKey: ["routing"], queryFn: () => api<{ rules: { active: boolean }[] }>("/routing"), retry: false })
+  const on = routing.data?.rules.filter((r) => r.active).length ?? 0
+  return (
+    <Section id="routing" title="Who gets what" description="Which team or person gets each kind of message, call and handoff, and where Ondra drafts or stays out. VIPs always go to the owner.">
+      {routing.isPending ? (
+        <Skeleton className="h-16 w-full" />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm">
+            {routing.isError ? "Couldn't load your rules." : on === 0
+              ? "No rules of your own yet. Sales questions go to Sales, service to Service and complaints to Managers."
+              : <><span className="tabular-nums">{on}</span> {on === 1 ? "rule" : "rules"} of your own, checked before the usual teams.</>}
+          </p>
+          <div>
+            <Button asChild>
+              <Link href="/settings/routing">Set who gets what</Link>
+            </Button>
+          </div>
         </div>
       )}
     </Section>
@@ -582,6 +610,7 @@ export default function SettingsPage() {
             <>
               <BusinessSection data={settings.data} canEdit={canEdit} />
               <TeamSection />
+              <RoutingSummary />
               <RepliesSection data={settings.data} canEdit={canEdit} />
               <BookingSection canEdit={canEdit} />
               <VipsSection />
