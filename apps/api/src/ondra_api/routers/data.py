@@ -12,7 +12,16 @@ from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
-from ondra_api.schemas import ContactOut, IdentityOut, Page, TeamPage, UserOut, VehicleOut
+from ondra_api.schemas import (
+    ClientDealOut,
+    ClientRowOut,
+    ContactOut,
+    IdentityOut,
+    Page,
+    TeamPage,
+    UserOut,
+    VehicleOut,
+)
 
 router = APIRouter(tags=["data"])
 
@@ -23,27 +32,68 @@ async def _page(db: AsyncSession, stmt: Select, limit: int, offset: int):
     return rows, total
 
 
-@router.get("/contacts", response_model=Page[ContactOut])
+@router.get("/contacts", response_model=Page[ClientRowOut])
 async def list_contacts(
     ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_READ)),
     q: str | None = None, limit: int = Query(50, le=200), offset: int = 0, vip: bool | None = None,
-) -> Page[ContactOut]:
+    sort: Literal["recent", "name"] = "recent",
+) -> Page[ClientRowOut]:
+    """The Clients list. Search matches a name, an email or a phone number however it's typed ("214 555-0100" finds
+    +12145550100). Most recently in touch first, unless sorted by name. Each row carries the client's latest deal,
+    when you last heard from or wrote to them, and who looks after them."""
+    from ondra_core.models import Conversation, Deal, Message, Task
+
     caller, db = ctx
-    stmt = select(Contact).where(Contact.merged_into_id.is_(None)).order_by(Contact.display_name)
+    last = (select(Conversation.contact_id, func.max(Message.created_at).label("at"))
+            .join(Message, Message.conversation_id == Conversation.id).where(Message.is_draft.is_(False))
+            .group_by(Conversation.contact_id).subquery())
+    stmt = select(Contact).outerjoin(last, last.c.contact_id == Contact.id).where(Contact.merged_into_id.is_(None))
+    stmt = stmt.order_by(Contact.display_name) if sort == "name" else stmt.order_by(last.c.at.desc().nulls_last(), Contact.display_name)
     if vip is not None:
         stmt = stmt.where(Contact.is_vip.is_(vip))
     if not can_see_vips(caller.role):
         # VIPs are visible to the owner and managers, and to the person who handles that VIP.
         stmt = stmt.where(or_(Contact.is_vip.is_(False), Contact.vip_owner_user_id == caller.user_id))
-    if q:
-        stmt = stmt.where(Contact.display_name.ilike(f"%{q}%"))
-    rows, total = await _page(db, stmt, limit, offset)
-    ids = [c.id for c in rows]
-    idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id.in_(ids)))).scalars().all() if ids else []
+    if q and q.strip():
+        term = q.strip()
+        digits = re.sub(r"\D", "", term)
+        idents = select(ContactIdentity.contact_id).where(ContactIdentity.value.ilike(f"%{term}%"))
+        if len(digits) >= 3:
+            idents = idents.union(select(ContactIdentity.contact_id).where(
+                ContactIdentity.kind == "phone", ContactIdentity.value.like(f"%{digits}%")))
+        stmt = stmt.where(or_(Contact.display_name.ilike(f"%{term}%"), Contact.id.in_(idents)))
+    total = (await db.execute(select(func.count()).select_from(stmt.order_by(None).subquery()))).scalar_one()
+    rows = (await db.execute(stmt.add_columns(last.c.at).limit(limit).offset(offset))).all()
+    ids = [c.id for c, _ in rows]
     by_contact: dict = {}
-    for i in idents:
-        by_contact.setdefault(i.contact_id, []).append(IdentityOut.model_validate(i))
-    items = [ContactOut.model_validate(c).model_copy(update={"identities": by_contact.get(c.id, [])}) for c in rows]
+    deals: dict = {}
+    assigned: dict = {}
+    if ids:
+        for i in (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id.in_(ids)))).scalars():
+            by_contact.setdefault(i.contact_id, []).append(IdentityOut.model_validate(i))
+        for d in (await db.execute(select(Deal).where(Deal.contact_id.in_(ids)).order_by(Deal.updated_at.desc()))).scalars():
+            deals.setdefault(d.contact_id, d)  # the latest one
+        for cid, uid in (await db.execute(select(Conversation.contact_id, Conversation.assigned_user_id)
+                                          .where(Conversation.contact_id.in_(ids), Conversation.assigned_user_id.is_not(None))
+                                          .order_by(Conversation.updated_at.desc()))).all():
+            assigned.setdefault(cid, uid)
+        for cid, uid in (await db.execute(select(Task.contact_id, Task.assignee_user_id)
+                                          .where(Task.contact_id.in_(ids), Task.assignee_user_id.is_not(None), Task.status.in_(("open", "in_progress")))
+                                          .order_by(Task.created_at.desc()))).all():
+            assigned.setdefault(cid, uid)  # nobody has the conversation: whoever has their open task
+    people = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
+    items = []
+    for c, at in rows:
+        d = deals.get(c.id)
+        who = (d.owner_user_id if d else None) or (c.vip_owner_user_id if c.is_vip else None) or assigned.get(c.id)
+        items.append(ClientRowOut.model_validate(c).model_copy(update={
+            "identities": by_contact.get(c.id, []),
+            "last_contact_at": at,
+            "deal": None if d is None else ClientDealOut(
+                type=d.type, stage=d.stage, vehicle=(d.vehicle_of_interest or {}).get("description"),
+                budget_max=float(d.budget_max) if d.budget_max is not None else None),
+            "looks_after": people.get(who) if who else None,
+        }))
     return Page(items=items, total=total)
 
 

@@ -37,6 +37,20 @@ class ContactOut(_Out):
     created_at: datetime
 
 
+class ClientDealOut(BaseModel):
+    type: str
+    stage: str
+    vehicle: str | None
+    budget_max: float | None
+
+
+class ClientRowOut(ContactOut):
+    """A row of the Clients list: who they are, plus where they stand with the dealership."""
+    last_contact_at: datetime | None = None
+    deal: ClientDealOut | None = None
+    looks_after: str | None = None  # the deal's salesperson, else the VIP's handler, else whoever has the conversation or an open task
+
+
 class VehicleOut(_Out):
     id: uuid.UUID
     stock_number: str

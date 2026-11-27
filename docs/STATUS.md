@@ -106,8 +106,9 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Shortcuts (were "Saved views") as working Inbox filters: drafts, VIPs waiting, after-hours leads | Done |
 | VIP handler is told (task and WhatsApp) and sees "VIPs waiting" | Done |
 | Settings as an index of pages in four groups | Done |
-| Clients list | Next |
-| Deals detail, Tasks team board, Inventory, Calls actions | To do |
+| Clients list: search by name, phone or email; deal, who looks after them, last in touch; paged | Done |
+| Deals detail and next steps | Next |
+| Tasks team board, Inventory, Calls actions | To do |
 
 ## Voice backlog (parked 2026-11-27)
 

@@ -723,3 +723,19 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   holds only the VIPs a person may see, so for a salesperson it counts their own.
 - **"Saved views" is now "Shortcuts".** Nobody saves them: they're three fixed filters. The template's name invited
   "who saved this?". Code names follow (`lib/shortcuts.ts`, `nav-shortcuts.tsx`).
+
+## 2026-11-27: The Clients list answers "where do they stand?", newest contact first
+
+- **One contact line, not two columns.** The old list showed the email twice (in "Best way to reach" and in
+  "Email"). Now each client shows one way to reach them: their preferred channel's number or address.
+- **Search by anything you know.** A name, an email, or a phone number typed any way ("(214) 555-1003",
+  "555-1003" and "2145551003" all match +12145551003): the API strips the punctuation and matches digits, from 3
+  digits up. VIPs a person may not see stay invisible to search, by number too (tested).
+- **Each row carries the latest deal** (car, stage, budget), **who looks after them** (the deal's salesperson,
+  else the VIP's handler, else whoever has the conversation, else whoever has an open task about them) and
+  **when you were last in touch** (the latest sent or received message, drafts excluded).
+- **Last in touch first, by default.** The client you're looking for is usually one you just spoke to. "By name,
+  A to Z" is one click away.
+- **Paged by the API, 50 at a time,** instead of loading 200 and stopping. A dealership has thousands of clients.
+- **Not built:** filtering by stage or salesperson (the Deals board does that), bulk actions, and exporting.
+  Opt-outs aren't shown in the list yet; they're on the profile.
