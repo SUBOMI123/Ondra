@@ -182,6 +182,10 @@ _SLOW_TOOLS = {"check_availability", "book_appointment", "reschedule_or_cancel",
                "search_knowledge", "get_contact_context", "get_repair_order_status"}
 
 
+# Tools after which nothing more needs saying, if Ondra already spoke in that reply.
+_SAID_ENOUGH = {"handoff", "update_lead_fields"}
+
+
 def _needs_filler(chunks: list[llm.ChatChunk]) -> bool:
     return any(c.delta and any(t.name in _SLOW_TOOLS for t in c.delta.tool_calls or []) for c in chunks)
 
@@ -190,6 +194,17 @@ class OndraAgent(Agent):
     def __init__(self, desk: CallDesk) -> None:
         self._desk = desk
         super().__init__(instructions=instructions(desk), tools=shared_tools())
+
+    async def on_enter(self) -> None:
+        self.session.on("function_tools_executed", self._after_tools)
+
+    def _after_tools(self, ev) -> None:
+        """A handoff (with or without lead details) after Ondra already told the caller about it in the same reply
+        ends that reply. Otherwise LiveKit asks the model again and the caller hears it twice ("I'll pass that to
+        sales" then "Sales will call you back"), as on the scripted calls."""
+        names = {c.name for c in ev.function_calls}
+        if "handoff" in names and names <= _SAID_ENOUGH and self._desk.last_reply_spoke:
+            ev.cancel_tool_reply()
 
     async def on_user_turn_completed(self, turn_ctx: llm.ChatContext, new_message: llm.ChatMessage) -> None:
         """The caller just finished. If what they asked needs a lookup, say a short filler now, so they hear
@@ -245,6 +260,7 @@ class OndraAgent(Agent):
             yield sentence
             while pending_calls:
                 yield pending_calls.pop(0)
+        desk.last_reply_spoke = spoke
         if pending_calls and not spoke and not desk.filled_this_turn and _needs_filler(pending_calls):
             # A lookup or booking with nothing said first: say something now rather than leave the caller in
             # silence while the tool runs and the model answers again.

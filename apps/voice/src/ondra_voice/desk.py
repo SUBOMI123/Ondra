@@ -60,6 +60,7 @@ class CallDesk:
     slot_aliases: dict[str, str] = field(default_factory=dict)
     # The full result of the last stock search: on a call Ondra names the best two, and can text all of them.
     last_cars: list[dict] = field(default_factory=list)
+    last_reply_spoke: bool = False  # whether the model's last reply said anything before its tool calls
     can_text: bool = False  # the dealer's SMS is live, so offering to text the caller is honest
     # Quick fillers: whether one was said this turn and last turn, and which phrase comes next.
     filled_this_turn: bool = False

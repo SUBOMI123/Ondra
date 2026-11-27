@@ -401,3 +401,25 @@ async def test_a_lookup_question_gets_a_filler_the_moment_the_caller_stops(datab
         await caller_says("Thanks, that's helpful.")  # no lookup: nothing
         await caller_says("Can I book a test drive Saturday?")
         assert spoken[1] == agents.QUICK_FILLERS[1]  # a different phrase next time
+
+
+async def test_a_handoff_already_announced_isnt_announced_again(database):
+    """Scripted calls with the real model: "I'll pass that to sales" and then, after the tool, "Sales will call you
+    back". When Ondra spoke in the reply that made the handoff, that reply ends there."""
+    desk = await CallDesk.open(await _plan(database, "Ben Carter"))
+    model = ScriptedLLM([
+        Step(text="I can't put a value on a trade, but I've passed it to sales and they'll call you back. ",
+             calls=[("handoff", {"reason": "trade_in", "brief": "Wants a trade value.", "urgency": "normal", "target_role": "sales"})]),
+        Step(text="Sales will get back to you shortly."),  # must never be asked for
+    ])
+    async with AgentSession(llm=model, userdata=desk) as session:
+        await session.start(agents.OndraAgent(desk))
+        result = await session.run(user_input="What would you give me for my Silverado?")
+        said = [e.item.text_content for e in result.events if e.type == "message" and e.item.role == "assistant"]
+    assert [x.strip() for x in said] == ["I can't put a value on a trade, but I've passed it to sales and they'll call you back."]
+    assert len(model.requests) == 1 and len(model.steps) == 1  # the second reply was never generated
+    async with tenant_session(database["a"]) as db:
+        from ondra_core.models import Task
+
+        await db.execute(Task.__table__.delete().where(Task.contact_id == desk.plan.contact_id, Task.source == "ai_handoff",
+                                                        Task.brief == "Wants a trade value."))
