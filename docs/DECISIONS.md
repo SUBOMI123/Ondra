@@ -692,3 +692,21 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Not built: making your own views.** Nobody has asked for it, and three good ones beat a builder nobody uses.
   Revisit if dealers ask for "my leads" or "Spanish speakers".
 - The seed gains an after-hours conversation (a buyer in Lagos at 2 am Dallas time) so the view isn't empty in demos.
+
+## 2026-11-27: Settings is an index of pages, not one long form
+
+- **Decision:** `/settings` lists every setting as a row in four groups (your dealership, your team, Ondra, you).
+  Each row says in plain words what's set now ("Open today 9 am to 7 pm, Chicago time") and calls out anything
+  waiting on someone ("1 invited, not joined", "2 questions to answer"). Each row opens its own page with a back link.
+- **Why:** the old page was ten sections in one scroll, with forms, summaries and links to other pages mixed
+  together and a scroll-spy to keep track. The founder found it hard to follow. Most visits are "change one
+  thing" or "is anything wrong?", and an index answers both without scrolling.
+- **Rows a role can't open are left out** (a 403 from the row's API hides it), and "You" (the WhatsApp
+  assistant) shows to owners only. A salesperson sees eight rows, not eleven dead ends.
+- **No Notifications row.** It was planned, but there is no notification setting to put behind it. The Account,
+  Billing and Notifications items in the account menu did nothing, so they're gone. Add them when they exist.
+- **Fixed along the way:** the seed stored handoff rules as short keys ("discount") while the form offered phrases
+  ("A discount or final price"), so each rule showed twice. The seed now uses the phrases, and the form maps old
+  keys to the phrase they mean.
+- **Alternatives:** a left-hand section menu with one form per page (like Linear). Rejected for now: with eleven
+  pages, a status line per row is worth more than a menu that's always visible.

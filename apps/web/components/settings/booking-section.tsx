@@ -254,14 +254,9 @@ export function BookingSection({ canEdit }: { canEdit: boolean }) {
   })
 
   return (
-    <section id="booking" aria-labelledby="booking-h" className="scroll-mt-20 border-b pb-10 last:border-b-0 lg:scroll-mt-6">
-      <h2 id="booking-h" className="text-lg font-medium">Booking</h2>
-      <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-        What customers can book with Ondra, how long it takes, and who or what it needs. Ondra only offers times when the right person and bay are free.
-      </p>
-
-      <div className="mt-6 flex flex-col gap-4">
-        <h3 className="text-sm font-medium">Appointment types</h3>
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-medium">Appointment types</h2>
         {types.isPending ? (
           <TableSkeleton rows={4} />
         ) : types.isError ? (
@@ -313,7 +308,7 @@ export function BookingSection({ canEdit }: { canEdit: boolean }) {
           <Button variant="outline" className="self-start" onClick={() => setAdding(true)}><IconPlus /> Add appointment type</Button>
         ))}
 
-        <h3 className="mt-4 text-sm font-medium">Bays and loaners</h3>
+        <h2 className="mt-4 text-sm font-medium">Bays and loaners</h2>
         {resources.isPending ? (
           <TableSkeleton rows={3} />
         ) : (
@@ -354,6 +349,6 @@ export function BookingSection({ canEdit }: { canEdit: boolean }) {
           <Button variant="outline" className="self-start" onClick={() => setNewRes({ kind: "service_bay", name: "" })}><IconPlus /> Add a bay or loaner</Button>
         ))}
       </div>
-    </section>
+    </div>
   )
 }

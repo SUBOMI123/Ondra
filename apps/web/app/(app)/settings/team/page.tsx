@@ -68,7 +68,7 @@ export default function TeamPage() {
       <SiteHeader title="Team" />
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 lg:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/settings#team" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/settings" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <IconArrowLeft className="size-4" aria-hidden="true" /> Settings
           </Link>
           {canManage && !inviting && (

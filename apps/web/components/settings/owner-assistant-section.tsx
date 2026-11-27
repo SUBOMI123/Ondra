@@ -117,7 +117,7 @@ export function OwnerAssistantSection() {
           <Link href="/settings/team" className="underline underline-offset-4">Set mobiles under Team</Link>
         </p>
         {d.whatsapp === null ? (
-          <p>Your dealership has no WhatsApp number yet. <Link href="/settings#channels" className="underline underline-offset-4">Add one under Channels</Link>: the assistant sends from it, and it&apos;s the number you write to.</p>
+          <p>Your dealership has no WhatsApp number yet. <Link href="/settings/channels" className="underline underline-offset-4">Add one under Channels</Link>: the assistant sends from it, and it&apos;s the number you write to.</p>
         ) : !d.whatsapp.live ? (
           <p className="text-muted-foreground">Your WhatsApp number is in test mode, so nothing reaches a real phone yet.</p>
         ) : null}

@@ -9,7 +9,7 @@ const { chromium } = require("playwright")
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3001"
 // Add every new page here.
-const PAGES = ["/", "/inbox", "/calls", "/calendar", "/clients", "/deals", "/tasks", "/inventory", "/settings", "/settings/team", "/settings/routing", "/settings/knowledge", "/settings/integrations", "/invite?token=example"]
+const PAGES = ["/", "/inbox", "/calls", "/calendar", "/clients", "/deals", "/tasks", "/inventory", "/settings", "/settings/business", "/settings/channels", "/settings/integrations", "/settings/team", "/settings/routing", "/settings/replies", "/settings/knowledge", "/settings/follow-ups", "/settings/booking", "/settings/assistant", "/invite?token=example"]
 const WIDTHS = [390, 768, 1024, 1440]
 const failures = []
 

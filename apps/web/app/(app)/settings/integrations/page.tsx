@@ -115,7 +115,7 @@ function CrmBlock({ d, canEdit }: { d: Data["crm"]; canEdit: boolean }) {
       <HealthLine h={d} off="Not sending leads anywhere yet."
         ok={d.last_ok_at ? `Last lead sent ${when(d.last_ok_at)}.` : "Ready. No lead has been sent yet."} problem={lastDetail} />
       {!d.has_sender && (
-        <p className="text-sm">Leads are emailed from your dealership&apos;s address. <Link href="/settings#channels" className="underline underline-offset-4">Add an email address under Channels</Link> first.</p>
+        <p className="text-sm">Leads are emailed from your dealership&apos;s address. <Link href="/settings/channels" className="underline underline-offset-4">Add an email address under Channels</Link> first.</p>
       )}
       <form className="grid gap-2 sm:max-w-md" onSubmit={(e) => { e.preventDefault(); save.mutate({ email, active: true }) }}>
         <Label htmlFor="crm-email">Your CRM&apos;s lead address</Label>
@@ -309,7 +309,7 @@ export default function IntegrationsPage() {
     <>
       <SiteHeader title="Integrations" />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 lg:px-6">
-        <Link href="/settings#integrations" className="flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/settings" className="flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground">
           <IconArrowLeft className="size-4" aria-hidden="true" /> Settings
         </Link>
         {q.isPending ? (

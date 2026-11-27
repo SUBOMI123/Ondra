@@ -288,7 +288,7 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
 
             db.add(Policy(tenant_id=t, price_disclosure="listed", draft_mode=True,
                           never_say=["guaranteed approval", "final price"],
-                          handoff_triggers=["discount", "trade-in value", "delivery date", "complaint"]))
+                          handoff_triggers=["A discount or final price", "What their trade-in is worth", "A delivery date", "A complaint"]))
 
             # The dealer's own number, WhatsApp and email. They use the mock adapters until a provider flag is on.
             for channel, address in (("sms", DEALER_PHONE), ("whatsapp", DEALER_PHONE), ("email", DEALER_EMAIL),
