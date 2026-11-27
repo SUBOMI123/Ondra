@@ -5,7 +5,22 @@ from sqlalchemy import text
 from ondra_api import live
 from ondra_api.config import get_settings
 from ondra_api.db import no_tenant_session
-from ondra_api.routers import analytics, appointments, auth, calls, conversations, data, follow_ups, integrations, knowledge, routing, settings, tasks, team, webhooks
+from ondra_api.routers import (
+    analytics,
+    appointments,
+    auth,
+    calls,
+    conversations,
+    data,
+    follow_ups,
+    integrations,
+    knowledge,
+    routing,
+    settings,
+    tasks,
+    team,
+    webhooks,
+)
 
 app = FastAPI(title="Ondra API", version="0.1.0")
 app.add_middleware(

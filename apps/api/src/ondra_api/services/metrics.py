@@ -73,7 +73,9 @@ async def response_sent(db: AsyncSession, msg: Message, conv: Conversation) -> N
     now = datetime.now(UTC)
     db.add(Event(type="response.sent", payload={
         "message_id": str(msg.id), "conversation_id": str(conv.id), "channel": conv.channel, "by": msg.author_type,
-        "seconds": max(0, int((now - waiting_since).total_seconds())), "after_hours": not dealer_clock(tenant, waiting_since)[1]}))
+        "seconds": max(0, int((now - waiting_since).total_seconds())), "after_hours": not dealer_clock(tenant, waiting_since)[1],
+        # Who on the team answered (an approved Ondra draft is still Ondra's reply).
+        **({"user_id": str(msg.author_user_id)} if msg.author_type == "user" and msg.author_user_id else {})}))
 
 
 # --- reading -----------------------------------------------------------------------------------------------------
@@ -133,12 +135,21 @@ async def report(db: AsyncSession, period: int = 7, end: date | None = None) -> 
     this = [by_day[start + timedelta(days=i)] for i in range(period)]
     before = [by_day[start - timedelta(days=period) + timedelta(days=i)] for i in range(period)]
     lifetime = await _events(db, datetime(2000, 1, 1, tzinfo=UTC), datetime.now(UTC) + timedelta(days=1), ("lead.captured", "deal.stage_changed"))
+    from ondra_core.models import User
+
+    names = {str(u.id): u.name for u in (await db.execute(select(User))).scalars()}
+    people = []
+    for uid, secs in (m.total(this).get("response_seconds_by_person") or {}).items():
+        secs = sorted(secs)
+        people.append({"user_id": uid, "name": names.get(uid, "Someone who has left"), "first_replies": len(secs),
+                       "median_first_response_seconds": secs[len(secs) // 2] if len(secs) % 2 else (secs[len(secs) // 2 - 1] + secs[len(secs) // 2]) / 2})
+    people.sort(key=lambda p: -p["first_replies"])
     series = [{"day": (start + timedelta(days=i)).isoformat(), "leads": d["leads"], "responses_by_ai": d["responses_by_ai"],
                "responses_by_team": d["responses_by_team"], "appointments_booked": d["appointments_booked"]} for i, d in enumerate(this)]
     pipe = m.pipeline(lifetime)
     return {"from": start.isoformat(), "to": end.isoformat(), "days": period, "timezone": tz, "totals": m.total(this),
             "previous": m.total(before), "series": series, "pipeline": {k: v for k, v in pipe.items() if k != "deal_ids_in_play_by_ai"},
-            "labels": {k: label for k, (label, _t) in m.METRICS.items()}}
+            "labels": {k: label for k, (label, _t) in m.METRICS.items()}, "people": people}
 
 
 async def trace(db: AsyncSession, metric: str, period: int = 7, end: date | None = None, limit: int = 200) -> dict:

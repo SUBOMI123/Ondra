@@ -76,6 +76,11 @@ def day_summary(events: list[Ev]) -> dict:
     out["responses_by_channel"] = dict(Counter(e.payload.get("channel") or "unknown" for e in events if e.type == "response.sent"))
     out["calls_by"] = dict(Counter(e.payload.get("handled_by") or "unknown" for e in events if e.type == "call.ended"))
     out["response_seconds"] = sorted(int(e.payload["seconds"]) for e in events if e.type == "response.sent" and e.payload.get("seconds") is not None)
+    by_person: dict[str, list[int]] = {}
+    for e in events:
+        if e.type == "response.sent" and e.payload.get("by") == "user" and e.payload.get("user_id") and e.payload.get("seconds") is not None:
+            by_person.setdefault(e.payload["user_id"], []).append(int(e.payload["seconds"]))
+    out["response_seconds_by_person"] = {k: sorted(v) for k, v in by_person.items()}
     out["response_seconds_ai"] = sorted(int(e.payload["seconds"]) for e in events
                                         if e.type == "response.sent" and e.payload.get("by") == "ai" and e.payload.get("seconds") is not None)
     return out
@@ -89,6 +94,11 @@ def total(days: list[dict]) -> dict:
         for d in days:
             c.update(d.get(key) or {})
         out[key] = dict(c)
+    people: dict[str, list[int]] = {}
+    for d in days:
+        for k, v in (d.get("response_seconds_by_person") or {}).items():
+            people.setdefault(k, []).extend(v)
+    out["response_seconds_by_person"] = people
     seconds = [s for d in days for s in d.get("response_seconds") or []]
     ai = [s for d in days for s in d.get("response_seconds_ai") or []]
     out["median_first_response_seconds"] = median(seconds) if seconds else None

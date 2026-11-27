@@ -53,6 +53,7 @@ async def test_the_dashboard_matches_the_hand_calculated_fixture(client, week):
     # The 11:30 pm lead is Monday's (the dealership's day), not Tuesday's (UTC's).
     assert [(d["day"], d["leads"]) for d in got["series"]] == [("2026-11-23", 2), ("2026-11-24", 1), ("2026-11-25", 0)]
     assert got["previous"]["leads"] == 0  # the three days before were empty
+    assert got["people"] == [{"user_id": "dan", "name": "Someone who has left", "first_replies": 2, "median_first_response_seconds": 1200}]
 
     # Each day was rolled up from its events, and the rollup can be thrown away and rebuilt to the same numbers.
     async with tenant_session(week) as db:

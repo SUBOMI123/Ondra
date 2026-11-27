@@ -36,6 +36,24 @@ def test_feed_addresses_that_arent_public_https_are_refused():
             feed_fetch.check_url(bad)
 
 
+def test_a_feed_download_goes_to_the_address_that_was_checked():
+    url, headers, ext = feed_fetch.pinned("https://feeds.example.com/lot.csv?k=1", "93.184.216.34")
+    assert url == "https://93.184.216.34/lot.csv?k=1" and headers == {"Host": "feeds.example.com"} and ext == {"sni_hostname": "feeds.example.com"}
+    assert feed_fetch.pinned("https://feeds.example.com/x", "2606:2800:220:1::1")[0] == "https://[2606:2800:220:1::1]/x"
+
+
+async def test_a_name_that_resolves_anywhere_private_is_refused(monkeypatch):
+    import asyncio
+    import socket
+
+    async def fake(host, port, type=0):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)), (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.1.2.3", 443))]
+
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", fake)
+    with pytest.raises(feed_fetch.FeedError, match="public internet"):
+        await feed_fetch._check_host("rebind.example.com")
+
+
 async def test_crm_settings_test_lead_and_health(client, clean):
     owner = await login(client, "owner@prestigemotors.example")
     sales = await login(client, "daniel@prestigemotors.example")

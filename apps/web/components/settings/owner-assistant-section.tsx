@@ -41,6 +41,39 @@ function list(names: string[]) {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
 }
 
+type ThreadMsg = { id: string; from: "you" | "ondra"; kind: string; text: string; at: string; failed: boolean; error: string | null; did: string[]; template: string | null }
+
+const KIND: Record<string, string> = { voice: "Voice note", button: "Tapped a button", briefing: "Morning briefing", alert: "Alert" }
+
+/** What the owner and the assistant said to each other, so what it did from a voice note can be checked here. */
+function Thread() {
+  const q = useQuery({ queryKey: ["owner-assistant", "thread"], queryFn: () => api<{ messages: ThreadMsg[] }>("/settings/owner-assistant/thread?limit=30") })
+  return (
+    <details className="text-sm">
+      <summary className="cursor-pointer font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">Your recent messages with the assistant</summary>
+      <div className="mt-3">
+        {q.isPending ? <Skeleton className="h-24 w-full" /> : q.isError ? <p role="alert">{q.error.message}</p> : q.data.messages.length === 0 ? (
+          <p className="text-muted-foreground">Nothing yet. Message your dealership&apos;s WhatsApp number from your own mobile and it shows here.</p>
+        ) : (
+          <ol className="grid gap-3">
+            {q.data.messages.map((m) => (
+              <li key={m.id} className="grid gap-0.5">
+                <p className="text-xs text-muted-foreground">
+                  {m.from === "you" ? "You" : <span data-slot="ai-note" className="text-ai">Ondra</span>}
+                  {KIND[m.kind] ? `, ${KIND[m.kind].toLowerCase()}` : ""}, {new Date(m.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </p>
+                <p className="whitespace-pre-wrap">{m.text || (m.kind === "button" ? "(a button)" : "")}</p>
+                {m.did.length > 0 && <p className="text-xs text-muted-foreground">Changed: {m.did.join("; ")}.</p>}
+                {m.failed && <p className="text-xs">Not delivered{m.error ? `: ${m.error}` : ""}.</p>}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </details>
+  )
+}
+
 export function OwnerAssistantSection() {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ["owner-assistant"], queryFn: () => api<Data>("/settings/owner-assistant") })
@@ -130,6 +163,8 @@ export function OwnerAssistantSection() {
           what it did. It can send a reply Ondra already drafted when you say so, and it never messages a customer on its own.
         </p>
       </div>
+
+      {canEdit && <Thread />}
 
       <details className="text-sm">
         <summary className="cursor-pointer font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">Before the first briefing: two WhatsApp templates to get approved</summary>

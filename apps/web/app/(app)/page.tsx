@@ -44,6 +44,7 @@ type Report = {
   series: { day: string; leads: number; responses_by_ai: number; responses_by_team: number; appointments_booked: number }[]
   pipeline: { by_stage: Record<string, number>; in_play: number; in_play_by_ai: number }
   labels: Record<string, string>
+  people: { user_id: string; name: string; first_replies: number; median_first_response_seconds: number }[]
 }
 type Trace = {
   label: string; count: number
@@ -393,6 +394,27 @@ export default function TodayPage() {
                 <p className="mb-4 text-sm text-muted-foreground">Each time a customer wrote in and was waiting, who gave the first reply.</p>
                 <RepliesChart r={r} />
               </div>
+
+              {r.people.length > 0 && (needs?.scope === "everyone") && (
+                <div className="rounded-xl border p-5">
+                  <h3 className="font-medium">Your team&apos;s first replies</h3>
+                  <p className="mb-4 text-sm text-muted-foreground">When a person, not Ondra, answered a waiting customer first.</p>
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-muted-foreground">
+                      <tr><th className="pb-2 font-normal">Who</th><th className="pb-2 text-right font-normal">First replies</th><th className="pb-2 text-right font-normal">Median wait</th></tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {r.people.map((p) => (
+                        <tr key={p.user_id}>
+                          <td className="py-2">{p.name}</td>
+                          <td className="py-2 text-right tabular-nums">{p.first_replies}</td>
+                          <td className="py-2 text-right tabular-nums">{duration(p.median_first_response_seconds)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border p-5">

@@ -46,13 +46,13 @@ FIXTURE = [
     Ev("message.received", at(23, 9, 4), {"channel": "whatsapp"}),
     Ev("response.sent", at(23, 9, 5), {"channel": "whatsapp", "by": "ai", "seconds": 20}),
     Ev("message.received", at(23, 14), {"channel": "sms"}),
-    Ev("response.sent", at(23, 14, 10), {"channel": "sms", "by": "user", "seconds": 600}),
+    Ev("response.sent", at(23, 14, 10), {"channel": "sms", "by": "user", "seconds": 600, "user_id": "dan"}),
     Ev("message.received", at(23, 23, 29), {"channel": "sms"}),
     Ev("lead.captured", at(23, 23, 30), {"deal_id": "B", "channel": "sms", "by": "ai", "after_hours": True}),
     Ev("response.sent", at(23, 23, 30), {"channel": "sms", "by": "ai", "seconds": 40}),
     Ev("message.received", at(24, 9, 30), {"channel": "email"}),
     Ev("lead.captured", at(24, 10), {"deal_id": "C", "channel": "email", "by": "user", "after_hours": False}),
-    Ev("response.sent", at(24, 10), {"channel": "email", "by": "user", "seconds": 1800}),
+    Ev("response.sent", at(24, 10), {"channel": "email", "by": "user", "seconds": 1800, "user_id": "dan"}),
     Ev("appointment.booked", at(24, 11), {"appointment_id": "t1", "source": "ai", "type": "Test drive"}),
     Ev("deal.stage_changed", at(24, 11), {"deal_id": "A", "from": "new", "to": "appointment"}),
     Ev("appointment.booked", at(24, 12), {"appointment_id": "s1", "source": "staff", "type": "Oil change"}),
@@ -102,6 +102,7 @@ def test_the_periods_totals_match_the_hand_count():
     assert (t["follow_ups_sent"], t["calls"], t["calls_by_ai"], t["calls_missed"]) == (1, 3, 1, 1)
     assert t["calls_by"] == {"ai": 1, "missed": 1, "staff": 1}
     assert t["handled_by"] == {"ai": 4, "team": 3}
+    assert t["response_seconds_by_person"] == {"dan": [600, 1800]}  # one salesperson answered both
     assert t["messages_in"] == 5 and t["messages_in_by_channel"] == {"whatsapp": 2, "sms": 2, "email": 1}
     assert total([])["median_first_response_seconds"] is None  # no replies: no median, not zero
 

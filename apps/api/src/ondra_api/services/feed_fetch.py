@@ -3,9 +3,10 @@
 A URL typed into a settings form is untrusted: without checks, the server could be pointed at its own network
 (cloud metadata, internal services). So: https only, no credentials in the URL, the host must resolve only to
 public addresses, no redirects are followed, and the download is capped at 5 MB.
-Known gap: the address is checked and then connected to by name, so a host that changes its DNS between the two
-(DNS rebinding) isn't stopped here. Close it at hosting by sending these fetches through an egress proxy that
-refuses private ranges. Recorded in docs/DECISIONS.md.
+The download connects to the exact address that was checked (TLS still verifies the certificate for the name), so
+a host that changes its DNS between the check and the download (DNS rebinding) can't send it somewhere private.
+Behind an HTTPS proxy the proxy resolves the name instead; production should send these fetches through an egress
+proxy that refuses private ranges as well.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import os
 import socket
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -53,21 +55,34 @@ def check_url(url: str) -> str:
     return parts.geturl()
 
 
-async def _check_host(host: str) -> None:
+async def _check_host(host: str) -> str:
+    """Every address the name resolves to must be public. Returns the one to connect to."""
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, 443, type=socket.SOCK_STREAM)
     except socket.gaierror:
         raise FeedError("That address couldn't be found.") from None
-    for info in infos:
-        if not ipaddress.ip_address(info[4][0]).is_global:
-            raise FeedError("That address isn't on the public internet.")
+    addrs = [info[4][0] for info in infos]
+    if not addrs or any(not ipaddress.ip_address(a).is_global for a in addrs):
+        raise FeedError("That address isn't on the public internet.")
+    return addrs[0]
+
+
+def pinned(url: str, ip: str) -> tuple[str, dict, dict]:
+    """The same request, sent to `ip`: (url, headers, extensions). The Host header and TLS name stay the original."""
+    parts = urlsplit(url)
+    host = parts.hostname
+    literal = f"[{ip}]" if ":" in ip else ip
+    return parts._replace(netloc=literal).geturl(), {"Host": host}, {"sni_hostname": host}
 
 
 async def fetch(url: str) -> str:
     url = check_url(url)
-    await _check_host(urlsplit(url).hostname)
+    ip = await _check_host(urlsplit(url).hostname)
+    proxied = any(os.environ.get(k) for k in ("HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"))
+    target, headers, ext = (url, {}, {}) if proxied else pinned(url, ip)
     try:
-        async with httpx.AsyncClient(timeout=20, follow_redirects=False, trust_env=True) as client, client.stream("GET", url) as r:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=False, trust_env=True) as client, \
+                client.stream("GET", target, headers=headers, extensions=ext) as r:
             if r.status_code in (301, 302, 303, 307, 308):
                 raise FeedError("The feed address redirects somewhere else. Use the final address.")
             if r.status_code != 200:

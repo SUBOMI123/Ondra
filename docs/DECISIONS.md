@@ -635,3 +635,32 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   in one ink; red is never a series. Comparisons with the period before are muted text with an arrow.
 - **Not built:** value of deals in play (deals carry no reliable value yet); per-salesperson breakdowns; exports;
   a custom date range.
+
+## 2026-11-27: Closing the gaps after Step 9
+
+- **Deals board on real deals.** `GET /deals` gives the sales board; moving a card records `deal.stage_changed`,
+  which is what the Today pipeline counts. Lost asks why (four reasons), with Undo. A card's value is an estimate:
+  the listed price of the car in stock they named, else their budget, else blank, never a guess. VIP deals only
+  for people who can see VIPs. The service board was dropped: it was example data with no real model behind it.
+- **Calls offer texts only when the dealer's texting is live.** The rules, the stock search's hint and the
+  `text_details` tool all change when the dealer's SMS is the mock. `VOICE_TEXT_ON_MOCK=1` allows it on purpose
+  for local runs and tests. Checked on a real-model call: asked to text, Ondra said it can't from this line and
+  offered a follow-up from sales.
+- **A handoff is said once.** When Ondra has already spoken in the reply that hands off (with or without lead
+  details), LiveKit's follow-up reply is cancelled. Real-model calls before: "I'll pass that to sales ... Sales will
+  call you back"; after: one sentence, twice in a row.
+- **Rated replies become draft eval cases** (`python -m ondra_api.services.eval_export --tenant <id>`), redacted
+  (names, phones, emails, VINs, street addresses), into `evals/candidates/`, which git ignores and the eval runner
+  doesn't read. A person writes the expectation and checks the redaction before moving one into `evals/golden/`.
+  Redaction is pattern-based and will miss some things; the human review is the real safeguard.
+- **A note when rating a reply wrong or off in tone**, asked inline in the Inbox (skippable).
+- **Per-person first replies** on Today (owners, admins, managers only): each `response.sent` by a person now
+  carries who sent it. Replies before this change have no person and aren't counted per person.
+- **The owner's assistant conversation** is readable in Settings, by the owner only.
+- **Feed fetch connects to the address it checked** (the Host header and TLS name stay the real ones), which
+  closes DNS rebinding when there's no proxy. Behind an HTTPS proxy the proxy resolves the name, so production still
+  needs an egress proxy that refuses private ranges.
+- **Left open, on purpose:** reply time for calls (Ondra answers every call it takes at once; "speed to answer" for
+  people needs ring timing from the carrier); a dollar value on Today (deal values aren't events, and every number
+  on Today must trace to events; the estimate lives on the Deals board); prices inside a dealer's own answers
+  (a product decision for the founder).

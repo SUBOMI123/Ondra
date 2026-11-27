@@ -355,3 +355,15 @@ async def test_owner_assistant_settings_are_the_owners_and_schedule_the_briefing
     sent = (await client.post("/settings/owner-assistant/briefing", headers=owner)).json()
     assert sent["sent"] == 1 and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
     assert (await client.post("/settings/owner-assistant/briefing", headers=admin)).status_code == 403
+
+
+async def test_the_owner_reads_their_own_assistant_thread(client, line):
+    from tests.conftest import login
+
+    owner = await login(client, "owner@prestigemotors.example")
+    admin = await login(client, "admin@prestigemotors.example")
+    line.script([("who_wanted", {"what": "civic"})], "Jordan Price asked about the Civic.")
+    await line.owner_sends("who wanted a civic?")
+    thread = (await client.get("/settings/owner-assistant/thread", headers=owner)).json()["messages"]
+    assert [(m["from"], m["text"]) for m in thread][-2:] == [("you", "who wanted a civic?"), ("ondra", "Jordan Price asked about the Civic.")]
+    assert (await client.get("/settings/owner-assistant/thread", headers=admin)).status_code == 403

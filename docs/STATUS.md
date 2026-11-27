@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Steps 6 to 9 are built with their acceptance checks met; waiting for the founder to accept them before Step 10 (hardening and compliance). Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -106,11 +106,9 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 |---|---|---|
 | Prove the warm transfer on a real call ("talk to a manager") | The last unmet Step 5 acceptance check | A call with a second phone as the manager |
 | Find the missing 2 seconds per turn | Turns take 3.4-3.8 s; model and voice account for about 1.2 s. The call record now stores the end-of-turn wait and tool time | One real call, then tune the end-of-turn wait or the lookups from the numbers |
-| Real texts from calls | Ondra says "it's on its way" and the text goes to the mock | Twilio Account SID and Auth Token, A2P 10DLC approval, `FEATURE_SMS=true`. Until then, consider not offering texts on calls |
 | Speech recognition mishearing ("I we can't know the price of a Honda CR V") | Wrong words in, wrong answers out | The recognition model comparison (try `VOICE_STT_MODEL=assemblyai/assemblyai-stt-3-7-realtime-agent`) on recorded calls |
 | Hear the 2026-11-27 fixes on a call | Today-already-passed days, asking which of two times, naming three cars, no needless apology: tested, not heard | One call |
 | A test that listens to how the voice reads prices | ElevenLabs Flash misread prices and only a manual check caught it | Part of the 5e voice test set |
-| Handoff mentioned twice; occasional "anything else I can help with" | Sounds scripted | Prompt work against the scripted calls |
 | A call nobody answers must not vanish | Worker down: caller hears ringing, nothing is recorded | Hosting (a public URL for Twilio's fallback route) and a no-worker alert |
 | Recording with consent; fixed message when a VIP's call isn't answered; did the owner pick up after a cold transfer | Plan §4.2 | LiveKit Egress, Twilio call status, counsel on recording consent |
 
@@ -141,13 +139,13 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 
 ## Known gaps (honest list)
 
-- **Analytics:** (1) the Deals board is still example data, so nobody moves a deal's stage from the dashboard and the pipeline is mostly "New"; (2) no value on deals in play; (3) reply time covers messages, not calls; (4) leads from before Step 9 count toward neither Ondra nor the team; (5) no per-person numbers, exports or custom dates.
+- **Analytics:** (1) reply time covers messages, not calls (needs ring timing from the carrier); (2) the dollar value of deals is an estimate on the Deals board only, not on Today; (3) leads from before Step 9 count toward neither Ondra nor the team, and replies before 2026-11-27 have no person attached; (4) no exports or custom dates.
 
-- **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) the dashboard doesn't show the assistant thread; (5) owners only, not managers.
+- **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) owners only, not managers.
 
-- **Integrations, not proven or not built:** (1) no real CRM has received an ADF lead, and how each CRM wants the email (body or attachment, subject) is unverified; (2) scheduled feed fetching doesn't stop DNS rebinding and can't use feeds that need a login; (3) no real DMS vendor adapter exists (partner programs); (4) the CSV repair-order upload is manual and replaces the last one; (5) XML feeds that put data in attributes only aren't read.
+- **Integrations, not proven or not built:** (1) no real CRM has received an ADF lead, and how each CRM wants the email (body or attachment, subject) is unverified; (2) scheduled feed fetching pins the checked address, but behind an HTTPS proxy needs the proxy to refuse private ranges, and can't use feeds that need a login; (3) no real DMS vendor adapter exists (partner programs); (4) the CSV repair-order upload is manual and replaces the last one; (5) XML feeds that put data in attributes only aren't read.
 
-- **Learning loop, not built:** (1) ratings aren't exported into the eval set (needs redaction of customer data and a home for such cases); (2) no automatic pattern-finding across draft edits, each edit is listed for the dealer to act on; (3) no note field when rating in the Inbox; (4) prices inside a dealer's own answers ("remote starter, $450") aren't repeated by Ondra, because only listed vehicle prices are allowed.
+- **Learning loop:** rated replies export as redacted draft eval cases, but a person has to write each expectation before it joins the golden set, and the redaction is pattern-based. Still not built: automatic pattern-finding across draft edits. Prices inside a dealer's own answers aren't repeated by Ondra (founder decision).
 - **Follow-ups by text mostly become tasks** until counsel says whether an inbound text is consent to a later follow-up; WhatsApp follow-ups after 24 hours need templates, which aren't built.
 - **Alerts addressed to the owner now go to their WhatsApp** (Step 8). Alerts for managers and other teams are still records only.
 

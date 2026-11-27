@@ -295,3 +295,18 @@ async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) 
     if out["sent"] == 0:
         raise HTTPException(502, "The briefing couldn't be sent. Check that a WhatsApp number is connected under Channels.")
     return {k: out[k] for k in ("vips_waiting", "hot_leads", "drafts", "overdue_tasks", "appointments", "sent", "owners")}
+
+
+@router.get("/owner-assistant/thread")
+async def owner_assistant_thread(limit: int = 50, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    """The owner's own conversation with their WhatsApp assistant, newest last. Only the owner reads it: it's their
+    phone, their voice notes, their questions."""
+    from ondra_core.models import AssistantMessage
+
+    caller, db = ctx
+    _owner_only(caller)
+    rows = (await db.execute(select(AssistantMessage).where(AssistantMessage.user_id == caller.user_id)
+                             .order_by(AssistantMessage.created_at.desc()).limit(max(1, min(limit, 200))))).scalars().all()[::-1]
+    return {"messages": [{"id": str(m.id), "from": "you" if m.direction == "in" else "ondra", "kind": m.kind, "text": m.body,
+                          "at": m.created_at.isoformat(), "failed": m.status == "failed", "error": (m.meta or {}).get("error"),
+                          "did": (m.meta or {}).get("did") or [], "template": (m.meta or {}).get("template")} for m in rows]}

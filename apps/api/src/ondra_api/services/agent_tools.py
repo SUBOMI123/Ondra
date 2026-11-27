@@ -14,11 +14,10 @@ from ondra_core.models import (
     ContactIdentity,
     Conversation,
     Deal,
-    KnowledgeGap,
     User,
     Vehicle,
 )
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _DEAL_COLUMNS = {"budget_min", "budget_max", "payment_method", "timeline", "destination"}

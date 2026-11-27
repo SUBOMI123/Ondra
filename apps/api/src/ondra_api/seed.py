@@ -24,6 +24,7 @@ from ondra_core.models import (
     Conversation,
     Deal,
     Event,
+    Integration,
     KnowledgeDoc,
     Message,
     Policy,
@@ -31,7 +32,6 @@ from ondra_core.models import (
     Task,
     Tenant,
     User,
-    Integration,
     Vehicle,
 )
 from sqlalchemy import func, select, text
