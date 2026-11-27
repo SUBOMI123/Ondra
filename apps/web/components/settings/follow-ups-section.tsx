@@ -83,7 +83,7 @@ function StepLine({ s, n, draftMode }: { s: Step; n: number; draftMode: boolean 
   const approve = s.require_approval || draftMode
   return (
     <li className="text-sm">
-      <span className="text-muted-foreground">{n === 0 ? "After" : "Then after"} {wait(s.after_hours)} of silence, </span>
+      <span className="text-muted-foreground">{n === 0 ? `After ${wait(s.after_hours)} of silence, ` : `Then, ${wait(s.after_hours)} later, `}</span>
       {s.write === "ondra" ? (
         <span data-slot="ai-note" className="inline-flex items-center gap-1 text-ai">
           <OndraMark className="size-3.5 shrink-0" />

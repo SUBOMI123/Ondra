@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable. Follow-up sequences with approval and quiet hours work end to end in tests; their settings section is unverified in a browser. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-27. **Now:** Step 6. Routing is built and editable; follow-up sequences with approval and quiet hours work end to end and are set up in Settings > Follow-ups. Next: the learning loop. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -14,7 +14,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
 | 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
-| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a), "Who gets what" screen (6b), follow-ups and quiet hours backend (6c) done and tested. **The Follow-ups settings section is written and type-checked but not yet run in a browser or through `review:ui`** (the local database stopped). Next: verify that screen, learning loop (6d), acceptance (6e) |
+| 6 | Routing, follow-ups, learning loop | In progress: routing engine (6a), "Who gets what" screen (6b), follow-ups and quiet hours with their settings section (6c) done, tested, and checked in a browser. Next: learning loop (6d), acceptance (6e) |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
 | 9 | Analytics | Not started |
