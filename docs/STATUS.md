@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-26. **Now:** Step 5, Voice: everything but the acceptance call is done. (707) 306-8599 rings through Twilio and LiveKit to the `ondra-voice` worker (proven with a test call on 2026-11-26). The acceptance call has to run from a computer with a normal connection
+**Last updated:** 2026-11-27. **Now:** Step 5, Voice, is parked with a backlog (below) by founder decision on 2026-11-27: real calls book appointments on the new voice, but the warm transfer hasn't been proven on a real call and replies take about 2.7 s against a 1 s target. Next up: Step 6, not started.
 
 ## Build steps
 
@@ -13,7 +13,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | 2 | Channel gateway and text agent | **Done** (2026-11-26), all 4 acceptance checks met |
 | 3 | Inbox, clients, tasks | **Done** (2026-11-26), both acceptance checks met in a real browser |
 | 4 | Booking | **Done** (2026-11-26), all acceptance checks met with the real model |
-| 5 | Voice | In progress: call handling, voice agent and Calls screen done and tested. Waiting on the real phone line (Twilio, SIP trunk) for acceptance |
+| 5 | Voice | **Parked with a backlog** (2026-11-27). Acceptance: real call books an appointment, met; latency measured and logged, met (2.7 s average, target 1 s not reached); warm transfer to a manager on a real call, **not yet proven** |
 | 6 | Routing, follow-ups, learning loop | Not started |
 | 7 | Integrations (ADF, inventory feed, DMS) | Not started |
 | 8 | Owner WhatsApp layer | Not started |
@@ -67,6 +67,22 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
 - **Quality:** 166 Python tests, 22 golden conversations against the real model, browser acceptance runs, and `npm run review:ui` on 13 pages.
+
+## Voice backlog (parked 2026-11-27)
+
+Kept here by founder decision so work can move on. In rough order of what a pilot dealer would notice first.
+
+| Item | Why it matters | Needs |
+|---|---|---|
+| Prove the warm transfer on a real call ("talk to a manager") | The last unmet Step 5 acceptance check | A call with a second phone as the manager |
+| Find the missing 2 seconds per turn | Turns take 3.4-3.8 s; model and voice account for about 1.2 s. The call record now stores the end-of-turn wait and tool time | One real call, then tune the end-of-turn wait or the lookups from the numbers |
+| Real texts from calls | Ondra says "it's on its way" and the text goes to the mock | Twilio Account SID and Auth Token, A2P 10DLC approval, `FEATURE_SMS=true`. Until then, consider not offering texts on calls |
+| Speech recognition mishearing ("I we can't know the price of a Honda CR V") | Wrong words in, wrong answers out | The recognition model comparison (try `VOICE_STT_MODEL=assemblyai/assemblyai-stt-3-7-realtime-agent`) on recorded calls |
+| Hear the 2026-11-27 fixes on a call | Today-already-passed days, asking which of two times, naming three cars, no needless apology: tested, not heard | One call |
+| A test that listens to how the voice reads prices | ElevenLabs Flash misread prices and only a manual check caught it | Part of the 5e voice test set |
+| Handoff mentioned twice; occasional "anything else I can help with" | Sounds scripted | Prompt work against the scripted calls |
+| A call nobody answers must not vanish | Worker down: caller hears ringing, nothing is recorded | Hosting (a public URL for Twilio's fallback route) and a no-worker alert |
+| Recording with consent; fixed message when a VIP's call isn't answered; did the owner pick up after a cold transfer | Plan §4.2 | LiveKit Egress, Twilio call status, counsel on recording consent |
 
 ## Waiting on the founders
 
