@@ -4,10 +4,10 @@ Set up 2026-11-27. Where each part runs and why: `docs/ARCHITECTURE.md`.
 
 | Part | Where | Name |
 |---|---|---|
-| API + job worker | Fly.io, San Jose (`sjc`), one image, two process groups | `ondra-api-staging` (`infra/fly/api.toml`) |
+| API + job worker | Fly.io, San Jose (`sjc`), one image, two process groups | `ondra-api-staging` (`infra/fly/api.toml`), https://api.useondra.com |
 | Voice worker | Fly.io, `sjc`, 2 GB | `ondra-voice-staging` (`infra/fly/voice.toml`) |
 | Database | Supabase, us-west-2 (Oregon), Free plan | project `Ondra` (`sbesiusjfltienbbieyv`) |
-| Dashboard | Cloudflare Workers (OpenNext) | `ondra-web-staging` (`apps/web/wrangler.jsonc`), **not deployed yet**: waits on useondra.com |
+| Dashboard | Fly.io, `sjc`, 512 MB, sleeps when idle | `ondra-web-staging` (`infra/fly/web.toml`), https://app.useondra.com |
 | Phone | Twilio number (707) 306-8599 to LiveKit Cloud SIP, dispatch to `ondra-voice` | `infra/telephony/connect_line.py` |
 
 `sjc` because Fly's Seattle region is deprecated (no new machines) and San Jose is the nearest open region to the
@@ -34,16 +34,25 @@ From the repo root:
 ```
 fly deploy . -c infra/fly/api.toml --dockerfile apps/api/Dockerfile      # runs migrations first (release_command)
 fly deploy . -c infra/fly/voice.toml --dockerfile apps/voice/Dockerfile --ha=false
-cd apps/web && NEXT_PUBLIC_API_URL=https://api.useondra.com npm run deploy:cf
+fly deploy apps/web -c $PWD/infra/fly/web.toml --build-arg NEXT_PUBLIC_API_URL=https://api.useondra.com --ha=false
 ```
 
+DNS (Cloudflare, zone useondra.com): `api` and `app` are A + AAAA records to each Fly app's addresses, **DNS only**
+(grey cloud), so Fly can issue and renew their certificates (`fly certs add <host> -a <app>`).
+
+**The dashboard on Cloudflare Workers instead:** `apps/web/wrangler.jsonc` and `npm run deploy:cf` are ready
+(OpenNext build, 1.5 MB compressed). From Ondra's cloud build session the deploy fails at the static-asset upload:
+the session's proxy swaps wrangler's short-lived upload token for the saved API token (401). From any normal machine
+(`npx wrangler login`, then the script) it should work; then point `app` at the Worker and retire the Fly app.
+
 From Ondra's cloud build sessions, `docker build` can't get through the session's network proxy, so build and
-push with `infra/deploy/sandbox_build.py`, then `fly deploy ... --image <the printed tag>`.
+push with `infra/deploy/sandbox_build.py`, then `fly deploy ... --image <the printed tag>`. It also pulls official base images through mirror.gcr.io, since the
+session often hits Docker Hub's anonymous rate limit.
 
 ## Limits to know
 
-- **Fly: 3 machines** on the account until a card is added: the API (1, high availability turned off), the job
-  worker and the voice worker use all three. Add a card before scaling or adding staging for the dashboard.
+- **Fly:** a card is on the account (2026-11-27). Four machines: API (high availability off), job worker, voice
+  worker, dashboard (sleeps when idle).
 - **Supabase Free:** no backups, 500 MB, pauses after a week without activity. Staging only; Pro before any real
   dealer data.
 - **LiveKit Build:** 1,000 agent minutes a month, then calls stop. Ship before a pilot.

@@ -31,3 +31,11 @@ def test_demo_users_on_a_public_site_need_their_own_password(monkeypatch):
     finally:
         monkeypatch.delenv("APP_BASE_URL")
         get_settings.cache_clear()
+
+
+def test_the_live_listener_connects_with_ssl_the_way_asyncpg_takes_it():
+    from ondra_api.live import raw_dsn
+
+    assert raw_dsn("postgresql+asyncpg://u:p@db.x.supabase.co:5432/postgres?ssl=require") == \
+        "postgresql://u:p@db.x.supabase.co:5432/postgres?sslmode=require"
+    assert raw_dsn("postgresql+asyncpg://u:p@localhost:5432/ondra") == "postgresql://u:p@localhost:5432/ondra"

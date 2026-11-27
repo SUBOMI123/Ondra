@@ -8,7 +8,8 @@ Builds inside `docker build` can't reach the proxy on 127.0.0.1 and don't trust 
 So: --network host, the proxy settings as build args (Docker's predefined proxy args, not kept in the image), and a
 variant of the Dockerfile in which each RUN step sees the proxy's CA bundle through a BuildKit secret mount. The
 certificate exists only while that step runs: nothing about the proxy ends up in the image, and the real Dockerfile
-is unchanged.
+is unchanged. Official base images (python, node) come through mirror.gcr.io, since the sandbox often hits Docker Hub's
+anonymous rate limit.
 """
 
 from __future__ import annotations
@@ -31,7 +32,10 @@ def variant(dockerfile: str) -> str:
     """Every `RUN cmd` becomes `RUN --mount=<ca> VAR=... cmd` (shell form only, which is all our Dockerfiles use)."""
     with open(dockerfile) as f:
         text = f.read()
-    return re.sub(r"^RUN (?!\[)", "RUN " + TRUST, text, flags=re.MULTILINE)
+    text = re.sub(r"^RUN (?!\[)", "RUN " + TRUST, text, flags=re.MULTILINE)
+    # Official Docker Hub images through Google's mirror: the sandbox shares its address with others, so Docker Hub's
+    # anonymous rate limit (429) is often used up. Same images, same tags.
+    return re.sub(r"^FROM (?!\S+/)(\S+)", r"FROM mirror.gcr.io/library/\1", text, flags=re.MULTILINE)
 
 
 def main() -> None:

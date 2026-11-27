@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import uuid
 from collections import defaultdict
 from collections.abc import AsyncIterator
@@ -29,6 +30,12 @@ HEARTBEAT_SECONDS = 15
 QUEUE_SIZE = 200
 
 
+
+def raw_dsn(url: str) -> str:
+    """SQLAlchemy's URL as plain asyncpg takes it: no "+asyncpg", and SQLAlchemy's `ssl=require` (which asyncpg would
+    otherwise send to Postgres as a server setting and fail) as libpq's `sslmode=require`."""
+    return re.sub(r"([?&])ssl=", r"\1sslmode=", url.replace("postgresql+asyncpg://", "postgresql://"))
+
 class Broker:
     def __init__(self) -> None:
         self._subs: dict[uuid.UUID, set[asyncio.Queue]] = defaultdict(set)
@@ -39,7 +46,7 @@ class Broker:
         async with self._lock:
             if self._conn is not None and not self._conn.is_closed():
                 return
-            dsn = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql://")
+            dsn = raw_dsn(get_settings().database_url)
             self._conn = await asyncpg.connect(dsn)
             await self._conn.add_listener("ondra_changes", self._on_notify)
 

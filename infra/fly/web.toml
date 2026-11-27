@@ -1,0 +1,27 @@
+# Ondra dealer dashboard on Fly.io (staging), at app.useondra.com.
+# Build context is apps/web (it has its own Dockerfile and .dockerignore); NEXT_PUBLIC_* are baked in at build time:
+#   fly deploy apps/web -c infra/fly/web.toml --build-arg NEXT_PUBLIC_API_URL=https://api.useondra.com
+# (Cloudflare Workers is the planned home, apps/web/wrangler.jsonc; deploying there from the cloud build session
+# fails because the session's proxy overwrites the upload token wrangler sends. See docs/DEPLOY.md.)
+
+app = "ondra-web-staging"
+primary_region = "sjc"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # Sleeps when nobody's using it; the first request wakes it in a few seconds.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/login"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
