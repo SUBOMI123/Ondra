@@ -739,3 +739,23 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Paged by the API, 50 at a time,** instead of loading 200 and stopping. A dealership has thousands of clients.
 - **Not built:** filtering by stage or salesperson (the Deals board does that), bulk actions, and exporting.
   Opt-outs aren't shown in the list yet; they're on the profile.
+
+## 2026-11-27: Deals have a salesperson from the start, and open in a side panel
+
+- **Ondra gives every deal it opens a salesperson:** whoever has the conversation, else the next in turn under the
+  dealer's routing rules (the same `route()` the Inbox uses, so dealer rules and shifts apply). Before, deals Ondra
+  opened belonged to nobody, so "Mine" would have been empty for everyone. Older deals without one fall back to
+  whoever has the conversation or an open task, and a manager can hand any deal to someone from its panel
+  (audited as `deal.owner`). VIP deals are never auto-assigned: their handler has them.
+- **Each card says what the deal needs next:** a booked visit beats a task; an overdue task is red (red is for
+  overdue only). Plus who has it and when you were last in touch.
+- **Drag between stages,** with the card moving at once and Undo in the toast. Six columns don't fit beside the
+  sidebar, so while dragging, "Won" and "Lost" drop targets appear at the bottom of the screen (the pattern
+  Pipedrive and HubSpot use). Dropping on Lost asks why, because the reason is what the owner learns from. The card's
+  menu still moves it, and is the keyboard and touch way to do it: HTML drag and drop doesn't work on phones.
+- **"Mine" and "Everyone".** Salespeople start on Mine; owners and managers on Everyone.
+- **The deal panel** (`/deals?deal=…`, a sheet over the board, so you keep your place): call, message, profile;
+  stage and salesperson; what they want (car in stock with price, budget, paying by, trade-in, timing, delivery);
+  what's next; the last six messages; how the deal has moved and who moved it. A VIP's panel shows nothing Ondra wrote.
+- **Not built:** editing budget or trade-in from the panel (they come from the conversation; edits belong with the
+  CRM sync), notifying someone when a deal is handed to them, and dragging on touch screens.

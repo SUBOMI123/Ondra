@@ -107,8 +107,9 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | VIP handler is told (task and WhatsApp) and sees "VIPs waiting" | Done |
 | Settings as an index of pages in four groups | Done |
 | Clients list: search by name, phone or email; deal, who looks after them, last in touch; paged | Done |
-| Deals detail and next steps | Next |
-| Tasks team board, Inventory, Calls actions | To do |
+| Deals: salesperson from the start, next step on each card, drag between stages, Mine, deal panel | Done |
+| Tasks team board | Next |
+| Inventory, Calls actions | To do |
 
 ## Voice backlog (parked 2026-11-27)
 

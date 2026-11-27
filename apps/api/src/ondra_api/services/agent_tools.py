@@ -165,7 +165,15 @@ class DbToolBackend:
                                Deal.stage.notin_(("won", "lost"))).order_by(Deal.created_at.desc()).limit(1)
         )).scalar_one_or_none()
         if deal is None:
-            deal = Deal(contact_id=self.contact.id, type="sales", stage="new", source_channel=self.conversation.channel)
+            # Every deal has a salesperson from the start: whoever has the conversation, else the next one in turn
+            # under the dealer's routing rules. A deal nobody owns is a deal nobody chases.
+            owner = self.conversation.assigned_user_id
+            if owner is None and not self.contact.is_vip:
+                from ondra_api.services.routing import route
+
+                owner = (await route(self.db, topic="sales", channel=self.conversation.channel, contact=self.contact)).user_id
+            deal = Deal(contact_id=self.contact.id, type="sales", stage="new", source_channel=self.conversation.channel,
+                        owner_user_id=owner)
             self.db.add(deal)
             await self.db.flush()
             from ondra_api.services.metrics import lead_captured

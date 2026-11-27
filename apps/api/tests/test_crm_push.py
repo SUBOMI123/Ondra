@@ -102,6 +102,10 @@ async def test_a_qualified_lead_produces_a_valid_adf_email_once(shop):
         deal = (await db.execute(text("""SELECT d.crm_pushed_at FROM deals d JOIN contact_identities i ON i.contact_id = d.contact_id
                                           WHERE i.value = :v"""), {"v": frm})).scalar_one()
         assert deal is not None
+        # Ondra opened the deal and gave it a salesperson straight away: nobody's deal is nobody's job.
+        role = (await db.execute(text("""SELECT u.role FROM deals d JOIN contact_identities i ON i.contact_id = d.contact_id
+                                          JOIN users u ON u.id = d.owner_user_id WHERE i.value = :v"""), {"v": frm})).scalar_one()
+        assert role == "sales"
 
 
 async def test_unqualified_leads_vips_and_a_switched_off_push_send_nothing(shop):

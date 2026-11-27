@@ -11,7 +11,7 @@ import pytest
 from ondra_api.db import tenant_session
 from ondra_api.services import metrics
 from ondra_core.models import Contact, Deal, Event, MetricDay
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select, text, update
 
 from tests.conftest import login
 
@@ -123,7 +123,7 @@ async def test_real_work_writes_the_events_and_a_stage_change_moves_the_pipeline
 
     sales = await login(client, "daniel@prestigemotors.example")
     moved = (await client.patch(f"/deals/{deal.id}", json={"stage": "won"}, headers=sales)).json()
-    assert moved == {"id": str(deal.id), "stage": "won", "changed": True}
+    assert {k: moved[k] for k in ("id", "stage", "changed")} == {"id": str(deal.id), "stage": "won", "changed": True}
     assert (await client.patch(f"/deals/{deal.id}", json={"stage": "won"}, headers=sales)).json()["changed"] is False
     assert (await client.patch(f"/deals/{deal.id}", json={"stage": "sold-ish"}, headers=sales)).status_code == 422
     end = (await client.get("/analytics", params={"days": 1}, headers=owner)).json()
@@ -196,4 +196,44 @@ async def test_the_deals_board_shows_real_deals_and_moves_them(client, database)
         assert (await db.execute(select(Deal.lost_reason).where(Deal.id == sarah["id"]))).scalar_one() is None
         await db.execute(delete(Deal).where(Deal.id == vip_deal))
         await db.execute(delete(Event).where(Event.type == "deal.stage_changed", Event.payload["deal_id"].astext == sarah["id"]))
+        await db.execute(delete(MetricDay))
+
+
+async def test_a_deal_opens_in_full_and_can_be_given_to_someone(client, database):
+    t = database["a"]
+    owner = await login(client, "owner@prestigemotors.example")
+    sales = await login(client, "daniel@prestigemotors.example")
+    board = {d["client"]: d for s in (await client.get("/deals", headers=owner)).json()["stages"] for d in s["deals"]}
+    sarah = board["Sarah King"]
+    # The card says what's next and when you last spoke.
+    assert sarah["last_contact_at"] and sarah["next_task"]["title"] == "Talk price with Sarah"
+    d = (await client.get(f"/deals/{sarah['id']}", headers=sales)).json()
+    assert (d["client"]["name"], d["wants"], d["budget_max"], d["payment_method"]) == ("Sarah King", "2021 Toyota Highlander XLE", 31000.0, "cash")
+    assert any("highlander" in (m["body"] or "").lower() for m in d["messages"]) and d["conversation_id"]
+    assert d["owner"]["name"] == "Daniel Okafor" and d["owner_given"] is False  # from her open task, until someone is given it
+    assert {"Daniel Okafor", "Samuel Adeyemi"} <= {p["name"] for p in d["people"]}
+    # Give it to the owner: stored on the deal, audited, and the stage is untouched.
+    samuel = next(p for p in d["people"] if p["name"] == "Samuel Adeyemi")
+    r = await client.patch(f"/deals/{sarah['id']}", json={"owner_user_id": samuel["id"]}, headers=owner)
+    assert r.status_code == 200 and r.json()["stage"] == "new"
+    again = (await client.get(f"/deals/{sarah['id']}", headers=owner)).json()
+    assert (again["owner"]["name"], again["owner_given"]) == (samuel["name"], True)
+    assert (await client.patch(f"/deals/{sarah['id']}", json={}, headers=owner)).status_code == 422
+    # Moving it shows in its history, with who moved it.
+    await client.patch(f"/deals/{sarah['id']}", json={"stage": "qualified"}, headers=sales)
+    hist = (await client.get(f"/deals/{sarah['id']}", headers=owner)).json()["history"]
+    assert (hist[-1]["from"], hist[-1]["to"], hist[-1]["by"]) == ("new", "qualified", "Daniel Okafor")
+    # A VIP's deal doesn't exist for a salesperson who doesn't look after them.
+    async with tenant_session(t) as db:
+        vip = (await db.execute(select(Contact).where(Contact.is_vip.is_(True)).limit(1))).scalar_one()
+        vd = Deal(contact_id=vip.id, type="sales", stage="new")
+        db.add(vd)
+        await db.flush()
+        vip_deal = vd.id
+    assert (await client.get(f"/deals/{vip_deal}", headers=sales)).status_code == 404
+    assert (await client.get(f"/deals/{vip_deal}", headers=owner)).status_code == 200
+    async with tenant_session(t) as db:
+        await db.execute(delete(Deal).where(Deal.id == vip_deal))
+        await db.execute(delete(Event).where(Event.type == "deal.stage_changed", Event.payload["deal_id"].astext == sarah["id"]))
+        await db.execute(update(Deal).where(Deal.id == sarah["id"]).values(stage="new", owner_user_id=None))
         await db.execute(delete(MetricDay))
