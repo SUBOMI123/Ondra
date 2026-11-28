@@ -21,6 +21,9 @@ from typing import Literal
 # itself, so Ondra must never send its own confirmation.
 OPT_OUT_KEYWORDS = frozenset({"STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "OPTOUT", "REVOKE"})
 OPT_IN_KEYWORDS = frozenset({"START", "UNSTOP"})  # Twilio: "YES" does not opt back in
+# The carrier-required help keywords. Twilio's messaging service sends the registered HELP reply (Advanced Opt-Out),
+# so Ondra stays quiet: an AI answer on top would be a second, unregistered reply.
+HELP_KEYWORDS = frozenset({"HELP", "INFO"})
 
 # Plain-language opt-outs that aren't keywords, e.g. "please stop texting me". These opt out too: when a customer
 # asks us to stop, we stop, whatever word they used.
@@ -77,6 +80,10 @@ def evaluate_inbound(f: InboundFacts) -> InboundDecision:
     # 1. Opt-out wins over everything, VIP included: a VIP who texts STOP is opted out too.
     if consent == "opt_out":
         return InboundDecision(False, "opt_out_keyword", consent_change="opted_out_all_channels")
+
+    # 1b. HELP / INFO on its own: the carrier's registered help reply answers it.
+    if f.channel == "sms" and f.body.strip().upper().rstrip(".!?") in HELP_KEYWORDS:
+        return InboundDecision(False, "help_keyword")
 
     # 2. Opt back in. Recorded, but the carrier sends the confirmation; Ondra doesn't reply to the keyword itself.
     if consent == "opt_in" and f.contact_opted_out:

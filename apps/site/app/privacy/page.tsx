@@ -59,6 +59,11 @@ export default function PrivacyPage() {
         <p>We don&apos;t sell personal information, and we don&apos;t use a dealership&apos;s data to train AI models.</p>
       </Section>
 
+      <Section id="texts" title="Text messages">
+        <p>We do not sell, rent or share mobile phone numbers, or text messaging opt-in data and consent, with third parties or affiliates for their marketing or promotional purposes. Mobile numbers are shared only with the providers that deliver messages for us (such as Twilio), and only to deliver them.</p>
+        <p>Texts go only to people who texted first or agreed to receive them, for example by saying yes on a call. Reply STOP to stop, or HELP for help. Message and data rates may apply. The <a href="/terms#texts">text messaging terms</a> have the details.</p>
+      </Section>
+
       <Section id="processors" title="Who helps us run Ondra">
         <p>These companies process information for us, only to provide their part of the service:</p>
         <ul>

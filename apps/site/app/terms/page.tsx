@@ -56,6 +56,18 @@ export default function TermsPage() {
         <p>Ondra relies on carriers and platforms such as Twilio, WhatsApp and email providers. Their rules apply to messages sent through them, and we can&apos;t guarantee their delivery or availability.</p>
       </Section>
 
+      <Section id="texts" title="Text messages">
+        <p>Ondra sends texts for a dealership, from the dealership&apos;s own number, about a customer&apos;s own enquiry: replies to their questions, details of cars they asked about, appointment confirmations, reminders and changes, a text after a missed call, and one-time codes they ask for. It sends only to people who texted first or agreed to texts, for example by saying yes on a call. Agreeing is never a condition of buying anything.</p>
+        <ul>
+          <li>Message frequency varies with the conversation.</li>
+          <li>Message and data rates may apply.</li>
+          <li>Reply STOP to stop all texts. You&apos;ll get one message confirming it, and nothing after. Reply START to opt back in.</li>
+          <li>Reply HELP for help, or email {mail}.</li>
+          <li>Carriers are not liable for delayed or undelivered messages.</li>
+        </ul>
+        <p>How mobile numbers are handled is in our <a href="/privacy#texts">privacy policy</a>.</p>
+      </Section>
+
       <Section id="ours" title="Ours">
         <p>Ondra, its software and its content (other than the dealership&apos;s data) belong to us. The dealership may use Ondra while its agreement is in place.</p>
       </Section>

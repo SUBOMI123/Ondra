@@ -391,7 +391,8 @@ def _details_text(dealer: str, cars: list[dict]) -> str:
         price = f"${c['price']:,.0f}" if isinstance(c.get("price"), (int, float)) else c.get("price_range") or "ask us"
         miles = f"{c['mileage']:,} mi" if c.get("mileage") else "new"
         lines.append(f"{name}, {miles}, {price} (stock {c.get('stock')})")
-    lines.append("Reply here with questions, or to book a test drive.")
+    # The first text after a call: it names the dealer (above) and says how to stop (carrier rules).
+    lines.append("Reply here with questions, or to book a test drive. Reply STOP to opt out.")
     return "\n".join(lines)
 
 
