@@ -15,6 +15,8 @@ of what dealers mean by admin: the owner, or the most trusted person when the ow
   Migration converts existing owners and admins.
 - What was "send it to the owner" becomes per-person, not a role: the morning briefing and the WhatsApp assistant
   are turned on by each admin for themselves; final escalations go to admins.
+- Settings loses its **"You: Just for the owner"** group (today: "Your WhatsApp assistant"). Each person's own
+  settings (their WhatsApp assistant, their briefing) move to their account menu, under their name.
 - Two-step sign-in stays required for admins. Clerk role mapping, seed users, screen copy and docs updated.
 
 **Done when:** no code path depends on an owner role; every former owner-only screen and alert works for admins;
@@ -67,6 +69,76 @@ VIP, the person is alerted, and a task exists for every call not answered by a p
 opt-out, VIP and reschedule; the .ics opens in Google, Apple and Outlook calendars.
 
 **Estimate for 1–4:** about 2.5–3 days.
+
+### 5. Every button and link works
+
+Checked in the code 2026-11-28. Dead today:
+
+| Where | What it does now | Fix |
+|---|---|---|
+| **New message** (side nav) | Nothing | Write to any client: pick the client, the channel they use, write, send. Same send path as replies, so opt-outs block it. A VIP can only be written to by their person or an admin |
+| The **inbox icon** next to it | Nothing | Goes to the Inbox (or remove it: it duplicates the Inbox link right below) |
+| **Search** (side nav), the **search bar** at the top, **⌘K** | Nothing | One search box (opened by any of the three) across clients, cars, conversations and deals, built on the searches that already exist on Clients and Inventory. VIPs stay hidden from people who can't see them |
+| **Help** (side nav) | Nothing | A Help page: how Ondra works for the dealer, and how to reach us (hello@useondra.com) |
+| The **Ondra logo** | Nothing | Goes to Today |
+
+**Done when:** a test walks every link and button on every page at app.useondra.com and none is dead (added to
+`npm run review:ui`, so it stays that way).
+
+### 6. Whose work each screen shows: the same rule everywhere
+
+Today it's inconsistent: Inbox and Calendar show the whole dealership with no way to see just yours; Tasks and Deals
+have Mine / Everyone tabs.
+
+- **Inbox, Calls, Calendar, Tasks, Deals:** the whole dealership, with one **Mine / Everyone** switch in the same
+  place on each. Default **Mine** for sales and service (their work), **Everyone** for admins and managers (the
+  dealership). The choice is remembered.
+- **Inventory, Clients:** the dealership only (they're shared).
+- VIPs stay hidden from anyone who isn't an admin, a manager or that VIP's person, on every screen.
+
+**Done when:** each screen has the switch with the right default per role, and tests cover what each role sees.
+
+### 7. Today, redesigned
+
+It doesn't work as a screen today (founder, 2026-11-28). Redesign with the `ondra-ui` and `frontend-design` skills,
+after 6 (what Today shows depends on whose work it is).
+
+- One job: open it and know what needs you now, then how the dealership is doing.
+- What a salesperson sees (their callbacks, their appointments, their deals) differs from an admin's (the
+  dealership's numbers, what's slipping and for whom).
+- Two or three layout options as screenshots first; build the one chosen.
+
+**Done when:** the chosen layout is built, passes `npm run review:ui` and the cognitive-load check, and works at
+390, 768 and 1440 wide.
+
+### 8. Inventory photos
+
+The demo dealership's cars have no photos (the seed never had any); real dealers' photos come from their inventory
+feed, and the Inventory screen already shows them when they exist.
+
+- Add photos to the demo cars only, from a free-to-use licensed source, credited, so the demo looks real.
+  Real dealers still only ever see their own feed's photos (we never show a stock photo as a dealer's car).
+
+**Done when:** every demo car has a photo, and a test proves a real dealer's car without a feed photo shows none.
+
+### 9. The marketing site catches up
+
+- **No owner:** "owner briefing", "straight to the owner" and the like become "you" or "your team", in line with 1.
+- **VIP mark:** the site still shows the old **crown** (homepage, the stories, the channel diagram); the app uses
+  the ink **VIP tag and ring**. Replace all three.
+
+**Done when:** no "owner" or crown is left on useondra.com, checked in a browser on a phone and a laptop.
+
+
+## Order
+
+1. **5 (every link works):** small, and dead buttons cost trust faster than anything else.
+2. **1 (Admin):** most of the rest assumes it.
+3. **6 (whose work):** Today depends on it.
+4. **7 (Today).**
+5. **2 and 3 (VIP person, missed VIP calls).**
+6. **4 (confirmations).**
+7. **9 (marketing site)** and **8 (demo photos):** small, any time.
 
 ## Waiting on the founder (from earlier)
 
