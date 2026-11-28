@@ -1,6 +1,6 @@
 import Wordmark from "@/components/Wordmark";
 import { NAV_LINKS } from "@/components/navLinks";
-import { CONTACT_EMAIL, SIGN_IN_URL } from "@/lib/config";
+import { CONTACT_EMAIL, SIGN_IN_URL, TEXT_NUMBER } from "@/lib/config";
 
 /** The site footer, on the homepage and the legal pages. Section links are "/#..." so they work from any page. */
 export default function SiteFooter() {
@@ -16,6 +16,16 @@ export default function SiteFooter() {
           </a>
           <p className="text-small max-w-[34ch]">AI staff for car dealerships: answers every call, text, WhatsApp and email, books the test drive, and hands the rest to your team.</p>
           <a href="/#demo" className="btn btn-primary min-h-11 px-4">Book a demo</a>
+          {/* Where people find Ondra's own line. Carriers check that the number is published with its texting terms. */}
+          <div id="try" className="flex max-w-[40ch] flex-col gap-1.5">
+            <p className="text-small text-white">
+              Hear Ondra answer: call or text <a href={`tel:+1${TEXT_NUMBER.replace(/\D/g, "")}`} className="text-white tabular-nums">{TEXT_NUMBER}</a>
+            </p>
+            <p className="text-micro text-white/50">
+              Ondra texts only if you text first or say yes on the call, and only about your enquiry. Message frequency varies.
+              Message and data rates may apply. Reply HELP for help, STOP to opt out. See our <a href="/terms#texts" className="text-white/70">SMS terms</a> and <a href="/privacy#texts" className="text-white/70">privacy policy</a>.
+            </p>
+          </div>
         </div>
         <nav aria-label="Product" className={col}>
           <p className={head}>Product</p>
