@@ -56,7 +56,8 @@ Set up 2026-11-28 in the Cloudflare dashboard (Workers & Pages > Pages > Import 
 `SUBOMI123/Ondra`, production branch `claude/magical-galileo-kn5bw6` (until the work is merged to `master`), root
 directory `apps/site`, build `npm ci && npm run build`, output `out`, env `NEXT_PUBLIC_SITE_URL=https://useondra.com`,
 `NEXT_PUBLIC_APP_URL=https://app.useondra.com`, `NEXT_PUBLIC_CONTACT_EMAIL=hello@useondra.com`, `NODE_VERSION=22`.
-Custom domains `useondra.com` and `www.useondra.com` (Cloudflare made the DNS records). Every push to the production
+Custom domains `useondra.com` and `www.useondra.com` (Cloudflare made the DNS records). A redirect rule on the zone
+(Rules > Redirect Rules) sends `www.useondra.com/*` to `https://useondra.com/*` with a 301, keeping the path and query. Every push to the production
 branch redeploys it; nothing to run by hand. Use the Pages flow, not "Workers with Git": that one wants a wrangler
 config in the repo and converts the site to a server-rendered Worker.
 
