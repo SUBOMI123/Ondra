@@ -16,7 +16,7 @@ import {
 
 /**
  * Shortcuts open the Inbox filtered. Counts come from the Inbox's own list, so they match what opens.
- * "VIPs waiting" shows to owners and managers, and to anyone who looks after a VIP: the Inbox list only holds the
+ * "VIPs waiting" shows to admins and managers, and to anyone who looks after a VIP: the Inbox list only holds the
  * VIPs a person may see, so for them it's their own.
  */
 export function NavShortcuts({ rows, seesVips }: { rows: ViewRow[] | undefined; seesVips: boolean }) {

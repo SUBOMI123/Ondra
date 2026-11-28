@@ -65,7 +65,7 @@ async def clerk_mode(database, monkeypatch):
     clerk.set_client(fake)
     async with tenant_session(database["a"]) as db:
         await db.execute(update(Tenant).values(clerk_org_id=ORG_A))
-        owner = (await db.execute(select(User).where(User.role == "owner"))).scalar_one()
+        owner = (await db.execute(select(User).where(User.email == "owner@prestigemotors.example"))).scalar_one()
         owner.clerk_user_id = "user_owner"
         sales = (await db.execute(select(User).where(User.email == "daniel@prestigemotors.example"))).scalar_one()
         sales.clerk_user_id = "user_daniel"

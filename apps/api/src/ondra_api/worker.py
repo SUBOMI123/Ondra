@@ -37,6 +37,12 @@ async def _reminder(tenant_id: uuid.UUID, p: dict) -> None:
     log.info("reminder %s: %s", p.get("appointment_id"), await send_reminder(tenant_id, p))
 
 
+async def _confirmation(tenant_id, payload):
+    from ondra_api.services.confirmations import send
+
+    return await send(tenant_id, payload)
+
+
 async def _call_summary(tenant_id: uuid.UUID, p: dict) -> None:
     from ondra_api.services.calls import summarize
 
@@ -93,7 +99,7 @@ async def _assistant_turn(tenant_id: uuid.UUID, p: dict) -> None:
     log.info("owner assistant: %s", await turn(tenant_id, p))
 
 
-HANDLERS = {"assistant_turn": _assistant_turn, "owner_alert": _owner_alert, "owner_briefing": _owner_briefing, "inventory_fetch": _inventory_fetch, "crm_push": _crm_push, "follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "call_summary": _call_summary,
+HANDLERS = {"assistant_turn": _assistant_turn, "owner_alert": _owner_alert, "owner_briefing": _owner_briefing, "inventory_fetch": _inventory_fetch, "crm_push": _crm_push, "follow_up": _follow_up, "agent_turn": _agent_turn, "appointment_reminder": _reminder, "appointment_confirmation": _confirmation, "call_summary": _call_summary,
             "send_message": _send_message, "vip_realert": _vip_realert}
 
 

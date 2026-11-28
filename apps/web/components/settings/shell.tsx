@@ -79,7 +79,7 @@ export function WithSettings({ children }: { children: (d: SettingsData) => Reac
   return <>{children(q.data)}</>
 }
 
-export const VIEW_ONLY = "View only. Owners and admins can change these."
+export const VIEW_ONLY = "View only. Admins can change these."
 
 /** Save row for a form: the button is enabled only when something changed. */
 export function SaveBar({ dirty, saving, error, onSave, onReset }: {

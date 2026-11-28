@@ -6,6 +6,7 @@
  * salesperson and the last thing they said, and a one-tap "Hold for them". Then the car's facts and its status.
  */
 
+import credits from "@/lib/demo-photo-credits.json"
 import { IconCar, IconExternalLink } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
@@ -58,6 +59,20 @@ export function useSetStatus() {
   })
 }
 
+type Credit = { model: string; artist: string; license: string; license_url: string; source: string }
+
+/** The demo dealership's cars carry a stock photo of their model (docs/PLAN.md item 8), so it says so, with the
+ * photographer's credit the licence asks for. A real dealer's photos come from their feed and need no line. */
+function DemoCredit({ url }: { url: string }) {
+  const c = (credits as Record<string, Credit>)[url]
+  if (!c) return null
+  return (
+    <figcaption className="text-xs text-muted-foreground">
+      Demo photo of a {c.model}, not this car. <a href={c.source} target="_blank" rel="noreferrer" className="underline underline-offset-2">{c.artist}</a>, {c.license}.
+    </figcaption>
+  )
+}
+
 export function CarThumb({ photos, className }: { photos: string[]; className?: string }) {
   // Photos come from the dealer's inventory feed. Without one, a plain mark: we never show a stock photo as theirs.
   return photos[0] ? (
@@ -84,7 +99,12 @@ function Body({ v }: { v: Detail }) {
   ]
   return (
     <div className="flex flex-col gap-6 px-4 pb-6 sm:px-6">
-      {v.photos.length > 0 && <CarThumb photos={v.photos} className="aspect-[16/10] w-full" />}
+      {v.photos.length > 0 && (
+        <figure className="flex flex-col gap-1">
+          <CarThumb photos={v.photos} className="aspect-[16/10] w-full" />
+          <DemoCredit url={v.photos[0]} />
+        </figure>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">{v.status === "sold" ? "Sold" : v.status === "hold" ? holdText(v.hold) : "In stock"}</h3>

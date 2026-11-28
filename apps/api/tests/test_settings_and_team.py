@@ -120,12 +120,12 @@ async def test_team_rules(client, database):
     users = {u["email"]: u for u in (await client.get("/users", headers=owner)).json()["items"]}
     owner_id, admin_id, sales_id = (users[e]["id"] for e in (OWNER, ADMIN, SALES))
 
-    # Admins can't create, change or deactivate owners; nobody changes themselves.
+    # One top role: "owner" isn't a role any more; admins manage each other; nobody changes themselves.
     assert (await client.post("/users/invite", headers=admin, json={"name": "X", "email": "x@prestigemotors.example",
-                                                                   "role": "owner"})).status_code == 403
-    assert (await client.patch(f"/users/{owner_id}", headers=admin, json={"active": False})).status_code == 403
-    assert (await client.patch(f"/users/{admin_id}", headers=admin, json={"role": "owner"})).status_code == 403
+                                                                   "role": "owner"})).status_code == 422
     assert (await client.patch(f"/users/{owner_id}", headers=owner, json={"role": "sales"})).status_code == 403
+    assert (await client.patch(f"/users/{owner_id}", headers=admin, json={"role": "manager"})).json()["role"] == "manager"
+    assert (await client.patch(f"/users/{owner_id}", headers=admin, json={"role": "admin"})).json()["role"] == "admin"
     # Sales can't manage the team at all.
     sales = await login(client, SALES)
     assert (await client.patch(f"/users/{admin_id}", headers=sales, json={"active": False})).status_code == 403

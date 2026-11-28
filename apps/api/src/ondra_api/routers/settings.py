@@ -239,51 +239,61 @@ class OwnerAssistantIn(BaseModel):
         return v
 
 
-async def _owner_assistant(db: AsyncSession, t: Tenant) -> dict:
+async def _owner_assistant(db: AsyncSession, t: Tenant, caller: Caller) -> dict:
+    """The WhatsApp assistant as one admin sees it: their own switches, the dealership's briefing time, and which
+    admins have it on (so nobody wonders whether anyone gets the briefing)."""
     from ondra_core.models import User
 
-    from ondra_api.services.owner import TEMPLATES, settings_of
+    from ondra_api.services.owner import TEMPLATES, prefs_of, settings_of
 
-    owners = (await db.execute(select(User).where(User.role == "owner", User.active.is_(True)).order_by(User.created_at))).scalars().all()
+    me = await db.get(User, caller.user_id)
+    admins = (await db.execute(select(User).where(User.role == "admin", User.active.is_(True)).order_by(User.created_at))).scalars().all()
     wa = (await db.execute(select(ChannelAddress).where(ChannelAddress.channel == "whatsapp", ChannelAddress.active.is_(True)).limit(1))).scalar_one_or_none()
-    return {**settings_of(t), "owners": [{"name": u.name, "has_mobile": bool(u.phone)} for u in owners],
+    mine = prefs_of(me) if me else {"briefing_on": False, "alerts_on": False}
+    return {"briefing_time": settings_of(t)["briefing_time"], **mine, "has_mobile": bool(me and me.phone),
+            "owners": [{"name": u.name, "has_mobile": bool(u.phone), "you": u.id == caller.user_id, **prefs_of(u)} for u in admins],
             "whatsapp": None if wa is None else {"address": wa.address, "live": wa.provider != "mock"},
-            "templates": [{"name": k, "text": v} for k, v in TEMPLATES.items()]}
+            "templates": [{"name": k, "text": v} for k, v in TEMPLATES.items()], "can_edit": caller.role == "admin"}
 
 
 @router.get("/owner-assistant")
 async def get_owner_assistant(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
     caller, db = ctx
     t = (await db.execute(select(Tenant).limit(1))).scalar_one()
-    return {**await _owner_assistant(db, t), "can_edit": caller.role == "owner"}
+    return await _owner_assistant(db, t, caller)
 
 
 def _owner_only(caller: Caller) -> None:
-    if caller.role != "owner":
-        raise HTTPException(403, "Only an owner can change their own WhatsApp assistant.")
+    if caller.role != "admin":
+        raise HTTPException(403, "Only admins have the WhatsApp assistant.")
 
 
 @router.put("/owner-assistant")
 async def put_owner_assistant(body: OwnerAssistantIn, request: Request, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
-    """Switching the briefing or alerts on is the owner asking for them on their own WhatsApp: that choice, who made
-    it and when, is kept in the audit log (WhatsApp requires an opt-in before a business messages anyone)."""
+    """An admin switches their own briefing and alerts on or off (their own WhatsApp: that choice, who made it and when,
+    is kept in the audit log, since WhatsApp wants each person's opt-in), and sets the dealership's briefing time."""
+    from ondra_core.models import User
+
     from ondra_api.services import briefing
-    from ondra_api.services.owner import settings_of
+    from ondra_api.services.owner import prefs_of, settings_of
 
     caller, db = ctx
     _owner_only(caller)
     t = (await db.execute(select(Tenant).limit(1))).scalar_one()
-    before = settings_of(t)
-    t.settings = {**(t.settings or {}), "owner_assistant": body.model_dump()}
+    me = await db.get(User, caller.user_id)
+    before = {**prefs_of(me), "briefing_time": settings_of(t)["briefing_time"]}
+    me.notification_prefs = {**(me.notification_prefs or {}), "assistant": {"briefing_on": body.briefing_on, "alerts_on": body.alerts_on}}
+    shared = (t.settings or {}).get("owner_assistant") or {}
+    t.settings = {**(t.settings or {}), "owner_assistant": {**shared, "briefing_time": body.briefing_time}}
     await db.flush()
     at = await briefing.schedule(db)
-    _audit(db, caller, request, "settings.owner_assistant", f"tenant:{t.id}", before, body.model_dump())
-    return {**await _owner_assistant(db, t), "can_edit": True, "next_briefing_at": at.isoformat() if at else None}
+    _audit(db, caller, request, "settings.owner_assistant", f"user:{caller.user_id}", before, body.model_dump())
+    return {**await _owner_assistant(db, t, caller), "next_briefing_at": at.isoformat() if at else None}
 
 
 @router.post("/owner-assistant/briefing")
 async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
-    """Send today's briefing to the owners now, to see what it looks like."""
+    """Send today's briefing now to every admin who has it on, to see what it looks like."""
     from ondra_api.services import briefing
 
     caller, db = ctx
@@ -291,7 +301,7 @@ async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) 
     await db.commit()
     out = await briefing.send_now(caller.tenant_id)
     if out["owners"] == 0:
-        raise HTTPException(409, "No owner has a mobile on file. Add yours under Team first.")
+        raise HTTPException(409, "Nobody has the briefing switched on with a mobile on file. Switch yours on and add your mobile under Team.")
     if out["sent"] == 0:
         raise HTTPException(502, "The briefing couldn't be sent. Check that a WhatsApp number is connected under Channels.")
     return {k: out[k] for k in ("vips_waiting", "hot_leads", "drafts", "overdue_tasks", "appointments", "sent", "owners")}
@@ -299,8 +309,8 @@ async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) 
 
 @router.get("/owner-assistant/thread")
 async def owner_assistant_thread(limit: int = 50, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
-    """The owner's own conversation with their WhatsApp assistant, newest last. Only the owner reads it: it's their
-    phone, their voice notes, their questions."""
+    """An admin's own conversation with their WhatsApp assistant, newest last. Only they read it: it's their phone,
+    their voice notes, their questions."""
     from ondra_core.models import AssistantMessage
 
     caller, db = ctx
@@ -310,3 +320,54 @@ async def owner_assistant_thread(limit: int = 50, ctx: tuple[Caller, AsyncSessio
     return {"messages": [{"id": str(m.id), "from": "you" if m.direction == "in" else "ondra", "kind": m.kind, "text": m.body,
                           "at": m.created_at.isoformat(), "failed": m.status == "failed", "error": (m.meta or {}).get("error"),
                           "did": (m.meta or {}).get("did") or [], "template": (m.meta or {}).get("template")} for m in rows]}
+
+
+# --- when a VIP's call isn't answered (docs/PLAN.md item 3; services/vip_desk.py) ---------------------------------
+
+class VipCallsIn(BaseModel):
+    message: str | None = Field(None, max_length=400)
+    backup_number: str | None = None
+    booking_link: str | None = Field(None, max_length=500)
+
+
+def _vip_calls(t: Tenant, caller: Caller) -> dict:
+    from ondra_api.config import get_settings
+    from ondra_api.services.vip_desk import settings_of
+
+    s = settings_of(t)
+    return {**s, "default_message": "Sorry we missed you, {first}. {person} has been told and will call you back shortly.",
+            "live": get_settings().feature_vip_desk, "can_edit": has_perm(caller.role, Perm.SETTINGS_MANAGE)}
+
+
+@router.get("/vip-calls")
+async def get_vip_calls(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    return _vip_calls(t, caller)
+
+
+@router.put("/vip-calls")
+async def put_vip_calls(body: VipCallsIn, request: Request,
+                        ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    """The dealer's own words for a VIP whose call nobody answered, the one backup number press 1 rings, and the
+    booking link press 2 texts. The backup must be a phone a person answers: never one of the dealership's own lines,
+    which forward to Ondra (a VIP would reach the AI)."""
+    from ondra_api.routers.team import clean_phone
+
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    backup = clean_phone(body.backup_number)
+    if backup:
+        own = (await db.execute(select(ChannelAddress.address).where(ChannelAddress.channel.in_(("phone", "sms"))))).scalars().all()
+        if backup in own:
+            raise HTTPException(422, "That's the dealership's own line, which Ondra answers. Choose a phone a person picks up, like the front desk's direct line or a manager's mobile.")
+    link = (body.booking_link or "").strip() or None
+    if link and not link.startswith("https://"):
+        raise HTTPException(422, "The booking link should start with https://")
+    message = (body.message or "").strip() or None
+    before = _vip_calls(t, caller)
+    t.settings = {**(t.settings or {}), "vip_calls": {"message": message, "backup_number": backup, "booking_link": link}}
+    await db.flush()
+    after = _vip_calls(t, caller)
+    _audit(db, caller, request, "settings.vip_calls", f"tenant:{t.id}", before, after)
+    return after

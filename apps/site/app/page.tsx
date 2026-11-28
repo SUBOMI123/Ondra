@@ -4,7 +4,6 @@ import {
   IconBrandWhatsapp,
   IconCalendarEvent,
   IconCheck,
-  IconCrownFilled,
   IconMail,
   IconMessage,
   IconPhone,
@@ -21,6 +20,7 @@ import MobileMenu from "@/components/MobileMenu";
 import { NAV_LINKS } from "@/components/navLinks";
 import { Briefing, PolicyCheck, SalesThread, ServiceCall, VipCall } from "@/components/stories";
 import StickyNav from "@/components/StickyNav";
+import { VipTag } from "@/components/vip";
 import { CONTACT_EMAIL, SIGN_IN_URL } from "@/lib/config";
 
 export default function Home() {
@@ -40,7 +40,7 @@ export default function Home() {
         <Sales />
         <Service />
         <Vip />
-        <OwnerBriefing />
+        <MorningBriefing />
         <Guardrails />
         <Setup />
         <Demo />
@@ -181,7 +181,7 @@ type Row = {
 
 const ROWS: Row[] = [
   { name: "Kevin L.", place: "Allen", Icon: IconMail, time: "9:12 pm", snippet: "6 works. See you Thursday.", tag: { kind: "ai", text: "Booked by Ondra" }, selected: true },
-  { name: "Robert H.", place: "Highland Park", Icon: IconPhone, time: "8:52 pm", snippet: "Missed call. Rang your mobile.", tag: { kind: "vip", text: "Waiting 2 h" }, vip: true },
+  { name: "Robert H.", place: "Highland Park", Icon: IconPhone, time: "8:52 pm", snippet: "Missed call. Rang Daniel.", tag: { kind: "vip", text: "Waiting 2 h" }, vip: true },
   { name: "Sarah K.", place: "Dallas", Icon: IconMessage, time: "8:40 pm", snippet: "Do you take trade-ins on a 2019 Tahoe?", tag: { kind: "draft", text: "Draft waiting for you" } },
   { name: "Marcus T.", place: "Plano", Icon: IconPhone, time: "7:05 pm", snippet: "Brakes squeaking, booked Wednesday.", tag: { kind: "ai", text: "Booked by Ondra" } },
   { name: "Elena R.", place: "Frisco", Icon: IconBrandWhatsapp, time: "6:30 pm", snippet: "Is the 2020 RX certified pre-owned?", tag: { kind: "team", text: "With Daniel, Sales" } },
@@ -196,7 +196,7 @@ function Tag({ kind, text }: Row["tag"]) {
   }[kind];
   return (
     <span className={`text-micro inline-flex items-center gap-1 rounded-pill px-2 py-0.5 font-medium ${cls}`}>
-      {kind === "vip" ? <IconCrownFilled size={12} aria-hidden="true" /> : kind === "team" ? null : <IconSparkles size={12} stroke={2} aria-hidden="true" />}
+      {kind === "vip" || kind === "team" ? null : <IconSparkles size={12} stroke={2} aria-hidden="true" />}
       {text}
     </span>
   );
@@ -245,7 +245,7 @@ function Inbox() {
                   <p className="font-display text-h4">Inbox</p>
                   <div className="text-micro flex gap-1.5">
                     <span className="rounded-pill bg-night px-2.5 py-1 text-white">All</span>
-                    <span className="rounded-pill bg-vip-subtle px-2.5 py-1 text-vip">Needs you 1</span>
+                    <span className="rounded-pill bg-muted px-2.5 py-1 text-fg">Needs you 1</span>
                     <span className="rounded-pill bg-muted px-2.5 py-1">Drafts 1</span>
                   </div>
                 </div>
@@ -258,7 +258,7 @@ function Inbox() {
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="flex items-center gap-1.5 font-semibold">
-                          {r.vip && <IconCrownFilled size={14} className="text-vip" aria-hidden="true" />}
+                          {r.vip && <VipTag />}
                           {r.name}
                           <span className="text-small font-normal text-muted-foreground">{r.place}</span>
                         </p>
@@ -495,10 +495,10 @@ function Vip() {
         <div>
           <H2 className="max-w-[15ch]">Some clients should only ever hear from you.</H2>
           <Lead className="mt-5 text-fg-2">
-            Mark a client, or the people who buy for them, as VIP. Their calls ring you directly and their messages wait for your
-            reply. The AI never answers them or writes a reply for them.
+            Mark a client, or the people who buy for them, as VIP, and choose who looks after them. Their calls ring that person
+            directly and their messages wait for a personal reply. The AI never answers them or writes a reply for them.
           </Lead>
-          <p className="mt-4 max-w-[50ch] text-muted-foreground">Miss the call and you get an alert straight away, not a summary at the end of the day.</p>
+          <p className="mt-4 max-w-[50ch] text-muted-foreground">Miss the call and they get an alert straight away, not a summary at the end of the day. The caller hears your own words, never the AI.</p>
         </div>
         <VipCall />
       </Wrap>
@@ -506,9 +506,9 @@ function Vip() {
   );
 }
 
-/* ---------------------------------------------------------------- owner briefing */
+/* ---------------------------------------------------------------- morning briefing */
 
-function OwnerBriefing() {
+function MorningBriefing() {
   return (
     <section className="border-t border-line bg-bg-2 py-24 sm:py-32">
       <Wrap className="grid items-center gap-16 lg:grid-cols-[1fr_1.05fr]">

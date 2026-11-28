@@ -10,12 +10,13 @@ import {
   IconBrandWhatsapp,
   IconCalendarEvent,
   IconCheck,
-  IconCrownFilled,
+  IconUserCheck,
   IconPhone,
   IconPhoneCall,
   IconPlayerPlayFilled,
   IconSparkles,
 } from "@tabler/icons-react";
+import { VipInitials, VipTag } from "@/components/vip";
 import { AnimatePresence, motion } from "motion/react";
 import { useStory } from "./useStory";
 
@@ -181,9 +182,9 @@ export function ServiceCall() {
 
 const VIP_STEPS = [
   { t: "Incoming call from Robert Hale", d: "+1 (214) ••• 4471", Icon: IconPhone },
-  { t: "Recognised as a VIP", d: "Marked by you in 2023", Icon: IconCrownFilled, vip: true },
+  { t: "Recognised as a VIP", d: "Marked by you in 2023", Icon: IconUserCheck, vip: true },
   { t: "Ondra stays off this call", d: "No AI answer, no AI draft", Icon: IconSparkles, off: true },
-  { t: "Ringing your mobile", d: "Then your office line, then a text", Icon: IconPhoneCall, ring: true },
+  { t: "Ringing Daniel, who looks after them", d: "No answer? Your own words, then your front desk", Icon: IconPhoneCall, ring: true },
 ];
 
 export function VipCall() {
@@ -191,8 +192,8 @@ export function VipCall() {
   return (
     <div ref={ref} data-story="vip" className="mx-auto w-full max-w-[440px] rounded-card border border-line bg-surface p-5 sm:p-6">
       <div className="flex items-center gap-4">
-        <div className="relative flex size-14 items-center justify-center rounded-full bg-vip-subtle text-vip">
-          <IconCrownFilled size={22} aria-hidden="true" />
+        <div className="relative flex size-14 items-center justify-center">
+          <VipInitials name="Robert Hale" className="size-14 text-base" />
           {step >= 4 && (
             <>
               <span className="absolute inset-0 rounded-full border border-vip/50 motion-safe:animate-[ring_1.6s_ease-out_infinite]" />
@@ -204,7 +205,7 @@ export function VipCall() {
           <p className="text-lg font-medium">Robert Hale</p>
           <p className="text-small text-muted-foreground">Bought six cars from you</p>
         </div>
-        <span className="text-micro ml-auto rounded-pill bg-vip-subtle px-2.5 py-1 font-medium text-vip">VIP</span>
+        <VipTag className="ml-auto" />
       </div>
       <ol className="mt-6 grid gap-3">
         {VIP_STEPS.map((s, i) => {
@@ -240,7 +241,7 @@ export function VipCall() {
   );
 }
 
-/* ------------------------------------------------------------------ Owner briefing */
+/* ------------------------------------------------------------------ Morning briefing */
 
 const BRIEF = [
   ["2", "VIPs waiting for you"],

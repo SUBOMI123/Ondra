@@ -122,9 +122,9 @@ def test_a_named_person_and_a_customers_own_contact():
     assert pick([off, b], "sales", NOON_TUE, prefer=off.id).user_id == b.id  # their contact is out: someone who's in
 
 
-def test_an_empty_team_falls_back_to_a_manager_then_the_owner():
-    manager, owner = person(role="manager"), person(role="owner")
-    got = pick([manager, owner], "service", NOON_TUE)
+def test_an_empty_team_falls_back_to_a_manager_then_an_admin():
+    manager, admin = person(role="manager"), person(role="admin")
+    got = pick([manager, admin], "service", NOON_TUE)
     assert (got.user_id, got.role, got.why) == (manager.id, "manager", "fallback")
-    assert pick([owner], "service", NOON_TUE).user_id == owner.id
+    assert pick([admin], "service", NOON_TUE).user_id == admin.id
     assert pick([], "sales", NOON_TUE).user_id is None

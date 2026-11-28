@@ -16,7 +16,7 @@ export type Shortcut = {
   id: string
   name: string
   icon: Icon
-  /** Only owners and managers, who are the people who can see VIPs. */
+  /** Only admins and managers, who are the people who can see VIPs. */
   vipsOnly?: boolean
   matches: (r: ViewRow) => boolean
   empty: string

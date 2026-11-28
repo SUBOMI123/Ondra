@@ -234,7 +234,7 @@ async def set_vehicle_status(vehicle_id: uuid.UUID, body: VehicleStatusIn, reque
     if v is None:
         raise HTTPException(404, "No vehicle with that id.")
     if (body.status == "sold" or v.status == "sold") and not has_perm(caller.role, Perm.VEHICLES_WRITE):
-        raise HTTPException(403, "Only a manager or the owner can mark a car sold, or put a sold car back.")
+        raise HTTPException(403, "Only a manager or an admin can mark a car sold, or put a sold car back.")
     held_for = None
     if body.for_contact_id is not None:
         c = await db.get(Contact, body.for_contact_id)
@@ -296,7 +296,7 @@ async def list_users(
 
 class VipIn(BaseModel):
     vip: bool
-    handler_user_id: uuid.UUID | None = None  # who looks after them; null: the owner
+    handler_user_id: uuid.UUID | None = None  # who looks after them; left out: whoever is making them a VIP
 
 
 async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> None:
@@ -312,7 +312,7 @@ async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> Non
     brief = (f"{by.name if by else 'A manager'} made {first} a VIP and chose you to look after them. Their calls ring your "
              "mobile, their messages come to you, and Ondra never replies to them.")
     if handler is not None and not handler.phone:
-        brief += " Add your mobile under Settings, People, or their calls ring the owner instead."
+        brief += " Add your mobile under Settings, People, or their calls ring an admin instead."
     task = await new_task(db, title=f"{c.display_name}: You now look after {first} (VIP)", contact_id=c.id,
                           assignee_user_id=c.vip_owner_user_id, source="rule", urgency="normal", brief=brief)
     db.add(Event(type="alert.created", payload={
@@ -323,7 +323,7 @@ async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> Non
 @router.put("/contacts/{contact_id}/vip", response_model=ContactOut)
 async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
                   ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
-    """Make a client a VIP (or not). Owners and managers only: they're the people who can see VIPs at all.
+    """Make a client a VIP (or not), always with a person who looks after them. Admins and managers only: they're the people who can see VIPs at all.
     From the moment a client is a VIP, Ondra stops: any reply it drafted for them is thrown away and any follow-up
     lined up is cancelled, so nothing automated reaches them (CLAUDE.md product rule)."""
     from ondra_core.models import AuditLog, Conversation, Event, Message
@@ -332,11 +332,14 @@ async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
 
     caller, db = ctx
     if not can_see_vips(caller.role):
-        raise HTTPException(403, "Only owners and managers can choose VIPs.")
+        raise HTTPException(403, "Only admins and managers can choose VIPs.")
     c = await db.get(Contact, contact_id)
     if c is None or c.merged_into_id is not None:
         raise HTTPException(404, "No client with that id.")
-    if body.handler_user_id is not None:
+    # Every VIP has a person (docs/PLAN.md item 2): the one chosen, else whoever is making them a VIP.
+    if body.vip and body.handler_user_id is None:
+        body.handler_user_id = caller.user_id
+    if body.vip:
         handler = await db.get(User, body.handler_user_id)
         if handler is None or not handler.active:
             raise HTTPException(422, "Choose someone who works here now.")

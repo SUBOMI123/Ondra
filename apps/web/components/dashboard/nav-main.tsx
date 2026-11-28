@@ -1,10 +1,10 @@
 "use client"
 
-import { IconMessages, IconPencilPlus, type Icon } from "@tabler/icons-react"
+import { IconPencilPlus, type Icon } from "@tabler/icons-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
+import { useShell } from "@/components/shell/shell"
 import { ACTIVE_ITEM, isActivePath } from "@/lib/nav"
 import {
   SidebarGroup,
@@ -29,27 +29,21 @@ export function NavMain({
   const pathname = usePathname()
   // On a shortcut (/inbox?filter=…) the shortcut is the highlighted item, not Inbox: one place you are, one highlight.
   const onShortcut = !!useSearchParams().get("filter")
+  const { openCompose } = useShell()
   const active = (url: string) => isActivePath(pathname, url) && !(url === "/inbox" && onShortcut)
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
+          <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="New message"
+              onClick={() => openCompose()}
               className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
             >
               <IconPencilPlus />
               <span>New message</span>
             </SidebarMenuButton>
-            <Button
-              size="icon"
-              className="size-8 group-data-[collapsible=icon]:opacity-0"
-              variant="outline"
-            >
-              <IconMessages />
-              <span className="sr-only">Inbox</span>
-            </Button>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>

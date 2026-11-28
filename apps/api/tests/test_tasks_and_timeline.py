@@ -84,7 +84,7 @@ async def test_the_team_board_lists_everyone_who_takes_work_and_moves_tasks_betw
     board = (await client.get("/tasks?scope=all", headers=owner)).json()
     people = {p["name"]: p for p in board["people"]}
     assert {"Daniel Okafor", "Samuel Adeyemi", "Grace Thompson"} <= set(people)
-    assert all(p["role"] != "admin" for p in board["people"])  # admins set things up; they don't take tasks
+    assert {"Samuel Adeyemi", "Chris Bell"} <= set(people)  # every admin is on the board: there's no separate owner
     assert "people" not in (await client.get("/tasks?scope=mine", headers=owner)).json()
     t = (await client.post("/tasks", headers=owner, json={"title": "Check the trade-in on the Rogue"})).json()
     moved = (await client.patch(f"/tasks/{t['id']}", headers=owner, json={"assignee_user_id": people["Grace Thompson"]["id"]})).json()

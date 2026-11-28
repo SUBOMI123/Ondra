@@ -2,7 +2,7 @@
 
 /**
  * Invite. One job: a new teammate sets their password and gets in.
- * Reached from the one-time link an owner or admin created in Settings > Team.
+ * Reached from the one-time link an admin created in Settings > Team.
  */
 
 import { IconEye, IconEyeOff } from "@tabler/icons-react"

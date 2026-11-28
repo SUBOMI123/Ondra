@@ -15,6 +15,8 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { WhoseSwitch } from "@/components/whose-switch"
+import { useWhose } from "@/lib/whose"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -42,6 +44,8 @@ type Appt = {
   with: string | null
   bays: string[]
   lane_ids: string[]
+  /** What the customer was told about this booking, and why anything wasn't sent (services/confirmations.py). */
+  told: string[]
   details: { loaner?: string | null; loaner_note?: string; transport?: string; service_type?: string; vehicle?: string; notes?: string }
   conversation_id: string | null
 }
@@ -153,6 +157,10 @@ function Details({ a, tz, onClose }: { a: Appt; tz: string; onClose: () => void 
           {a.details.service_type && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">For</dt><dd>{a.details.service_type}</dd></div>}
           {transport && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Transport</dt><dd>{transport}</dd></div>}
           {a.details.notes && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Notes</dt><dd>{a.details.notes}</dd></div>}
+          <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
+            <dt className="text-muted-foreground">They were told</dt>
+            <dd>{a.told?.length ? a.told.map((line) => <span key={line} className="block">{line}</span>) : <span className="text-muted-foreground">No confirmation recorded. New bookings are confirmed within a minute, or at 8 am if made overnight.</span>}</dd>
+          </div>
         </dl>
         {a.client && (
           <div className="flex flex-wrap gap-2">
@@ -186,7 +194,8 @@ export default function CalendarPage() {
   // Today is the dealership's today (an owner abroad still sees the dealership's day), held as noon UTC so
   // adding days never trips over a clock change.
   const date = useMemo(() => new Date(Date.parse(`${dayKey(new Date())}T12:00:00Z`) + offset * 86_400_000), [offset])
-  const q = useQuery({ queryKey: ["calendar", isoDay(date)], queryFn: () => api<Day>(`/calendar?date=${isoDay(date)}`) })
+  const [whose, setWhose] = useWhose("calendar")
+  const q = useQuery({ queryKey: ["calendar", isoDay(date), whose], queryFn: () => api<Day>(`/calendar?date=${isoDay(date)}&whose=${whose}`) })
   const tz = q.data?.timezone ?? "America/Chicago"
   useEffect(() => {
     setNow(hourIn(new Date().toISOString(), tz))
@@ -201,7 +210,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <SiteHeader title="Calendar" />
+      <SiteHeader title="Calendar" whose={<WhoseSwitch value={whose} onChange={setWhose} what="appointments" />} />
       <div className="flex flex-col gap-4 px-4 py-6 lg:px-6">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label="Previous day">
@@ -233,7 +242,7 @@ export default function CalendarPage() {
           </div>
         ) : appts.length === 0 ? (
           <p className="rounded-xl border p-6 text-sm text-muted-foreground">
-            Nothing booked. Ondra books test drives and service here as customers ask for them.
+            {whose === "mine" ? "Nothing booked with you. Everyone shows the whole dealership's day." : "Nothing booked. Ondra books test drives and service here as customers ask for them."}
           </p>
         ) : (
           <>

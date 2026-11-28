@@ -80,7 +80,7 @@ const SCENES: Scene[] = [
   },
   {
     src: "/floor/office",
-    alt: "The owner's empty glass office at night: a walnut desk, a leather chair, a brass lamp and a desk phone with a red light",
+    alt: "An empty glass office at night: a walnut desk, a leather chair, a brass lamp and a desk phone with a red light",
     title: "Your office",
     line: "Your best clients get you, not the AI. Their calls ring straight to your phone.",
     vip: true,
@@ -354,7 +354,7 @@ function Cinematic() {
         <canvas
           ref={canvasRef}
           role="img"
-          aria-label="A walk down the aisle of a dealership showroom at night: cars on both sides, an AI agent at every desk, and the owner's empty glass office at the end"
+          aria-label="A walk down the aisle of a dealership showroom at night: cars on both sides, an AI agent at every desk, and an empty glass office at the end"
           className="absolute inset-0 size-full"
         />
         {/* Scrim for legibility of captions, strongest at the bottom */}

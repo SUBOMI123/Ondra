@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Two-step sign-in, required. One job: an owner or admin turns on a second sign-in step, then gets back to work.
+ * Two-step sign-in, required. One job: an admin turns on a second sign-in step, then gets back to work.
  * Shown when the API says this session lacks it (Clerk mode only). Clerk's own profile screen does the setup;
  * the session only counts the second step from their next sign-in, so they sign in again afterwards.
  */
@@ -27,7 +27,7 @@ export function MfaRequired() {
         <div className="max-w-xl">
           <h1 className="text-2xl font-semibold tracking-tight text-balance">Turn on two-step sign-in</h1>
           <p className="mt-2 text-sm text-pretty text-muted-foreground">
-            As {me?.role === "owner" ? "an owner" : "an admin"} you can see every client, VIPs included, so Ondra asks
+            As an admin you can see every client, VIPs included, so Ondra asks
             for a second step when you sign in. Add an authenticator app under Security below, then sign in again.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">

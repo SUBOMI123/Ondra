@@ -29,7 +29,7 @@ export type BoardTask = {
 }
 export type Person = { id: string; name: string; role: string }
 
-const ROLE: Record<string, string> = { owner: "Owner", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations" }
+const ROLE: Record<string, string> = { admin: "Admin", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations" }
 const NOBODY = "nobody"
 
 /** Short enough for a card: "today, 3:08 pm", "yesterday, 9:30 am", "Monday, 10 am", then "Nov 20". */
@@ -159,7 +159,7 @@ export function TeamBoard({ tasks, people, onToggle }: {
 
   return (
     <DndContext sensors={sensors} onDragStart={(e) => setDragging(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-      <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
+      <div className="relative -mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
         <div className="grid auto-cols-[17rem] grid-flow-col gap-3">
           {unassigned.length > 0 && (
             <Column id={NOBODY} name="Nobody yet" role={null} tasks={unassigned} dragging={!!dragging}>

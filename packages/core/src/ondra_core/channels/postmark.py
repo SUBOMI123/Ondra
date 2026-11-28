@@ -85,6 +85,11 @@ class PostmarkAdapter:
             "TextBody": message.body,
             "MessageStream": self.message_stream,
         }
+        if message.attachments:
+            # TODO(verify): Postmark's send API takes Attachments as [{Name, Content (base64), ContentType}]; the docs
+            # couldn't be reached from the build machine on 2026-11-28. Check before the first real confirmation.
+            payload["Attachments"] = [{"Name": a["name"], "Content": a["content_b64"], "ContentType": a["content_type"]}
+                                      for a in message.attachments]
         if message.in_reply_to:
             # TODO(verify): Postmark documents custom Headers but not In-Reply-To/References specifically.
             payload["Headers"] = [

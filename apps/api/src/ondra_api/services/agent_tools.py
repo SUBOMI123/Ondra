@@ -31,8 +31,10 @@ def _vehicle_dict(v: Vehicle) -> dict:
     for k in ("color", "seats", "body"):
         if k in (v.raw or {}):
             d[k] = v.raw[k]
-    if v.photos:
-        d["photos"] = v.photos[:1]
+    # A demo photo is a stock picture of the model, not this car: never offered to a customer (demo_photos.py).
+    own = [u for u in v.photos or [] if not u.startswith("/demo-cars/")]
+    if own:
+        d["photos"] = own[:1]
     return d
 
 

@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Making a client a VIP, from their profile. Owners and managers only (they're the people who can see VIPs).
+ * Making a client a VIP, from their profile. Admins and managers only (they're the people who can see VIPs).
  * Becoming a VIP changes what happens to them at once, so the confirm step says exactly that, in a sentence each.
  */
 
@@ -19,7 +19,7 @@ type Person = { id: string; name: string; role: string }
 
 export function useCanMakeVip() {
   const { me } = useAuth()
-  return me?.role === "owner" || me?.role === "manager"
+  return me?.role === "admin" || me?.role === "manager"
 }
 
 /** The button sits with the profile's actions; the panel opens on its own row below the header. */
@@ -40,9 +40,11 @@ export function VipPanel({ c, onClose }: { c: Contact; onClose: () => void }) {
     queryFn: () => api<{ items: (Person & { active: boolean; invited: boolean })[] }>("/users?status=active&limit=100"),
     enabled: canChoose,
   })
-  const [handler, setHandler] = useState<string>(c.vip_owner_user_id ?? "owner")
+  const { me } = useAuth()
+  // Every VIP has a person. It starts as whoever is making them a VIP.
+  const [handler, setHandler] = useState<string>(c.vip_owner_user_id ?? me?.id ?? "")
   const save = useMutation({
-    mutationFn: (vip: boolean) => send<Contact>("PUT", `/contacts/${c.id}/vip`, { vip, handler_user_id: vip && handler !== "owner" ? handler : null }),
+    mutationFn: (vip: boolean) => send<Contact>("PUT", `/contacts/${c.id}/vip`, { vip, handler_user_id: vip && handler ? handler : null }),
     onSuccess: (_r, vip) => {
       onClose()
       qc.invalidateQueries({ queryKey: ["contact", c.id] })
@@ -61,7 +63,7 @@ export function VipPanel({ c, onClose }: { c: Contact; onClose: () => void }) {
         <ul className="grid gap-1 text-sm">
           <li>Ondra stops replying to {first}, and any draft or follow-up waiting for them is dropped.</li>
           <li>Their calls ring a person directly.</li>
-          <li>Only owners, managers and the person below can see them.</li>
+          <li>Only admins, managers and the person below can see them.</li>
         </ul>
       )}
       <div className="grid gap-2">
@@ -69,8 +71,7 @@ export function VipPanel({ c, onClose }: { c: Contact; onClose: () => void }) {
         <Select value={handler} onValueChange={setHandler}>
           <SelectTrigger id="vip-handler" className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="owner">The owner</SelectItem>
-            {(people.data?.items ?? []).filter((p) => p.role !== "owner").map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            {(people.data?.items ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

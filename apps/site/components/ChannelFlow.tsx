@@ -1,8 +1,9 @@
-import { IconBrandWhatsapp, IconCalendarEvent, IconCrownFilled, IconMail, IconMessage, IconPhone, IconTool, IconUser } from "@tabler/icons-react";
+import { IconBrandWhatsapp, IconCalendarEvent, IconMail, IconMessage, IconPhone, IconTool, IconUser } from "@tabler/icons-react";
+import { VipTag } from "@/components/vip";
 
 /**
  * How Ondra works, as a drawing: every channel flows into Ondra, Ondra hands each conversation to the
- * right place, and VIP calls take their own route straight to the owner without touching the AI.
+ * right place, and VIP calls take their own route straight to the person who looks after them, without touching the AI.
  * Pure SVG + CSS (SMIL dots), no JS. Dots are hidden under reduced motion.
  */
 
@@ -117,10 +118,10 @@ export default function ChannelFlow() {
           <div className="absolute -translate-x-1/2 -translate-y-1/2" style={pct(985, 400)}>
             <div className="w-52 rounded-card border border-vip/40 bg-vip-subtle px-4 py-3">
               <p className="flex items-center gap-2 text-[15px] font-medium text-vip">
-                <IconCrownFilled size={15} aria-hidden="true" />
-                You
+                <VipTag />
+                Their person
               </p>
-              <p className="text-small mt-0.5 text-fg-2">VIP calls ring you directly</p>
+              <p className="text-small mt-0.5 text-fg-2">VIP calls ring whoever looks after them</p>
             </div>
           </div>
           <p className="text-small absolute -translate-x-1/2 text-vip" style={pct(550, 446)}>
@@ -159,10 +160,10 @@ export default function ChannelFlow() {
             ))}
             <li className="rounded-card border border-vip/40 bg-vip-subtle px-4 py-3">
               <p className="flex items-center gap-2 font-medium text-vip">
-                <IconCrownFilled size={15} aria-hidden="true" />
-                You
+                <VipTag />
+                Their person
               </p>
-              <p className="text-small text-fg-2">VIP calls skip Ondra and ring you directly</p>
+              <p className="text-small text-fg-2">VIP calls skip Ondra and ring whoever looks after them</p>
             </li>
           </ul>
         </div>

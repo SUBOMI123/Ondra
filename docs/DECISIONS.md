@@ -902,3 +902,136 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   fit for real dealer data: no backups, call minutes capped.
 - **Public-site safety:** the API refuses to start over https with the repo's development JWT_SECRET or
   MOCK_WEBHOOK_SECRET, and the seed refuses demo users without a SEED_PASSWORD there.
+
+## 2026-11-28: Every control works, and a test keeps it that way
+
+- **Search** (sidebar, header bar, ⌘K/Ctrl+K) is one palette over `GET /search`: clients (name, email, or phone
+  however it's typed), cars (stock number, VIN, make, model, year), conversations (what was said, with the words
+  around the match) and deals (the client or the car they want). VIPs are hidden exactly as on every list, and their
+  conversations' text isn't searched for people who can't see them.
+- **New message** writes to a client first: pick the client, a channel, write, send. `POST /conversations/start`
+  goes through the same send path as replies (opt-outs block it on every channel), into the client's open thread on
+  that channel or a new one, assigned to the writer. A thread a person started is in draft mode, so Ondra drafts any
+  reply for them to check rather than answering on its own. Each channel that can't be used says why: no number or
+  email on file, the channel not connected, or WhatsApp's 24-hour rule (WhatsApp rejects a business's free text to
+  someone who hasn't written in 24 hours; nothing enforced that before). Only clients already in Ondra; writing to a
+  brand-new number isn't built.
+- **The duplicate inbox icon** next to New message is gone (the Inbox link sits right below it). **Help** is a page;
+  **the logo** goes to Today.
+- **The review now fails on any dead control:** a link to "#" in the source, an in-app link on any page that 404s,
+  or a sidebar or header control that doesn't do what it says (it clicks each one, opens search three ways, runs a
+  search, opens New message). It passed every page before while these buttons did nothing, because it only checked
+  layout.
+
+## 2026-11-28: One top role, Admin
+
+- **Owner merges into Admin** (founder). Admin gets every permission, VIPs included. Migration 0019 turns owners
+  into admins, drops "owner" from the role list, and rewrites anything that named the role (booking types' eligible
+  roles, routing rules that assigned to "the owner"). It writes one audit-log row per former owner, so the history
+  is kept and a downgrade restores exactly those people (not "the oldest admin", which picked the wrong person when
+  two admins were created together).
+- **The WhatsApp assistant is each admin's own switch** (`users.notification_prefs.assistant`), not the dealership's.
+  WhatsApp wants each person's opt-in, and two admins shouldn't share one on/off. Former owners keep what the
+  dealership had set; admins who existed before start with both off (they never got these messages, and nobody is
+  messaged on WhatsApp without opting in). Admins added later get alerts on, briefing off. The briefing time stays
+  one shared dealership setting. It moved from Settings to each person's account menu.
+- **Who a VIP reaches when nobody is looking after them:** the oldest active admin with a mobile (`vip_backup`).
+  A stopgap until plan item 2 makes a person required on every VIP.
+- **Kept as they are, because they aren't roles:** a call's `handled_by = 'owner'` (a VIP's call that rang a
+  person directly, now shown as "Rang a person directly") and alert payloads addressed `to: "owner"` (now meaning
+  the admins). Renaming them means a data migration of events for no change in behaviour.
+- **Alternatives:** keep both roles with owner as a flag on one admin (rejected: the flag carries the same
+  confusion); auto-enable the assistant for every admin (rejected: WhatsApp opt-in, and nobody wants messages they
+  didn't ask for).
+
+## 2026-11-28: Mine / Everyone, the same on every screen
+
+- **One switch in the page header** on Inbox, Calls, Calendar, Tasks and Deals, defaulting by role (sales and
+  service: Mine; admins, managers, view-only: Everyone) and remembered per screen in the browser. Browser storage,
+  not a saved setting: it's a convenience, and a new device simply starts at the role's default.
+- **The API decides what "mine" is** (`whose=mine|everyone` on each list, `services/whose.py`), so it's one rule,
+  tested, rather than five client-side filters. Mine follows the thing listed: tasks assigned to you, deals you own,
+  appointments with you; for conversations and calls, your clients: you've been given their conversation, own their
+  deal, look after them as a VIP, or have an open task for them. Calls also count calls put through to you and your
+  own call-backs. VIP visibility applies on top, unchanged.
+- **Alternative rejected:** "Mine" meaning only threads assigned to you in the Inbox. A salesperson's client often
+  writes on a new channel, which starts unassigned; scoping by client keeps that thread in their Inbox.
+- **On a phone** the header has room for the title and the switch, not the theme buttons too: the theme moved into
+  the account menu below 640 px wide.
+- **Fixed on the way: reloading a page could land you on Today.** The refresh cookie works once; a page load fired
+  several refreshes at once, the losers failed, the app thought you'd signed out, and /login sent you to Today. One
+  shared refresh per tab now, and /login returns you to the page you came from (`?next=`, same-site paths only).
+  Two tabs refreshing in the same instant can still race; a short server-side grace window would close that.
+  The UI review now fails if any page lands somewhere other than where it was sent.
+
+## 2026-11-28: Today, redesigned
+
+- **Built one layout, not three options first.** The plan asked for two or three screenshots to choose from; the
+  founder then asked for every plan item to be done in one go, so I built the one I'd recommend and kept the before
+  and after screenshots. Easy to revisit: the page is one file.
+- **It opens with a handover note**, not a greeting: "5 things need someone." Under it, in Ondra blue, what Ondra did
+  while the dealership was closed, only when it did something. The old "While you were closed" box showed three zeros
+  most evenings.
+- **What needs you sits beside today's bookings** (a timeline), so the two things you act on are on one screen.
+- **The week is different by role.** Admins and managers: four numbers (leads, first reply, appointments, time to
+  call back), "Who's behind" (overdue tasks and callers waiting, per person, from `/today`), deals in play, and the
+  rest folded under "More numbers". Everyone else: their own open deals, their own reply speed and call-back speed.
+  A salesperson no longer sees dealership charts they can't act on.
+- **`/today` is now scoped for non-managers**: their own drafts (their clients' conversations) and their own
+  bookings. Before, a salesperson saw the whole dealership's draft count and appointments.
+- **Smaller fixes:** numbers at weight 400 (the skill's rule, they were bold); durations read "45 min" rather than
+  "45 min 00 s"; the greeting uses the dealership's clock; on phones each row's button sits under its explanation.
+
+## 2026-11-28: Every VIP has a person; the VIP desk for unanswered calls
+
+- **A VIP can't exist without a person.** Making someone a VIP without choosing sets whoever is doing it. When that
+  person is deactivated, their VIPs are cleared from them (not handed to anyone) and each becomes a high-priority task
+  for the longest-serving admin, plus an alert: "choose who looks after Robert". The founder's call: the person
+  deactivating someone may not know the relationship.
+- **Unanswered VIP calls go through a "VIP desk" Ondra controls**, not a blind transfer. A blind transfer hands the
+  call to the carrier and Ondra never learns whether anyone answered, so there's nowhere to hang a message. The desk is
+  plain TwiML on a Twilio Programmable Voice SIP domain: ring their person 20 s, then the dealer's fixed message
+  inside a one-digit Gather. Press 1 dials one backup number; press 2 texts the dealer's own booking link. No AI at
+  any step; tests walk every path (answered, unanswered, press 1, press 2, no consent, hang up, nobody to ring) and
+  check that no AI message or AI-handled call exists.
+- **Press 2 uses the dealer's own booking link**, because Ondra has no self-serve booking page yet (item 4 needs one
+  too). Offered only when a link is set and the VIP has recorded text consent; counsel hasn't said yet whether pressing
+  2 is consent in itself.
+- **The backup number can't be the dealership's own line**: it forwards to Ondra, so a VIP would reach the AI. The
+  API refuses it.
+- **Off until checked (FEATURE_VIP_DESK=false).** Twilio's docs couldn't be reached from the build machine, so it's
+  unverified that an Elastic SIP trunk transfer (REFER) can target a SIP domain address carrying the call id. Until a
+  real call proves it, a VIP's call keeps going straight to their person, and the Settings screen says the message
+  isn't playing yet. If the desk can't be reached on a call, the worker falls back to ringing the person.
+
+## 2026-11-28: Booking confirmations, and the booking's own page
+
+- **Every booking, move and cancellation is confirmed** (services/confirmations.py): on the customer's channel, plus
+  an email copy with a calendar invite (.ics, one UID per booking so a move updates the event and a cancellation
+  removes it). At most two messages per change. A booking Ondra made inside a written conversation skips the main
+  message (its reply already confirmed it) but still sends the email copy.
+- **One link in every message** to the booking's own page (`/b?t=<token>`, no sign-in): add to Apple, Google or
+  Outlook calendar, move it to another free time, or cancel. The token is HMAC-signed and opens that one booking only.
+  A query parameter rather than `/b/<token>` so the shared preview's static export keeps working.
+- **The same rules as every automated message**, in one function (`may_send`) now used by reminders too: no opt-outs
+  (email included), no VIPs (their person gets a task to confirm personally), no text without recorded consent, and
+  WhatsApp only inside its 24-hour window. Staff see on the appointment what the customer was told and why anything
+  wasn't sent ("No confirmation by text: no consent to texts on file").
+- **Fixed on the way: reminders reached VIPs and went by text without recorded consent.** The send gate only stopped
+  AI-written messages to VIPs; system reminders passed. Both broke product rules in CLAUDE.md.
+- **Quiet hours:** a change made 8 pm to 8 am, dealer time, is confirmed at 8 am.
+- **Not verified (docs unreachable from the build machine), marked TODO(verify):** Postmark's attachment fields, and
+  the Google and Outlook add-event link parameters. The .ics follows RFC 5545/5546; it still needs opening once in
+  Google, Apple and Outlook calendars.
+- **Not built:** a WhatsApp template for confirmations outside the 24-hour window. Those customers get text (with
+  consent) or email instead, and staff see why.
+
+## 2026-11-28: The marketing site matches the product again
+
+- **VIPs in ink on the site too** (the `--color-vip` token was still red), with the app's own tag and ring
+  (`apps/site/components/vip.tsx`, a copy of the app's). All four crowns are gone: the inbox mock, the VIP call story
+  and both versions of the channel diagram.
+- **No owner:** VIP calls ring "their person" / "whoever looks after them"; the morning briefing is described for
+  "you". The VIP story now matches the shipped flow (their person rings; no answer gets your own words, then your
+  front desk), not the old "your mobile, then your office line, then a text".
+- **"Needs you 1"** in the inbox mock was red; red means overdue only, so it's neutral now.

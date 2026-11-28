@@ -34,7 +34,7 @@ class ImportIn(BaseModel):
 
 def _may_import(caller: Caller) -> None:
     if not (has_perm(caller.role, Perm.VEHICLES_WRITE) or has_perm(caller.role, Perm.INTEGRATIONS_MANAGE)):
-        raise HTTPException(403, "Only owners, admins and managers can import inventory.")
+        raise HTTPException(403, "Only admins and managers can import inventory.")
 
 
 @router.post("/inventory/import")

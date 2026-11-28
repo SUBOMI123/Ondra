@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import Link from "next/link"
 import * as React from "react"
 
 import { api } from "@/lib/api"
@@ -36,7 +37,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Screens that exist link to their page; the rest arrive with their build step (docs/ROADMAP.md).
+// Every item goes somewhere: a page, or (Search) the search box. A test clicks each one (scripts/ui-review.cjs).
 const data = {
   navMain: [
     { title: "Today", url: "/", icon: IconLayoutDashboard },
@@ -50,8 +51,8 @@ const data = {
   ],
   navSecondary: [
     { title: "Settings", url: "/settings", icon: IconSettings },
-    { title: "Help", url: "#", icon: IconHelp },
-    { title: "Search", url: "#", icon: IconSearch },
+    { title: "Help", url: "/help", icon: IconHelp },
+    { title: "Search", action: "search" as const, icon: IconSearch },
   ],
 }
 
@@ -72,11 +73,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-              <a href="#" aria-label="Ondra, Today">
+              <Link href="/" aria-label="Ondra, Today">
                 <span className="flex h-5 items-center group-data-[collapsible=icon]:hidden"><Wordmark className="h-[18px] w-auto" /></span>
                 <OndraMark className="hidden size-5! text-foreground group-data-[collapsible=icon]:block" />
                 <span className="ml-auto truncate text-xs font-normal text-muted-foreground group-data-[collapsible=icon]:hidden">{me?.tenant_name}</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -84,7 +85,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <React.Suspense fallback={null}>
           <NavMain items={navMain} />
-          <NavShortcuts rows={inbox.data?.items} seesVips={me?.role === "owner" || me?.role === "manager"} />
+          <NavShortcuts rows={inbox.data?.items} seesVips={me?.role === "admin" || me?.role === "manager"} />
         </React.Suspense>
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

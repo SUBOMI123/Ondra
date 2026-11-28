@@ -280,9 +280,11 @@ async def book(db: AsyncSession, tenant: Tenant, *, slot_id: str, contact_id: uu
         raise
     db.add(Event(type="appointment.booked", payload={"appointment_id": str(a.id), "source": source, "contact_id": str(a.contact_id),
                                                      "type": t.name, "starts_at": start.isoformat()}))
+    from ondra_api.services.confirmations import schedule as confirm
     from ondra_api.services.reminders import schedule_reminders
 
     await schedule_reminders(db, tenant, a, t)
+    confirm(db, tenant, a, "booked", source)
     return a
 
 
@@ -330,9 +332,11 @@ async def reschedule(db: AsyncSession, tenant: Tenant, a: Appointment, slot_id: 
     a.reminders_sent = []
     db.add(Event(type="appointment.rescheduled", payload={"appointment_id": str(a.id), "from": before.isoformat(),
                                                           "to": start.isoformat()}))
+    from ondra_api.services.confirmations import schedule as confirm
     from ondra_api.services.reminders import schedule_reminders
 
     await schedule_reminders(db, tenant, a, t)
+    confirm(db, tenant, a, "moved", "")
     return a
 
 
@@ -346,6 +350,10 @@ async def set_status(db: AsyncSession, a: Appointment, status: str, by: str) -> 
         await db.execute(update(AppointmentResource).where(and_(AppointmentResource.appointment_id == a.id))
                          .values(active=False))
     db.add(Event(type=f"appointment.{status}", payload={"appointment_id": str(a.id), "from": before, "by": by, "contact_id": str(a.contact_id)}))
+    if status == "cancelled" and before != "cancelled" and a.starts_at > datetime.now(UTC):
+        from ondra_api.services.confirmations import schedule as confirm
+
+        confirm(db, (await db.execute(select(Tenant).limit(1))).scalar_one(), a, "cancelled", by)
     await db.flush()
     return a
 

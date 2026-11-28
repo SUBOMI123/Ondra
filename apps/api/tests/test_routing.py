@@ -250,7 +250,7 @@ async def test_10_after_hours_a_rule_makes_the_ai_draft_only(floor):
 
 
 async def test_11_the_first_matching_rule_wins_and_switched_off_rules_are_ignored(floor):
-    await floor.rule("Service to the owner (off)", 1, {"topic": ["service"]}, {"assign_role": "owner"}, active=False)
+    await floor.rule("Service to the owner (off)", 1, {"topic": ["service"]}, {"assign_role": "admin"}, active=False)
     await floor.rule("Service to the manager", 5, {"topic": ["service"]}, {"assign_role": "manager"})
     await floor.rule("Everything to sales", 50, {}, {"assign_role": "sales"})
     service = await floor.message("I need my brakes looked at. Can someone call?", handoff=("asked_for_person", "service"))
@@ -269,7 +269,7 @@ async def test_12_an_empty_team_falls_back_to_the_manager(floor):
 
 
 async def test_rules_never_cross_dealerships(database, floor):
-    await floor.rule("A's rule", 1, {}, {"assign_role": "owner"})
+    await floor.rule("A's rule", 1, {}, {"assign_role": "admin"})
     async with tenant_session(database["b"]) as db:
         assert (await db.execute(select(RoutingRule))).scalars().all() == []
         assert not any(u.name == "Ana Ruiz" for u in (await db.execute(select(User))).scalars())
@@ -283,7 +283,7 @@ async def test_rules_api_add_order_switch_preview_and_permissions(client, databa
     owner = await login(client, "owner@prestigemotors.example")
     sales = await login(client, "daniel@prestigemotors.example")
     got = (await client.get("/routing", headers=sales)).json()
-    assert got["rules"] == [] and got["can_edit"] is False and got["owner"] == "Samuel Adeyemi"
+    assert got["rules"] == [] and got["can_edit"] is False and got["vip_backup"] == "Samuel Adeyemi"
     rule = {"topics": ["complaint"], "team": "manager", "alert": True, "ai": "off"}
     assert (await client.post("/routing/rules", json=rule, headers=sales)).status_code == 403  # read-only for sales
 

@@ -122,7 +122,7 @@ export default function TeamPage() {
           <TableSkeleton rows={8} />
         ) : team.isError ? (
           team.error instanceof ApiError && team.error.status === 403 ? (
-            <p className="rounded-xl border p-6 text-sm text-muted-foreground">Only owners, admins and managers can see the team.</p>
+            <p className="rounded-xl border p-6 text-sm text-muted-foreground">Only admins and managers can see the team.</p>
           ) : (
             <LoadError message={team.error.message} onRetry={() => team.refetch()} />
           )

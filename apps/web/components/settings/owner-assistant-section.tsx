@@ -1,8 +1,9 @@
 "use client"
 
 /**
- * Settings > Your WhatsApp assistant. One job: decide when Ondra messages the owner on WhatsApp, and show whether
- * it can actually reach them. The owner's own setting: only an owner can change it.
+ * Your WhatsApp assistant (from the account menu). One job: decide when Ondra messages you on WhatsApp, and show
+ * whether it can actually reach you. Each admin's own switches (their phone, their opt-in); the briefing time is the
+ * dealership's, shared. It also says which other admins get the briefing, so nobody wonders whether anyone does.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -22,7 +23,8 @@ type Data = {
   briefing_on: boolean
   briefing_time: string
   alerts_on: boolean
-  owners: { name: string; has_mobile: boolean }[]
+  has_mobile: boolean
+  owners: { name: string; has_mobile: boolean; you: boolean; briefing_on: boolean; alerts_on: boolean }[]
   whatsapp: { address: string; live: boolean } | null
   templates: { name: string; text: string }[]
   can_edit: boolean
@@ -46,7 +48,7 @@ type ThreadMsg = { id: string; from: "you" | "ondra"; kind: string; text: string
 
 const KIND: Record<string, string> = { voice: "Voice note", button: "Tapped a button", briefing: "Morning briefing", alert: "Alert" }
 
-/** What the owner and the assistant said to each other, so what it did from a voice note can be checked here. */
+/** What you and the assistant said to each other, so what it did from a voice note can be checked here. */
 function Thread() {
   const q = useQuery({ queryKey: ["owner-assistant", "thread"], queryFn: () => api<{ messages: ThreadMsg[] }>("/settings/owner-assistant/thread?limit=30") })
   return (
@@ -91,7 +93,7 @@ export function OwnerAssistantSection() {
   })
   const now = useMutation({
     mutationFn: () => send<{ sent: number; owners: number }>("POST", "/settings/owner-assistant/briefing"),
-    onSuccess: (r) => toast(r.owners === 1 ? "Sent. Check your WhatsApp." : `Sent to ${r.sent} of ${r.owners} owners.`),
+    onSuccess: (r) => toast(r.owners === 1 ? "Sent. Check your WhatsApp." : `Sent to ${r.sent} of the ${r.owners} admins who have it on.`),
     onError: (e) => toast(errorText(e)),
   })
 
@@ -106,23 +108,27 @@ export function OwnerAssistantSection() {
     )
   const d = q.data
   const canEdit = d.can_edit
-  const reachable = d.owners.filter((o) => o.has_mobile).map((o) => o.name)
-  const missing = d.owners.filter((o) => !o.has_mobile).map((o) => o.name)
+  const others = d.owners.filter((o) => !o.you)
+  const briefed = others.filter((o) => o.briefing_on && o.has_mobile).map((o) => o.name.split(" ")[0])
   const dirty = form.briefing_on !== d.briefing_on || form.briefing_time !== d.briefing_time || form.alerts_on !== d.alerts_on
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-1.5 text-sm">
         <p>
-          {reachable.length > 0 ? `Messages go to ${list(reachable)}, on the mobile set under Team.` : "No owner has a mobile on file yet, so there's nobody to message."}
-          {missing.length > 0 && ` ${list(missing)} ${missing.length === 1 ? "has" : "have"} no mobile on file.`}{" "}
-          <Link href="/settings/team" className="underline underline-offset-4">Set mobiles under Team</Link>
+          {d.has_mobile ? "Messages go to your mobile, the one set under Team. " : "You have no mobile on file, so there's nowhere to send these. "}
+          <Link href="/settings/team" className="underline underline-offset-4">{d.has_mobile ? "Change it under Team" : "Add it under Team"}</Link>
         </p>
+        {others.length > 0 && (
+          <p className="text-muted-foreground">
+            {briefed.length > 0 ? `${list(briefed)} ${briefed.length === 1 ? "gets" : "get"} the morning briefing too.` : "No other admin gets the morning briefing."}
+          </p>
+        )}
         {d.whatsapp === null ? (
           <p>Your dealership has no WhatsApp number yet. <Link href="/settings/channels" className="underline underline-offset-4">Add one under Channels</Link>: the assistant sends from it, and it&apos;s the number you write to.</p>
         ) : !d.whatsapp.live ? (
           <p className="text-muted-foreground">Your WhatsApp number is in test mode, so nothing reaches a real phone yet.</p>
         ) : null}
-        {!canEdit && <p className="text-muted-foreground">Only an owner can change this: it&apos;s their own phone.</p>}
+        {!canEdit && <p className="text-muted-foreground">The WhatsApp assistant is for admins.</p>}
       </div>
 
       <div className="grid gap-4">
@@ -137,7 +143,7 @@ export function OwnerAssistantSection() {
           <div className="grid gap-2 pl-11">
             <Label htmlFor="oa-time">Send it at</Label>
             <Input id="oa-time" type="time" className="w-32" value={form.briefing_time} disabled={!canEdit} onChange={(e) => setForm({ ...form, briefing_time: e.target.value })} />
-            <p className="text-sm text-muted-foreground">In the dealership&apos;s time zone, every day.</p>
+            <p className="text-sm text-muted-foreground">In the dealership&apos;s time zone, every day. The time is the same for every admin.</p>
           </div>
         )}
         <div className="flex items-start gap-3">

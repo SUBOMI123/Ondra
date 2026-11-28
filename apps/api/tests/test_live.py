@@ -21,7 +21,7 @@ async def test_changes_reach_only_the_right_dealer_with_ids_only(database):
     qb = await broker.subscribe(database["b"])
     try:
         async with tenant_session(database["a"]) as db:
-            owner = (await db.execute(select(User.id).where(User.role == "owner"))).scalar_one()
+            owner = (await db.execute(select(User.id).where(User.email == "owner@prestigemotors.example"))).scalar_one()
             t = await new_task(db, title="Live check", assignee_user_id=owner)
             task_id = str(t.id)
         got = await _next(qa)

@@ -32,7 +32,7 @@ async def escalate_overdue(db: AsyncSession, now: datetime | None = None) -> lis
     )).scalars().all()
     for t in overdue:
         current = await db.get(User, t.assignee_user_id) if t.assignee_user_id else None
-        target_role = "owner" if current is not None and current.role in ("manager", "owner") else "manager"
+        target_role = "admin" if current is not None and current.role in ("manager", "admin") else "manager"
         new_assignee = await assignee_for(db, target_role)
         db.add(Event(type="task.escalated", payload={
             "task_id": str(t.id), "from_user_id": str(t.assignee_user_id) if t.assignee_user_id else None,

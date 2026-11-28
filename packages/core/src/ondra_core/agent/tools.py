@@ -123,7 +123,7 @@ TOOL_SPECS: list[dict[str, Any]] = [
                 "brief": {"type": "string", "description": "Two or three sentences: who, what they want, what's next."},
                 "urgency": {"type": "string", "enum": ["low", "normal", "high"]},
                 "target_role": {
-                    "type": "string", "enum": ["sales", "service", "manager", "owner"],
+                    "type": "string", "enum": ["sales", "service", "manager"],
                     "description": "sales: buying, prices, trade-ins, financing, shipping. service: repairs, maintenance, parts, accessories and installs. manager: complaints and anger.",
                 },
             },
@@ -254,7 +254,6 @@ def handoff_message(target_role: str, open_now: bool) -> str:
         "sales": "someone from our sales team",
         "service": "one of our service advisors",
         "manager": "a manager",
-        "owner": "the owner",
     }.get(target_role, "someone from our team")
     when = "shortly" if open_now else "when we open"
     return f"I've passed this to {who}; they'll get back to you {when}."

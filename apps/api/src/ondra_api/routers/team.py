@@ -37,7 +37,7 @@ from ondra_api.security import hash_token
 log = logging.getLogger("ondra.team")
 router = APIRouter(prefix="/users", tags=["team"])
 
-Role = Literal["owner", "admin", "manager", "sales", "service", "ops", "viewer"]
+Role = Literal["admin", "manager", "sales", "service", "ops", "viewer"]
 INVITE_DAYS = 7
 
 
@@ -143,8 +143,6 @@ def _audit(db: AsyncSession, caller: Caller, request: Request, action: str, u: U
 async def invite(body: InviteIn, request: Request,
                  ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.USERS_MANAGE))) -> dict:
     caller, db = ctx
-    if body.role == "owner" and caller.role != "owner":
-        raise HTTPException(403, "Only an owner can add another owner.")
     u = User(email=body.email.lower(), name=body.name.strip(), role=body.role, password_hash=None, active=True)
     try:
         async with db.begin_nested():
@@ -179,10 +177,7 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
     if u is None:
         raise HTTPException(404)
     if u.id == caller.user_id and (body.role is not None or body.active is not None):
-        raise HTTPException(403, "You can't change your own role or access. Ask another owner or admin.")
-    touches_owner = u.role == "owner" or body.role == "owner"
-    if touches_owner and caller.role != "owner":
-        raise HTTPException(403, "Only an owner can change an owner, or make someone an owner.")
+        raise HTTPException(403, "You can't change your own role or access. Ask another admin.")
     before = user_out(u)
     role_changed = body.role is not None and body.role != u.role
     if body.role is not None:
@@ -202,16 +197,20 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
     if "max_open_tasks" in body.model_fields_set:
         u.max_open_tasks = body.max_open_tasks
     await db.flush()
-    owners = (await db.execute(
-        select(func.count()).select_from(User).where(User.role == "owner", User.active.is_(True))
+    admins = (await db.execute(
+        select(func.count()).select_from(User).where(User.role == "admin", User.active.is_(True))
     )).scalar_one()
-    if owners == 0:
-        raise HTTPException(409, "The dealership needs at least one active owner.")
+    if admins == 0:
+        raise HTTPException(409, "The dealership needs at least one active admin.")
     if body.active is False:
         # Signed out everywhere: refresh sessions die now; any access token expires within its 15 minutes and is
         # refused sooner, because every request re-reads `active` from the database.
         await db.execute(update(Session).where(Session.user_id == u.id, Session.revoked_at.is_(None))
                          .values(revoked_at=func.now()))
+        # Their VIPs aren't handed to anyone automatically: the admins get a task to choose someone for each.
+        from ondra_api.services.vips import orphan_vips
+
+        await orphan_vips(db, u)
         if _clerk() and u.clerk_user_id:
             # Also out of the Clerk Organization. Ondra already refuses them (it re-reads `active` every request).
             from ondra_api import clerk

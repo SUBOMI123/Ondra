@@ -2,7 +2,7 @@
 
 /**
  * The team: invite, roles, mobiles, deactivation. Shared by the Settings summary and the Team page
- * (/settings/team). Roles are Ondra's (owner, admin, manager, sales, service); with Clerk they're mirrored onto
+ * (/settings/team). Roles are Ondra's (admin, manager, sales, service); with Clerk they're mirrored onto
  * the Clerk Organization, but Ondra's are what's enforced.
  */
 
@@ -33,15 +33,15 @@ export type User = {
 export type TeamData = { items: User[]; total: number; counts: { role: Record<string, number>; status: Record<"active" | "invited" | "deactivated", number> } }
 
 export const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner", admin: "Admin", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations", viewer: "View only",
+  admin: "Admin", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations", viewer: "View only",
 }
 
 export function canManageTeam(me: Me | null) {
-  return me?.role === "owner" || me?.role === "admin"
+  return me?.role === "admin"
 }
 
 export function assignableRoles(me: Me | null) {
-  return Object.keys(ROLE_LABEL).filter((r) => r !== "owner" || me?.role === "owner")
+  return me?.role === "admin" ? Object.keys(ROLE_LABEL) : []
 }
 
 function errorText(e: unknown) {
@@ -266,8 +266,7 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
     <ul className="divide-y rounded-xl border">
 {users.map((u) => {
         const self = u.id === me?.id
-        const ownerLocked = u.role === "owner" && me?.role !== "owner"
-        const editable = canManage && !self && !ownerLocked && u.active
+        const editable = canManage && !self && u.active
         return (
           <li key={u.id} className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5", !u.active && "text-muted-foreground")}>
             {/* Name and email, then the mobile: its own column on wider screens so each person is two lines. */}
@@ -279,7 +278,7 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
                 </p>
                 <p className="truncate text-sm text-muted-foreground" title={u.email}>{u.email}</p>
               </div>
-              <Mobile u={u} self={self} canEdit={self || (canManage && !ownerLocked && u.active)} />
+              <Mobile u={u} self={self} canEdit={self || (canManage && u.active)} />
             </div>
             {u.invited && u.active && <Badge variant="outline">Invite sent</Badge>}
             {!u.active && <Badge variant="outline" className="text-muted-foreground">Deactivated</Badge>}
@@ -291,7 +290,7 @@ export function TeamRows({ users, me }: { users: User[]; me: Me | null }) {
             ) : (
               <span className="w-36 text-sm text-muted-foreground sm:text-right">{ROLE_LABEL[u.role] ?? u.role}</span>
             )}
-            {canManage && !ownerLocked && (u.active || !self) ? (
+            {canManage && (u.active || !self) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label={`More for ${u.name}`}><IconDotsVertical /></Button>

@@ -45,14 +45,22 @@ async def line(client, database, monkeypatch):
     async with tenant_session(t) as db:
         tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
         settings_before = dict(tenant.settings or {})
-        owner = (await db.execute(select(User).where(User.role == "owner"))).scalar_one()
+        owner = (await db.execute(select(User).where(User.email == "owner@prestigemotors.example"))).scalar_one()
         phone_before, owner_id = owner.phone, owner.id
+        prefs_before = {u.id: u.notification_prefs for u in (await db.execute(select(User))).scalars()}
         owner.phone = OWNER
         await db.execute(delete(Job).where(Job.kind.in_(("owner_alert", "owner_briefing", "assistant_turn"))))
 
     class Line:
         tenant = t
         owner = owner_id
+
+        async def switch(self, email="owner@prestigemotors.example", **prefs):
+            """One admin's own assistant switches (briefing_on / alerts_on)."""
+            async with tenant_session(t) as db:
+                u = (await db.execute(select(User).where(User.email == email))).scalar_one()
+                mine = (u.notification_prefs or {}).get("assistant") or {}
+                u.notification_prefs = {**(u.notification_prefs or {}), "assistant": {**mine, **prefs}}
 
         def script(self, *steps):
             holder["llm"] = ScriptedLLM(list(steps))
@@ -88,6 +96,8 @@ async def line(client, database, monkeypatch):
         await db.execute(delete(Task).where(Task.created_at >= started))
         await db.execute(update(User).where(User.id == owner_id).values(phone=phone_before))
         await db.execute(update(Tenant).values(settings=settings_before))
+        for uid, prefs in prefs_before.items():
+            await db.execute(update(User).where(User.id == uid).values(notification_prefs=prefs))
 
 
 # --- the morning briefing --------------------------------------------------------------------------------------------
@@ -141,10 +151,15 @@ async def test_the_briefing_arrives_at_the_configured_time_with_correct_counts(l
     assert {k: after[k] for k in expect} == expect
     assert vip.display_name in after["vip_names"]
 
-    # Switch it on for 7:30: the job is lined up for 7:30 in the dealership's own time.
+    # Nobody has switched it on yet: nothing is lined up.
+    async with tenant_session(t) as db:
+        assert await briefing.schedule(db) is None
+    # Samuel switches it on for himself at 7:30: the job is lined up for 7:30 in the dealership's own time, and only
+    # he gets it (Chris, the other admin, hasn't opted in).
+    await line.switch(briefing_on=True)
     async with tenant_session(t) as db:
         tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-        tenant.settings = {**(tenant.settings or {}), "owner_assistant": {"briefing_on": True, "briefing_time": "07:30"}}
+        tenant.settings = {**(tenant.settings or {}), "owner_assistant": {"briefing_time": "07:30"}}
         await db.flush()
         at = await briefing.schedule(db)
     assert at.astimezone(CHI).strftime("%H:%M") == "07:30" and at > datetime.now(UTC)
@@ -171,12 +186,10 @@ async def test_the_briefing_arrives_at_the_configured_time_with_correct_counts(l
     text_ = line.to_owner()[-1]
     assert text_.template is None and f"VIP{'s' if expect['vips_waiting'] != 1 else ''} waiting" in text_.body and vip.display_name in text_.body
     # Switched off: nothing is lined up and a stray job does nothing.
+    await line.switch(briefing_on=False)
     async with tenant_session(t) as db:
-        tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-        tenant.settings = {**(tenant.settings or {}), "owner_assistant": {"briefing_on": False}}
-        await db.flush()
         assert await briefing.schedule(db) is None
-    assert await briefing.run(t, {}) == "skipped: briefings are off"
+    assert await briefing.run(t, {}) == "skipped: nobody has the briefing on"
     async with tenant_session(t) as db:
         await db.execute(delete(Message).where(Message.id == made[0]))
         await db.execute(delete(Appointment).where(Appointment.id.in_(made[1:])))
@@ -296,11 +309,11 @@ async def test_vip_alerts_reach_the_owner_and_only_whatsapp_from_the_owners_numb
     await worker.run_once()
     [alert] = line.to_owner()
     assert alert.template["name"] == "ondra_alert" and vip in alert.template["params"][1] and "VIP message waiting" in alert.body
-    # Alerts off: recorded, not sent.
-    async with tenant_session(line.tenant) as db:
-        tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-        tenant.settings = {**(tenant.settings or {}), "owner_assistant": {"alerts_on": False}}
-    assert await deliver_alert(line.tenant, {"to": "owner", "reason": "x"}) == "skipped: alerts are off"
+    # Each admin's alerts are their own switch: with Samuel's off, only Chris hears; with both off, nobody does.
+    await line.switch(alerts_on=False)
+    assert await deliver_alert(line.tenant, {"to": "owner", "reason": "x"}) == "sent to 1 of 1"
+    await line.switch("admin@prestigemotors.example", alerts_on=False)
+    assert (await deliver_alert(line.tenant, {"to": "owner", "reason": "x"})).startswith("skipped: no one to alert")
 
     # The same number by text message is a customer like any other: a text's sender can be faked.
     line.script("must not be used")
@@ -329,41 +342,48 @@ async def test_outside_the_window_without_a_template_nothing_is_sent_and_dealers
         assert (await db.execute(select(AssistantMessage))).scalars().all() == []
 
 
-async def test_owner_assistant_settings_are_the_owners_and_schedule_the_briefing(client, line):
+async def test_the_assistant_switches_are_each_admins_own_and_schedule_the_briefing(client, line):
     from tests.conftest import login
 
-    owner = await login(client, "owner@prestigemotors.example")
-    admin = await login(client, "admin@prestigemotors.example")
-    got = (await client.get("/settings/owner-assistant", headers=admin)).json()
-    assert (got["briefing_on"], got["briefing_time"], got["alerts_on"], got["can_edit"]) == (False, "07:30", True, False)
-    assert got["owners"] == [{"name": "Samuel Adeyemi", "has_mobile": True}] and got["whatsapp"]["live"] is False
+    samuel = await login(client, "owner@prestigemotors.example")
+    chris = await login(client, "admin@prestigemotors.example")
+    manager = await login(client, "manager@prestigemotors.example")
+    got = (await client.get("/settings/owner-assistant", headers=chris)).json()
+    assert (got["briefing_on"], got["briefing_time"], got["alerts_on"], got["can_edit"]) == (False, "07:30", True, True)
+    assert [(o["name"], o["you"], o["briefing_on"]) for o in got["owners"]][:2] == [("Samuel Adeyemi", False, False), ("Chris Bell", True, False)]
+    assert got["whatsapp"]["live"] is False
     assert [t["name"] for t in got["templates"]] == ["ondra_morning_briefing", "ondra_alert"]
     body = {"briefing_on": True, "briefing_time": "06:45", "alerts_on": True}
-    assert (await client.put("/settings/owner-assistant", json=body, headers=admin)).status_code == 403  # it's the owner's own phone
-    assert (await client.put("/settings/owner-assistant", json={**body, "briefing_time": "6.45am"}, headers=owner)).status_code == 422
-    saved = (await client.put("/settings/owner-assistant", json=body, headers=owner)).json()
+    assert (await client.put("/settings/owner-assistant", json=body, headers=manager)).status_code == 403  # admins only
+    assert (await client.put("/settings/owner-assistant", json={**body, "briefing_time": "6.45am"}, headers=samuel)).status_code == 422
+    saved = (await client.put("/settings/owner-assistant", json=body, headers=samuel)).json()
     at = datetime.fromisoformat(saved["next_briefing_at"])
     assert at.astimezone(CHI).strftime("%H:%M") == "06:45"
+    # Samuel's switch is Samuel's: Chris still has it off.
+    mine = (await client.get("/settings/owner-assistant", headers=chris)).json()
+    assert mine["briefing_on"] is False and [o["briefing_on"] for o in mine["owners"]][:2] == [True, False]
     async with tenant_session(line.tenant) as db:
         jobs = (await db.execute(select(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))).scalars().all()
         assert [j.run_at for j in jobs] == [at]
     # Changing the time replaces the job rather than adding a second briefing.
-    await client.put("/settings/owner-assistant", json={**body, "briefing_time": "08:15"}, headers=owner)
+    await client.put("/settings/owner-assistant", json={**body, "briefing_time": "08:15"}, headers=samuel)
     async with tenant_session(line.tenant) as db:
         [job] = (await db.execute(select(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))).scalars().all()
         assert job.run_at.astimezone(CHI).strftime("%H:%M") == "08:15"
-    sent = (await client.post("/settings/owner-assistant/briefing", headers=owner)).json()
-    assert sent["sent"] == 1 and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
-    assert (await client.post("/settings/owner-assistant/briefing", headers=admin)).status_code == 403
+    sent = (await client.post("/settings/owner-assistant/briefing", headers=chris)).json()
+    assert (sent["sent"], sent["owners"]) == (1, 1) and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
+    assert (await client.post("/settings/owner-assistant/briefing", headers=manager)).status_code == 403
 
 
-async def test_the_owner_reads_their_own_assistant_thread(client, line):
+async def test_each_admin_reads_only_their_own_assistant_thread(client, line):
     from tests.conftest import login
 
-    owner = await login(client, "owner@prestigemotors.example")
-    admin = await login(client, "admin@prestigemotors.example")
+    samuel = await login(client, "owner@prestigemotors.example")
+    chris = await login(client, "admin@prestigemotors.example")
+    manager = await login(client, "manager@prestigemotors.example")
     line.script([("who_wanted", {"what": "civic"})], "Jordan Price asked about the Civic.")
     await line.owner_sends("who wanted a civic?")
-    thread = (await client.get("/settings/owner-assistant/thread", headers=owner)).json()["messages"]
+    thread = (await client.get("/settings/owner-assistant/thread", headers=samuel)).json()["messages"]
     assert [(m["from"], m["text"]) for m in thread][-2:] == [("you", "who wanted a civic?"), ("ondra", "Jordan Price asked about the Civic.")]
-    assert (await client.get("/settings/owner-assistant/thread", headers=admin)).status_code == 403
+    assert all("civic" not in (m["text"] or "") for m in (await client.get("/settings/owner-assistant/thread", headers=chris)).json()["messages"])
+    assert (await client.get("/settings/owner-assistant/thread", headers=manager)).status_code == 403
