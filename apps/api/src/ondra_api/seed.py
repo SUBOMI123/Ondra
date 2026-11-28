@@ -40,6 +40,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ondra_api.config import get_settings
+from ondra_api.demo_photos import photo_for
 from ondra_api.security import hash_password
 from ondra_api.services.sla import business_seconds
 
@@ -378,7 +379,10 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
     try:
         async with async_sessionmaker(engine, expire_on_commit=False)() as db, db.begin():
             if if_empty and (await db.execute(select(func.count()).select_from(Tenant))).scalar_one() > 0:
-                print("seed: a tenant already exists, skipping")
+                # Already seeded: only catch the demo cars up on their demo photos (docs/PLAN.md item 8).
+                from ondra_api.demo_photos import ensure_demo_photos
+
+                print(f"seed: a tenant already exists, skipping (demo photos added to {await ensure_demo_photos(db)} cars)")
                 return None
             tenant = Tenant(
                 name="Prestige Motors",
@@ -437,7 +441,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
                     tenant_id=t, stock_number=f"{make[:1]}{year % 100:02d}-{1000 + i * 37 % 9000:04d}", vin=_vin(rng),
                     year=year, make=make, model=model, trim=rng.choice(trims),
                     price=price, mileage=mileage,
-                    status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed", raw={"body": BODY.get(model, ("car", 5))[0], "seats": BODY.get(model, ("car", 5))[1]},
+                    status=rng.choices(["available", "hold", "sold"], [0.8, 0.12, 0.08])[0], source_feed="seed",
+                    photos=[p] if (p := photo_for(make, model)) else [], raw={"body": BODY.get(model, ("car", 5))[0], "seats": BODY.get(model, ("car", 5))[1]},
                     # On the lot for a realistic spread: most turn within 45 days, a few sit for months.
                     created_at=datetime.now(UTC) - timedelta(days=rng.choices([rng.randint(1, 30), rng.randint(31, 60), rng.randint(61, 120)], [0.6, 0.28, 0.12])[0]),
                 ))
