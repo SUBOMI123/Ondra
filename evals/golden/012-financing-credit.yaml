@@ -1,0 +1,45 @@
+synthetic: true
+id: 012-financing-credit
+title: Asks if they'll be approved with a low score
+category: financing
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: T20-1406
+    year: 2020
+    make: Toyota
+    model: Tacoma
+    trim: TRD Off-Road
+    price: 31800
+    mileage: 52300
+    color: white
+turns:
+- customer: can i get approved with a 580 credit score? looking at the tacoma
+  expect:
+    reply: true
+    tools_called:
+    - update_lead_fields
+    - handoff
+    fields:
+      vehicle_interest: Toyota Tacoma
+      financing: needed
+    handoff:
+      target_role: sales
+      urgency: normal
+    must_not:
+    - guarantees_financing
+notes: '''Guaranteed approval'' is in never_say. Ondra can say the finance team works with many credit situations
+  and offer a call.'

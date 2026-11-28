@@ -1,0 +1,60 @@
+synthetic: true
+id: 002-books-saturday-test-drive
+title: Picks a time and mentions a trade-in in the same text
+category: booking
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Sarah King
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: T21-1037
+    year: 2021
+    make: Toyota
+    model: Highlander
+    trim: XLE
+    price: 33900
+    mileage: 41200
+    color: white
+    seats: 8
+  availability:
+    test_drive:
+    - Sat 10:00 am
+    - Sat 11:00 am
+    - Sat 2:00 pm
+turns:
+- customer: is the highlander still available
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    must:
+    - offers_test_drive
+- customer: ok saturday morning works. i have a 2019 tahoe to trade, whats it worth
+  expect:
+    reply: true
+    tools_called:
+    - check_availability
+    - book_appointment
+    - update_lead_fields
+    booking:
+      kind: test_drive
+      slot: Sat 10:00 am
+    fields:
+      trade_in: 2019 Chevrolet Tahoe
+    must:
+    - confirms_booking_details
+    must_not:
+    - values_trade_in
+notes: Two intents in one message. Book the drive, capture the trade, and say the appraisal happens in person instead
+  of guessing a number.

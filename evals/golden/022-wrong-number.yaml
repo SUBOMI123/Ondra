@@ -1,0 +1,28 @@
+synthetic: true
+id: 022-wrong-number
+title: Someone texts the wrong number
+category: noise
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+turns:
+- customer: hey is this mike? its jen from the gym lol
+  expect:
+    reply: true
+    handoff: none
+    tools_not_called:
+    - update_lead_fields
+    - handoff
+    - book_appointment
+notes: A short, friendly 'you've reached Prestige Motors' and nothing else. No lead created.

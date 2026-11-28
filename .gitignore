@@ -1,0 +1,17 @@
+# Secrets
+.env
+.env.*
+!.env.example
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# Node
+node_modules/
+.next/
+evals/results/
+
+# Draft eval cases from real conversations (redacted, but reviewed by a person before they're kept)
+evals/candidates/

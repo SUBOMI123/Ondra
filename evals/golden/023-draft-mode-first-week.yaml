@@ -1,0 +1,39 @@
+synthetic: true
+id: 023-draft-mode-first-week
+title: 'Dealer in draft mode: Ondra writes, a person approves'
+category: new_buyer
+channel: sms
+dealer:
+  local_time: Wed 2:05 pm
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: true
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: T20-1406
+    year: 2020
+    make: Toyota
+    model: Tacoma
+    trim: TRD Off-Road
+    price: 31800
+    mileage: 52300
+    color: white
+turns:
+- customer: do you have any tacomas
+  expect:
+    reply: true
+    draft: true
+    tools_called:
+    - search_inventory
+    must_not:
+    - invents_inventory
+    - quotes_final_price
+notes: Draft mode is the default for a dealer's first week. The reply is stored as a draft and nothing is sent.

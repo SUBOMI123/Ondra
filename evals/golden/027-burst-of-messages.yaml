@@ -1,0 +1,43 @@
+synthetic: true
+id: 027-burst-of-messages
+title: Three texts in a row before Ondra replies
+category: noise
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  inventory:
+  - stock: F22-1290
+    year: 2022
+    make: Ford
+    model: Bronco
+    trim: Badlands
+    price: 47500
+    mileage: 18400
+    color: green
+turns:
+- customer:
+  - hey
+  - the green bronco
+  - is it still for sale? whats the mileage
+  expect:
+    reply: true
+    tools_called:
+    - search_inventory
+    must:
+    - asks_one_question
+    must_not:
+    - invents_inventory
+    - quotes_final_price
+notes: One reply that answers all three, not three replies. In production the earlier runs are skipped.

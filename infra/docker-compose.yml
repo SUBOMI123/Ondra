@@ -1,0 +1,77 @@
+# Local development: `docker compose -f infra/docker-compose.yml up --build`. No real accounts needed.
+name: ondra
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ondra_owner
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD:-ondra_owner_dev}
+      POSTGRES_DB: ondra
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-ondra_app_dev}
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ondra_owner -d ondra"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # File storage (recordings, attachments) isn't used until Step 2. Opt in with `--profile storage`.
+  # MinIO's images are published on quay.io; Docker Hub's minio/minio repository no longer exists.
+  minio:
+    profiles: [storage]
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY:-ondra}
+      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY:-ondra_minio_dev}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+  api:
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    env_file: [{ path: ../.env, required: false }]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ondra_app:${APP_DB_PASSWORD:-ondra_app_dev}@db:5432/ondra
+      MIGRATIONS_DATABASE_URL: postgresql+asyncpg://ondra_owner:${OWNER_DB_PASSWORD:-ondra_owner_dev}@db:5432/ondra
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-dev-only-change-me}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3001}
+      SEED_ON_START: "1"
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      retries: 20
+
+  # Runs queued jobs (the AI's replies) and escalates overdue tasks. Same image as the API; starts once the API is
+  # healthy, which means migrations have run.
+  worker:
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    env_file: [{ path: ../.env, required: false }]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ondra_app:${APP_DB_PASSWORD:-ondra_app_dev}@db:5432/ondra
+    command: ["python", "-m", "ondra_api.worker"]
+    depends_on: { api: { condition: service_healthy } }
+
+  # The voice agent connects out to LiveKit (cloud), so it needs LIVEKIT_* in .env; it isn't started by a plain
+  # `up`. Start it with `docker compose --profile voice up`. Calls are tested without it (apps/voice/tests).
+  voice:
+    profiles: [voice]
+    build: { context: .., dockerfile: apps/voice/Dockerfile }
+    env_file: [{ path: ../.env, required: false }]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ondra_app:${APP_DB_PASSWORD:-ondra_app_dev}@db:5432/ondra
+    command: ["python", "-m", "ondra_voice", "start"]
+    depends_on: { api: { condition: service_healthy } }
+
+  web:
+    build: { context: ../apps/web, args: { NEXT_PUBLIC_API_URL: "http://localhost:8000" } }
+    depends_on: [api]
+    ports: ["3001:3001"]
+
+volumes:
+  pgdata:
+  miniodata:

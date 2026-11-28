@@ -1,0 +1,38 @@
+synthetic: true
+id: 006-repair-status
+title: Asks if the truck is ready
+category: service
+channel: sms
+dealer:
+  local_time: Sat 10:15 am
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Ethan Walker
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file:
+  - year: 2018
+    make: Honda
+    model: Accord
+context:
+  repair_orders:
+  - ro: RO-55120
+    status: waiting_parts
+    eta: null
+    advisor: Maria
+turns:
+- customer: hey is my car ready yet? dropped it off monday
+  expect:
+    reply: true
+    tools_called:
+    - get_repair_order_status
+    handoff: none
+    must_not:
+    - promises_date
+notes: The DMS says waiting on parts with no ETA. Say so plainly, name the advisor, and don't invent a pickup date.
+requires_step: 7

@@ -23,6 +23,31 @@ US dealerships first, with a strong fit for dealers whose buyers use WhatsApp: e
 
 Competitors such as Numa and Flai focus on US franchised dealers over phone, text and email. Ondra is WhatsApp-first, works for dealers with no DMS at all, handles cross-border buyers and time zones, and treats VIP clients as a first-class feature.
 
+## Running it locally
+
+You need Docker. No real accounts: every external service is mocked.
+
+```bash
+make up
+```
+
+- Dashboard: http://localhost:3001
+- API: http://localhost:8000 (docs at /docs)
+- Sign in with any example user, password `ondra-dev-password`:
+  - `owner@prestigemotors.example` (owner, sees VIPs)
+  - `manager@prestigemotors.example` (manager)
+  - `daniel@prestigemotors.example` (sales)
+  - `maria@prestigemotors.example` (service)
+  - `admin@prestigemotors.example` (admin)
+
+Run the tests (needs the database from `make up`, and [uv](https://docs.astral.sh/uv/)):
+
+```bash
+uv sync --all-packages && make test
+```
+
+Configuration lives in `.env` (copy `.env.example`); every variable is documented there. Without a `.env`, development defaults are used.
+
 ## Building it
 
 The full architecture, data model, agent design, integrations, compliance requirements and build order are in **[BUILD_PLAN.md](BUILD_PLAN.md)**.
@@ -52,6 +77,7 @@ apps/api       FastAPI app: domain logic, webhooks, routing, agent orchestration
 apps/voice     LiveKit voice agent worker
 apps/worker    background jobs
 apps/web       Next.js dashboard
+apps/site      marketing landing page (static Next.js export)
 packages/core  shared models, tools, policies, adapter interfaces and mocks
 evals/         golden conversations and the eval runner
 infra/         docker compose, later terraform

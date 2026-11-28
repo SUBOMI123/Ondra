@@ -430,8 +430,8 @@ Keep module boundaries clean (separate routers/services per domain, events for c
 ## 17. Open questions (do not guess — leave TODOs and ask)
 
 1. Twilio or Telnyx as the primary telephony provider?
-2. LiveKit Cloud or self-hosted LiveKit?
+2. LiveKit Cloud or self-hosted LiveKit? *(Start on LiveKit Cloud: `docs/ARCHITECTURE.md`.)*
 3. Which STT/TTS vendors after a latency and accent test?
 4. Which DMS/CRM do the first pilot dealers actually use?
-5. Hosting target (AWS, GCP, Fly, Render)?
+5. Hosting target (AWS, GCP, Fly, Render)? *(Decided 2026-11-25: Cloudflare plus managed Postgres plus a container host, see `docs/ARCHITECTURE.md`. Still open there: Fly.io or Render, Neon or Supabase.)*
 6. Pricing/billing model (needed before Step 11).

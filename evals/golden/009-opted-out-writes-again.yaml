@@ -1,0 +1,29 @@
+synthetic: true
+id: 009-opted-out-writes-again
+title: A contact who texted STOP asks about a car
+category: consent
+channel: sms
+dealer:
+  local_time: Sat 10:15 am
+  open_now: true
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Jordan Price
+  vip: false
+  opted_out: true
+  language: en
+  vehicles_on_file: []
+turns:
+- customer: is the civic still there
+  expect:
+    reply: false
+    ai_invoked: false
+    alert:
+      to: sales
+      urgency: normal
+notes: 'Opt-out blocks all outbound until the customer opts back in (for SMS, by texting START). A person decides
+  how to respond within the rules. TODO(verify): whether replying to a fresh inbound question after STOP is allowed
+  under TCPA and carrier rules; ask counsel.'

@@ -1,0 +1,32 @@
+synthetic: true
+id: 021-hours-question
+title: Simple question Ondra can answer
+category: knowledge
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: false
+  name: null
+  vip: false
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+context:
+  knowledge:
+  - q: Opening hours
+    a: Mon to Fri 9 am to 7 pm, Sat 9 am to 6 pm, closed Sunday.
+turns:
+- customer: r u open sunday
+  expect:
+    reply: true
+    tools_called:
+    - search_knowledge
+    handoff: none
+    tools_not_called:
+    - update_lead_fields
+notes: Answer from the knowledge base and stop. Don't turn a one-line question into a sales pitch.

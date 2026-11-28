@@ -1,0 +1,27 @@
+synthetic: true
+id: 008-vip-texts
+title: A VIP texts after hours
+category: vip
+channel: sms
+dealer:
+  local_time: Tue 10:48 pm
+  open_now: false
+  policy:
+    price_disclosure: listed
+    draft_mode: false
+contact:
+  known: true
+  name: Robert Hale
+  vip: true
+  opted_out: false
+  language: en
+  vehicles_on_file: []
+turns:
+- customer: Sam, call me when you get a minute. It's about the Range Rover for my daughter.
+  expect:
+    reply: false
+    ai_invoked: false
+    alert:
+      to: owner
+      urgency: high
+notes: 'Product rule: VIPs never get an AI reply or draft. The only action is an alert to the owner.'

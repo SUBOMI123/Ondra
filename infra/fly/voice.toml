@@ -1,0 +1,14 @@
+# Ondra voice worker on Fly.io (staging). It connects out to LiveKit Cloud and waits for calls; no inbound ports.
+# Deploy from the repo root:  fly deploy . -c infra/fly/voice.toml --dockerfile apps/voice/Dockerfile
+# 2 GB: the turn-detection model loads into memory.
+
+app = "ondra-voice-staging"
+primary_region = "sjc"
+
+[env]
+  APP_BASE_URL = "https://app.useondra.com"
+  PUBLIC_API_URL = "https://api.useondra.com"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"
