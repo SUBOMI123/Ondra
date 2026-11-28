@@ -288,8 +288,9 @@ class OndraAgent(Agent):
     @function_tool
     async def send_code(self, context: RunContext[CallDesk]) -> str:
         """Text a six-digit code to the caller's number on file, so they can prove it's them before you cancel or
-        move a booking or tell them about a repair. Ask first ("Can I text a code to the number we have?") and wait
-        for a yes."""
+        move a booking or tell them about a repair. Unless they already said yes to the texting consent question on
+        this call, ask it first in its exact words (from your rules) and wait for a yes; then say the code is on its
+        way to the number on file."""
         said = next((m.text_content or "" for m in reversed(self.chat_ctx.items)
                      if getattr(m, "type", None) == "message" and m.role == "user"), "")
         return json.dumps(await context.userdata.send_code(said), default=str)
