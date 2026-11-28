@@ -75,29 +75,49 @@ class Broker:
 broker = Broker()
 
 
-async def _caller_tenant(request: Request) -> uuid.UUID:
+async def _still_active(tenant_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    from ondra_core.models import User
+    from sqlalchemy import select
+
+    from ondra_api.db import tenant_session
+
+    async with tenant_session(tenant_id) as db:
+        return bool((await db.execute(select(User.active).where(User.id == user_id))).scalar_one_or_none())
+
+
+async def _caller_tenant(request: Request) -> tuple[uuid.UUID, uuid.UUID]:
     from ondra_api.deps import MFA_REQUIRED, authenticate
 
     caller, session = await authenticate(request)  # short check, then no transaction while streaming
     await session.info.pop("cm").__aexit__(None, None, None)
     if caller.mfa_missing:
         raise HTTPException(403, MFA_REQUIRED)
-    return caller.tenant_id
+    return caller.tenant_id, caller.user_id
 
 
 @router.get("/live")
 async def live(request: Request) -> StreamingResponse:
-    tenant_id = await _caller_tenant(request)
+    tenant_id, user_id = await _caller_tenant(request)
     q = await broker.subscribe(tenant_id)
+    # A stream is checked once, then can stay open for hours. So it ends when the access token it opened with would
+    # have expired (the client reconnects with a fresh one, checked again), and stops at once if the person is
+    # deactivated (checked every minute).
+    from ondra_api.config import get_settings
+
+    ends = asyncio.get_running_loop().time() + get_settings().access_token_minutes * 60
 
     async def stream() -> AsyncIterator[str]:
+        beats = 0
         try:
             yield ": connected\n\n"
-            while not await request.is_disconnected():
+            while not await request.is_disconnected() and asyncio.get_running_loop().time() < ends:
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=HEARTBEAT_SECONDS)
                     yield f"event: change\ndata: {json.dumps(data)}\n\n"
                 except TimeoutError:
+                    beats += 1
+                    if beats % 4 == 0 and not await _still_active(tenant_id, user_id):
+                        return
                     yield ": heartbeat\n\n"  # keeps proxies from closing an idle stream
         finally:
             broker.unsubscribe(tenant_id, q)

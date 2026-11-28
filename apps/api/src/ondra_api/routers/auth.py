@@ -110,20 +110,40 @@ async def login(body: LoginIn, request: Request, response: Response) -> TokenOut
                     expires_in=get_settings().access_token_minutes * 60)
 
 
+# Two tabs refreshing at the same moment both present the same token; only a reuse after this long is treated as theft.
+REUSE_GRACE = timedelta(seconds=30)
+
+
 @router.post("/refresh", response_model=TokenOut)
 async def refresh(request: Request, response: Response, ondra_refresh: str | None = Cookie(default=None)) -> TokenOut:
     tenant_id = tenant_of_refresh_token(ondra_refresh or "")
     if tenant_id is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in to continue.")
+    now = datetime.now(UTC)
+    token_hash = hash_token(ondra_refresh or "")
     async with tenant_session(tenant_id) as db:
-        sess = (await db.execute(select(Session).where(Session.token_hash == hash_token(ondra_refresh or "")))).scalar_one_or_none()
-        if sess is None or sess.revoked_at is not None or sess.expires_at < datetime.now(UTC):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Your session expired. Sign in again.")
-        user = (await db.execute(select(User).where(User.id == sess.user_id))).scalar_one()
-        if not user.active:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active.")
-        sess.revoked_at = datetime.now(UTC)  # rotate: each refresh token works once
-        new = await _start_session(db, user.id, tenant_id, request)
+        # Rotate atomically: each refresh token works once, even when two requests race with the same one.
+        claimed = (await db.execute(
+            update(Session).where(Session.token_hash == token_hash, Session.revoked_at.is_(None), Session.expires_at > now)
+            .values(revoked_at=now).returning(Session.user_id)
+        )).scalar_one_or_none()
+        if claimed is None:
+            old = (await db.execute(select(Session).where(Session.token_hash == token_hash))).scalar_one_or_none()
+            if old is not None and old.revoked_at is not None and now - old.revoked_at > REUSE_GRACE:
+                # A used token came back: someone else has a copy. End every session of that person, so whoever
+                # holds a stolen token loses it too, and leave a trace.
+                await db.execute(update(Session).where(Session.user_id == old.user_id, Session.revoked_at.is_(None))
+                                 .values(revoked_at=now))
+                db.add(AuditLog(tenant_id=tenant_id, actor_type="system", action="auth.refresh_reused",
+                                resource=f"user:{old.user_id}", ip=client_ip(request)))
+        else:
+            user = (await db.execute(select(User).where(User.id == claimed))).scalar_one()
+            new = await _start_session(db, user.id, tenant_id, request) if user.active else None
+    # Raised outside the transaction, so a revocation above is committed, not rolled back with the error.
+    if claimed is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Your session expired. Sign in again.")
+    if new is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active.")
     _set_cookie(response, new)
     return TokenOut(access_token=create_access_token(user.id, tenant_id, user.role),
                     expires_in=get_settings().access_token_minutes * 60)

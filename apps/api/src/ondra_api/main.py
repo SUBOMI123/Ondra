@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from ondra_api import live
-from ondra_api.config import get_settings
+from ondra_api.config import Settings, get_settings
 from ondra_api.db import no_tenant_session
 from ondra_api.routers import (
     analytics,
@@ -27,13 +27,18 @@ from ondra_api.routers import (
 if problems := get_settings().public_site_problems():
     raise SystemExit("Refusing to start on a public site: " + "; ".join(problems) + ". Set them as secrets.")
 
-app = FastAPI(title="Ondra API", version="0.1.0")
+def docs_options(settings: Settings) -> dict:
+    """No interactive docs or schema on a public site: they'd hand anyone the full map of routes and parameters."""
+    return {"docs_url": None, "redoc_url": None, "openapi_url": None} if settings.is_public_site else {}
+
+
+app = FastAPI(title="Ondra API", version="0.1.0", **docs_options(get_settings()))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[get_settings().app_base_url],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(auth.router)
 app.include_router(auth.me_router)

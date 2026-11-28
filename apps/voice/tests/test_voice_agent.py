@@ -436,3 +436,27 @@ def test_only_a_plain_yes_is_consent_to_a_text(said, agreed):
     from ondra_voice.desk import agreed_to_text
 
     assert agreed_to_text(said) is agreed
+
+
+# --- security audit, 2026-11-28: caller ID can be faked ------------------------------------------------------
+
+async def test_cancel_move_and_repair_status_need_a_code_on_a_call():
+    from types import SimpleNamespace
+
+    from ondra_voice.desk import CallDesk
+
+    desk = CallDesk(plan=SimpleNamespace(tenant_id=uuid.uuid4(), contact_id=uuid.uuid4(), call_id=uuid.uuid4()),
+                    dealer=SimpleNamespace(name="Prestige Motors"), customer=None, contact_context=None,
+                    checks=ReplyContext(), can_text=False)
+    for tool in ("reschedule_or_cancel", "get_repair_order_status"):
+        out = await desk.run(tool, {})
+        assert "error" in out and "can't be done on a call" in out["error"]
+    desk.can_text = True
+    assert "send_code" in (await desk.run("reschedule_or_cancel", {}))["error"]
+    assert "No code" in desk.check_code("123456")["error"]
+    # A code was sent (its hash is all the desk keeps): a wrong one, then the right one read out with spaces.
+    import hashlib
+    desk.code_hash = hashlib.sha256(b"481516").hexdigest()
+    assert desk.check_code("111111")["verified"] is False
+    desk.code_hash, desk.code_tries = hashlib.sha256(b"481516").hexdigest(), 0
+    assert desk.check_code("4 8 1 5 1 6")["verified"] is True and desk.caller_verified

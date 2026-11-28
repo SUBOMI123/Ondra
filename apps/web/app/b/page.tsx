@@ -106,7 +106,8 @@ function Times({ token, tz, onMoved }: { token: string; tz: string; onMoved: (b:
 }
 
 function Manage() {
-  const token = useSearchParams().get("t") ?? ""
+  // Encoded: the token goes into an API path, so a crafted link mustn't be able to point the page at another path.
+  const token = encodeURIComponent(useSearchParams().get("t") ?? "")
   const [b, setB] = useState<Booking | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<"view" | "move" | "cancel">("view")

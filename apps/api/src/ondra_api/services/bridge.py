@@ -101,7 +101,12 @@ class TwilioDialer:
             if self._client is None:
                 await client.aclose()
         if r.status_code >= 400:
-            log.warning("twilio call create failed: %s %s", r.status_code, r.text[:300])
+            # Twilio's error code, not its message: the message can quote the numbers dialled.
+            try:
+                code = r.json().get("code")
+            except ValueError:
+                code = None
+            log.warning("twilio call create failed: %s (Twilio error %s)", r.status_code, code)
             raise BridgeError("The phone line didn't accept the call. Try again, or call from your phone.")
         return r.json()["sid"]
 

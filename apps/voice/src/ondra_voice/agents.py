@@ -146,7 +146,9 @@ def shared_tool(spec: dict) -> llm.RawFunctionTool:
         try:
             out = await desk.run(name, raw_arguments)
         except Exception as e:
-            log.exception("tool %s failed with %s", name, json.dumps(raw_arguments, default=str)[:500])
+            # Argument names only: the values are the caller's name, number, email and car, which don't belong in logs.
+            keys = sorted(raw_arguments) if isinstance(raw_arguments, dict) else type(raw_arguments).__name__
+            log.exception("tool %s failed (arguments: %s)", name, keys)
             desk.tool_problems.append({"tool": name, "crashed": f"{type(e).__name__}: {str(e)[:300]}"})
             raise ToolError("That didn't work. Don't retry it: tell the caller someone from the team will follow "
                             "up, and call handoff.") from e
@@ -231,7 +233,7 @@ class OndraAgent(Agent):
 
         def blocked(sentence: str, problems: list[str]) -> None:
             desk.blocked.extend(problems)
-            log.warning("spoken sentence replaced (%s): %s", ",".join(problems), sentence)
+            log.warning("spoken sentence replaced (%s), %d characters", ",".join(problems), len(sentence))
             desk.follow_up_on_block(problems)
 
         async def text_only() -> AsyncIterable[str]:
@@ -279,6 +281,24 @@ class OndraAgent(Agent):
         said = next((m.text_content or "" for m in reversed(self.chat_ctx.items)
                      if getattr(m, "type", None) == "message" and m.role == "user"), "")
         return json.dumps(await context.userdata.text_details(stock_numbers, said), default=str)
+
+    @function_tool
+    async def send_code(self, context: RunContext[CallDesk]) -> str:
+        """Text a six-digit code to the caller's number on file, so they can prove it's them before you cancel or
+        move a booking or tell them about a repair. Ask first ("Can I text a code to the number we have?") and wait
+        for a yes."""
+        said = next((m.text_content or "" for m in reversed(self.chat_ctx.items)
+                     if getattr(m, "type", None) == "message" and m.role == "user"), "")
+        return json.dumps(await context.userdata.send_code(said), default=str)
+
+    @function_tool
+    async def check_code(self, context: RunContext[CallDesk], code: str) -> str:
+        """Check the code the caller read back from the text you sent.
+
+        Args:
+            code: The digits they said.
+        """
+        return json.dumps(context.userdata.check_code(code), default=str)
 
     @function_tool
     async def transfer_to_person(self, context: RunContext[CallDesk], team: str, brief: str) -> str:

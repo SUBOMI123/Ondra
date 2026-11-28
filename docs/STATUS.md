@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-28. **Now:** Security audit done; its seven most serious gaps are fixed (DECISIONS 2026-11-28), the rest are listed under Known gaps. One top role (Admin), every-control-works Mine / Everyone, the Today redesign, every VIP having a person and booking confirmations (with the customer's own booking page) are done from `docs/PLAN.md`; the VIP desk (message when a VIP's call isn't answered) is built and tested on the mock, switched off until a real call checks the transfer; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-28. **Now:** Security audit done and every code-fixable gap closed (DECISIONS 2026-11-28); what's left needs the founder (Known gaps). One top role (Admin), every-control-works Mine / Everyone, the Today redesign, every VIP having a person and booking confirmations (with the customer's own booking page) are done from `docs/PLAN.md`; the VIP desk (message when a VIP's call isn't answered) is built and tested on the mock, switched off until a real call checks the transfer; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -162,19 +162,16 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 
 ## Known gaps (honest list)
 
-- **Security audit 2026-11-28, still open** (fixes 1 to 7 are done, see DECISIONS): before a real dealer, staging
-  must move to Clerk sign-in (it runs local passwords, allowed only because it holds demo data). Then, in order:
-  (1) the login page's `?next=` accepts `/\evil.com` (open redirect); (2) no security headers on the dashboard (no
-  CSP, framing allowed); (3) customer-set text (WhatsApp profile name, lead fields) sits in the agent's system prompt,
-  and the owner's assistant can approve drafts after reading customer text; (4) caller ID is the only identity on
-  calls and SMS before cancelling or moving a booking or reading repair status; (5) the owner database URL (bypasses
-  RLS) is set on the running API and voice apps, not only for migrations; (6) no way to delete or export a
-  customer's data, and staging has no backups; (7) lower: /docs public, containers run as root, `.env` not in the root
-  `.dockerignore`, database TLS doesn't verify the certificate, names and numbers in voice logs, creating a task for
-  a VIP returns the VIP's name, refresh-token reuse isn't detected, the live stream doesn't notice a deactivated
-  user, Clerk `azp` check is skippable, booking links never expire and share the JWT secret, any role can run the
-  routing preview, no webhook body size cap, feed fetch has no overall timeout, booking moves accept unsigned slots,
-  the vehicle lookup returns sold cars.
+- **Security audit 2026-11-28:** everything the audit found that code can fix is fixed (DECISIONS, both entries).
+  Still open, each needing the founder:
+  (1) staging still signs in with local passwords (`ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE`), allowed only because it holds
+  demo data: switch to Clerk (needs the Clerk keys) before any real dealer data;
+  (2) no database backups: Supabase Free has none; Pro adds daily backups and point-in-time restore;
+  (3) the database connection is encrypted but doesn't verify the server's certificate: needs Supabase's CA
+  certificate (Database settings, SSL) to switch to verify-full;
+  (4) counsel: whether the append-only audit log may keep a renamed client's old name after an erase, and what START
+  should re-subscribe;
+  (5) the marketing site's security headers ship with the next merge to master.
 
 - **Analytics:** (1) reply time covers messages, not calls (needs ring timing from the carrier); (2) the dollar value of deals is an estimate on the Deals board only, not on Today; (3) leads from before Step 9 count toward neither Ondra nor the team, and replies before 2026-11-27 have no person attached; (4) no exports or custom dates.
 

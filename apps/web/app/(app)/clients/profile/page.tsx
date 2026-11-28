@@ -24,6 +24,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
+import { ClientData } from "@/components/client-data"
 import { ContactName } from "@/components/contact-name"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
@@ -223,6 +224,7 @@ function Profile({ id }: { id: string }) {
               {t?.opted_out ? `Opted out on every channel. Nobody can message ${first} until they opt back in.` : "Allowed"}
             </p>
           </section>
+          <ClientData c={c} optedOut={!!t?.opted_out} />
         </aside>
       </div>
     </div>

@@ -136,10 +136,18 @@ class DbToolBackend:
         return [apply_price_policy(_vehicle_dict(v), self.price_disclosure) for v in rows]
 
     async def get_vehicle(self, stock_or_vin: str) -> dict | None:
+        # An exact match (case aside), not a pattern: "%" from the customer isn't a wildcard.
+        key = (stock_or_vin or "").strip().lower()
         v = (await self.db.execute(
-            select(Vehicle).where(or_(Vehicle.stock_number.ilike(stock_or_vin), Vehicle.vin.ilike(stock_or_vin)))
+            select(Vehicle).where(or_(func.lower(Vehicle.stock_number) == key, func.lower(Vehicle.vin) == key)).limit(1)
         )).scalar_one_or_none()
-        return apply_price_policy(_vehicle_dict(v), self.price_disclosure) if v else None
+        if v is None:
+            return None
+        if v.status != "available":
+            # Sold or on hold: say so, without a price to quote for a car the customer can't have.
+            return {"stock": v.stock_number, "year": v.year, "make": v.make, "model": v.model, "status": v.status,
+                    "available": False}
+        return apply_price_policy(_vehicle_dict(v), self.price_disclosure)
 
     async def search_knowledge(self, query: str) -> list[dict]:
         self.last_question = query

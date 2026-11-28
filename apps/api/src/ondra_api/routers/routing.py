@@ -192,7 +192,8 @@ async def reorder(body: OrderIn, request: Request,
 
 
 @router.post("/preview")
-async def preview(body: PreviewIn, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+async def preview(body: PreviewIn, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    # Admins only: it can call the model (topic classification), so it isn't open to every role.
     """What would happen to this message if a customer (not a VIP) sent it now. Sends nothing, assigns nothing."""
     _caller, db = ctx
     tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()

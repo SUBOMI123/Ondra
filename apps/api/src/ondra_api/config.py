@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://ondra_app:ondra_app_dev@localhost:5432/ondra"
     migrations_database_url: str = "postgresql+asyncpg://ondra_owner:ondra_owner_dev@localhost:5432/ondra"
     jwt_secret: str = "dev-only-change-me-dev-only-change-me"
+    # Signs customers' booking links (/b?t=...). Empty locally (the JWT secret is used); required on a public site.
+    booking_link_secret: str = ""
     access_token_minutes: int = 15
     refresh_token_days: int = 7
     app_base_url: str = "http://localhost:3001"
@@ -77,8 +79,12 @@ class Settings(BaseSettings):
         problems = []
         if len(self.jwt_secret) < 32 or self.jwt_secret.startswith("dev-only"):
             problems.append("JWT_SECRET is the development default or shorter than 32 characters")
+        if len(self.booking_link_secret) < 32:
+            problems.append("BOOKING_LINK_SECRET is empty or shorter than 32 characters")
         if self.mock_webhook_secret in ("", "mock-secret"):
             problems.append("MOCK_WEBHOOK_SECRET is the development default")
+        if self.auth_provider == "clerk" and not self.clerk_authorized_parties.strip():
+            problems.append("CLERK_AUTHORIZED_PARTIES is empty (set it to the dashboard's origin, e.g. https://app.useondra.com)")
         if self.auth_provider == "local" and not self.allow_local_auth_on_public_site:
             problems.append("AUTH_PROVIDER is local (passwords with no second factor); use clerk, or set "
                             "ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE=true on a staging site with demo data only")

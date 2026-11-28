@@ -35,8 +35,25 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 log = logging.getLogger("ondra.webhooks")
 
 
+# Providers' webhooks are small (text, metadata, media links); anything bigger is refused before it's read, since
+# these endpoints take requests from anyone until the signature is checked.
+MAX_BODY = 1_000_000
+
+
+async def _read_capped(request: Request) -> bytes:
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY:
+        raise HTTPException(413, "too large")
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY:
+            raise HTTPException(413, "too large")
+    return bytes(body)
+
+
 async def _request(request: Request) -> WebhookRequest:
-    body = await request.body()
+    body = await _read_capped(request)
     form = {}
     if request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
         form = dict(parse_qsl(body.decode(), keep_blank_values=True))

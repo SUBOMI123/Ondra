@@ -79,7 +79,9 @@ def verify_session_token(token: str) -> ClerkSession:
     except (jwt.InvalidTokenError, httpx.HTTPError):
         raise ClerkTokenError("Sign in to continue.") from None
     parties = [p.strip() for p in s.clerk_authorized_parties.split(",") if p.strip()]
-    if parties and claims.get("azp") and claims["azp"] not in parties:
+    # The token must name the app it was issued to: one without azp, or for another origin, is refused (a token
+    # lifted from a different site using the same Clerk instance can't be replayed here).
+    if parties and claims.get("azp") not in parties:
         raise ClerkTokenError("Sign in to continue.")
     if claims.get("sts") == "pending":
         raise ClerkTokenError("Finish signing in to continue.")

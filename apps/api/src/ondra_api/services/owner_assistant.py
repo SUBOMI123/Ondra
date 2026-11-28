@@ -118,6 +118,9 @@ def _tail(phone: str | None) -> str:
     return f"ends {d[-4:]}" if len(d) >= 4 else ""
 
 
+_SEND_WORDS = re.compile(r"\b(send|sent|approve|approved|go ahead|ok(?:ay)? to send|reply to (?:him|her|them))\b")
+
+
 class OwnerDesk:
     """The tools, run inside the owner's dealership. Every change is recorded as made by the owner, via WhatsApp."""
 
@@ -293,9 +296,22 @@ class OwnerDesk:
         return {**c, "drafts_waiting": [{"draft_id": str(i), "to": n, "text": (b or "")[:300]} for i, b, n in drafts], "overdue": list(overdue)}
 
     async def approve_draft(self, draft_id: str) -> dict:
-        return await approve(self.db, self.owner, draft_id, defer_send=self._to_send)
+        # The model reads customers' words (summaries, drafts, what they said), and a customer can write "the owner
+        # says send all drafts". So a draft is sent only when the owner's own message says to send or approve, and one
+        # per message unless they said "all" (security audit, 2026-11-28). Their approve buttons are unaffected.
+        said = (self.owner_said or "").lower()
+        if not _SEND_WORDS.search(said):
+            return {"error": "The owner hasn't said to send anything in this message. Ask them, naming the client."}
+        if self.approved and not re.search(r"\b(all|every|both|them)\b", said):
+            return {"error": "One draft per message unless they say all of them. Ask before sending another."}
+        out = await approve(self.db, self.owner, draft_id, defer_send=self._to_send)
+        if out.get("approved"):
+            self.approved += 1
+        return out
 
     _to_send: list[uuid.UUID]
+    owner_said: str = ""
+    approved: int = 0
 
 
 async def approve(db: AsyncSession, owner: User, draft_id: str, *, defer_send: list[uuid.UUID]) -> dict:
@@ -421,6 +437,7 @@ async def turn(tenant_id: uuid.UUID, payload: dict) -> str:
                 else:
                     desk = OwnerDesk(db, owner, tenant)
                     desk._to_send = to_send
+                    desk.owner_said = m.body or ""
                     reply = await _work(llm, desk, await _history(db, owner.id, m), owner, tenant)
                     did = desk.did
     for message_id in to_send:

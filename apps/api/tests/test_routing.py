@@ -297,10 +297,12 @@ async def test_rules_api_add_order_switch_preview_and_permissions(client, databa
     r = await client.post("/routing/rules", json={"user_id": stranger}, headers=owner)
     assert r.status_code == 422 and "works here" in r.json()["detail"]
 
-    # Preview: what happens to a message right now, without sending or assigning anything.
-    p = (await client.post("/routing/preview", json={"text": "This is unacceptable, I want a refund", "channel": "sms"}, headers=sales)).json()
+    # Preview: what happens to a message right now, without sending or assigning anything. Admins only (it can call
+    # the model); everyone else still sees the rules.
+    assert (await client.post("/routing/preview", json={"text": "hi"}, headers=sales)).status_code == 403
+    p = (await client.post("/routing/preview", json={"text": "This is unacceptable, I want a refund", "channel": "sms"}, headers=owner)).json()
     assert (p["topic"], p["person"], p["ai"], p["alert"], p["rule_id"]) == ("complaint", "Grace Thompson", "off", True, a["id"])
-    p = (await client.post("/routing/preview", json={"text": "is the tahoe in stock?"}, headers=sales)).json()
+    p = (await client.post("/routing/preview", json={"text": "is the tahoe in stock?"}, headers=owner)).json()
     assert p["topic"] == "sales" and p["team"] == "sales" and p["rule_id"] is None and p["in_now"] is True
 
     # The order can be changed, and must name every rule.
@@ -310,7 +312,7 @@ async def test_rules_api_add_order_switch_preview_and_permissions(client, databa
 
     off = (await client.patch(f"/routing/rules/{a['id']}", json={"active": False}, headers=owner)).json()
     assert off["active"] is False
-    p = (await client.post("/routing/preview", json={"text": "I want a refund, this is unacceptable"}, headers=sales)).json()
+    p = (await client.post("/routing/preview", json={"text": "I want a refund, this is unacceptable"}, headers=owner)).json()
     assert p["rule_id"] != a["id"]  # switched off: no longer applies
     edited = (await client.put(f"/routing/rules/{a['id']}", json={**rule, "channels": ["email"], "active": True}, headers=owner)).json()
     assert edited["channels"] == ["email"] and edited["active"] is True

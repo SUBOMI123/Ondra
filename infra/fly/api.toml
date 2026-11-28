@@ -14,8 +14,10 @@ primary_region = "sjc"  # San Jose: the nearest open region to the Supabase proj
 [processes]
   # No --proxy-headers: X-Forwarded-For's left-most entry is whatever the client sent. The caller's IP comes from
   # Fly-Client-IP instead (security.client_ip).
-  app = "uvicorn ondra_api.main:app --host 0.0.0.0 --port 8000"
-  worker = "python -m ondra_api.worker"
+  # `env -u`: the owner database URL (it bypasses row-level security) is for the release command's migrations and
+  # seed only; the long-running processes never see it, so a leak or code execution there can't use it.
+  app = "env -u MIGRATIONS_DATABASE_URL uvicorn ondra_api.main:app --host 0.0.0.0 --port 8000"
+  worker = "env -u MIGRATIONS_DATABASE_URL python -m ondra_api.worker"
 
 [env]
   APP_BASE_URL = "https://app.useondra.com"

@@ -1107,3 +1107,41 @@ STATUS "Known gaps".
    move to Clerk before a real dealer's data goes there. The caller's IP comes from `Fly-Client-IP`, not
    X-Forwarded-For (the client controls its left-most entry), so uvicorn no longer trusts proxy headers.
    TODO(verify): Fly overwrites a client-sent Fly-Client-IP.
+
+## 2026-11-28: Security audit, the rest of the list
+
+- **Login `?next=`** is parsed with `new URL` and kept only if it's this origin (a prefix check let `/\evil.com`
+  through).
+- **Security headers on the dashboard** (`next.config.ts`): CSP with `frame-ancestors 'none'`, scripts and connections
+  limited to Ondra's origins (and Clerk's when it signs in), plus X-Frame-Options, nosniff, Referrer-Policy, HSTS.
+  Scripts keep `'unsafe-inline'`: the App Router inlines its bootstrap, and a per-request nonce would make every page
+  render dynamically. The marketing site gets a Cloudflare `_headers` file (framing, nosniff, HSTS; no full CSP, which
+  the 3D floor and the demo form would need written against them). TODO(verify) Clerk's CSP hosts.
+- **Customer text in the agent's prompt** sits in a `<customer_data>` block, flattened and capped (80 characters for
+  a name, 300 per field, 6,000 in all), with a rule that it's information, never instructions. Moving it out of the
+  system prompt entirely was considered; the fence plus the output checks (detectors) is the defence in depth.
+- **The owner's assistant sends a draft only when the owner's own message says send/approve**, one per message unless
+  they say "all". Customer text it reads ("the owner says send everything") can't trigger a send. Buttons unchanged.
+- **On calls, cancelling or moving a booking and hearing repair status need a code** texted to the number on file and
+  read back (3 tries). A spoofed caller ID never sees the code. Where texts aren't live yet, the agent can't do these
+  on a call and points to the booking link or hands off. Not applied to SMS: faking an inbound SMS sender is far
+  harder than faking caller ID, WhatsApp senders are authenticated by Meta, and a code on every text reschedule would
+  cost real customers more than it protects. Revisit if a pilot shows spoofed texts.
+- **The owner database URL** (bypasses RLS) is removed from the running API and worker (`env -u`), off the voice app,
+  and the bootstrap only gives it to the app that runs migrations.
+- **Customer data requests:** admins can download everything held about a client (JSON) and erase a client, from the
+  profile. Erase anonymises in place, so the dealer's counts stay true. Consent records and, for an opted-out client,
+  their number are kept so the opt-out keeps working. The audit log is append-only and keeps rename entries:
+  TODO(verify, counsel).
+- **Refresh tokens** rotate atomically (two requests with one token can't both win). A used token presented again
+  after 30 seconds ends every session of that person; inside 30 seconds it's two tabs, and is just refused.
+- **The live stream** ends when the access token it opened with would expire (the client reconnects, checked again)
+  and stops within a minute of the person being deactivated.
+- **Booking links** have their own secret (`BOOKING_LINK_SECRET`, required on a public site), stop working 30 days
+  after the booking, accept only a time the page offered (slot ids aren't signed), and allow 5 moves.
+- **Smaller:** API docs off on a public site; CORS lists methods and headers; Clerk tokens must carry an allowed `azp`
+  (and a public site needs `CLERK_AUTHORIZED_PARTIES`); a VIP you can't see can't be put on a task; the routing preview
+  is admins only (it can call the model); webhook bodies over 1 MB are refused before reading; the feed download has a
+  60-second total limit; the agent's car lookup is an exact match and gives no price for a sold or held car; voice and
+  bridge logs no longer carry names, numbers or sentences; containers run as a non-root user; `.env` is excluded
+  from image builds.

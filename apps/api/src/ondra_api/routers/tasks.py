@@ -105,7 +105,9 @@ async def create_task(body: TaskIn, ctx: tuple[Caller, AsyncSession] = Depends(r
     if body.assignee_user_id:
         await _active_user(db, body.assignee_user_id)
     contact = await db.get(Contact, body.contact_id) if body.contact_id else None
-    if body.contact_id and contact is None:
+    # A VIP you can't see is "no such client" here too: a task would echo their name back and keep it in your list.
+    if body.contact_id and (contact is None or (contact.is_vip and not can_see_vips(caller.role)
+                                                and contact.vip_owner_user_id != caller.user_id)):
         raise HTTPException(422, "No client with that id.")
     t = await new_task(db, title=body.title.strip(), contact_id=body.contact_id, brief=body.brief,
                        assignee_user_id=body.assignee_user_id or caller.user_id, urgency=body.urgency,

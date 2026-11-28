@@ -5,3 +5,7 @@ apps/web
 apps/site
 design
 .git
+# Never send local secrets to an image builder (Fly's remote builder included).
+.env
+.env.*
+!.env.example
