@@ -19,6 +19,8 @@ PREFIX = "/demo-cars/"
 FILES: dict[str, str] = {
     "BMW X5": "bmw-x5.jpg",
     "Ford F-150": "ford-f-150.jpg",
+    "Jeep Grand Cherokee L": "jeep-grand-cherokee-l.jpg",
+    "Toyota Highlander": "toyota-highlander.jpg",
     "Toyota RAV4 Hybrid": "toyota-rav4-hybrid.jpg",
 }
 
