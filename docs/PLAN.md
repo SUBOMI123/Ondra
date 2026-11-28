@@ -22,7 +22,7 @@ of what dealers mean by admin: the owner, or the most trusted person when the ow
 **Done when:** no code path depends on an owner role; every former owner-only screen and alert works for admins;
 tests prove a non-admin still can't see VIPs or settings.
 
-### 2. Every VIP has an assigned person
+### 2. Every VIP has an assigned person ✅ Done 2026-11-28
 
 - Marking a client VIP requires choosing their person; it defaults to whoever marks them.
 - That person is deactivated → their VIPs are **not** reassigned automatically: each gets a **high-priority task for
@@ -32,7 +32,7 @@ tests prove a non-admin still can't see VIPs or settings.
 
 **Done when:** a VIP can't be saved without a person; deactivating someone creates the tasks; tests cover both.
 
-### 3. When a VIP's call isn't answered
+### 3. When a VIP's call isn't answered ✅ Built 2026-11-28 (switched off until the transfer is checked on a real call)
 
 | Step | What happens |
 |---|---|

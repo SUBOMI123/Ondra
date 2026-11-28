@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-28. **Now:** One top role (Admin), every-control-works Mine / Everyone on every list screen and the Today redesign are done from `docs/PLAN.md`; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-28. **Now:** One top role (Admin), every-control-works Mine / Everyone, the Today redesign and every VIP having a person are done from `docs/PLAN.md`; the VIP desk (message when a VIP's call isn't answered) is built and tested on the mock, switched off until a real call checks the transfer; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -137,6 +137,8 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Clerk: a paid plan before production (MFA needs it; the development instance caps an Organization at 5 members) | Clerk in production | Not started |
 | Counsel: may a person reply after STOP when the customer writes in again (golden 009) | Step 6 opt-out handling | Open |
 | Counsel: which states need AI disclosure up front (the setting exists) | Pilot launch | Open |
+| Twilio: a Programmable Voice SIP domain with its Voice URL set to `/webhooks/voice/vip/start`, then one real VIP call to check the trunk transfer reaches it (`services/vip_desk.py` TODO(verify)); then FEATURE_VIP_DESK=true | The message a VIP hears when nobody answers, press 1, press 2 | **Waiting** |
+| Counsel: does a VIP pressing 2 to ask for a booking link count as consent for that one text? Today press 2 is offered only with recorded consent | Press 2 for VIPs without text consent | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: is a customer's own inbound text consent to a follow-up text a day later? Today it isn't, so most text follow-ups become tasks for a person | How much follow-ups do by text | Open |
 | Counsel: should quiet hours also hold appointment reminders and late-night replies? Today they hold follow-ups only | Quiet hours scope | Open |

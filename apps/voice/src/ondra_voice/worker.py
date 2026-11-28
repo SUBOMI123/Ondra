@@ -66,6 +66,14 @@ async def ring_someone(plan: CallPlan, transfer: Callable[[str], Awaitable[None]
     """VIP or voice AI off: hand the call to a person without the AI speaking. If there's nobody to ring or the
     transfer fails, it's a missed call (a VIP's alerts the owner; others get a call-back task)."""
     handled_by = "owner" if plan.route == "ring_owner" else "staff"
+    if plan.desk_target:
+        # A VIP, with the VIP desk on: it rings their person and, if nobody answers, plays the dealer's own message
+        # and records the outcome itself (services/vip_desk.py). If the desk can't be reached, ring their person.
+        try:
+            await transfer(plan.desk_target)
+            return
+        except Exception:
+            log.exception("transfer to the VIP desk failed; ringing their person directly")
     if not plan.ring_number:
         await finish_call(plan.tenant_id, plan.call_id, handled_by="missed", outcome="nobody to ring")
         return

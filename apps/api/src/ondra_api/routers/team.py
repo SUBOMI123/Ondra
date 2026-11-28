@@ -207,6 +207,10 @@ async def patch_user(user_id: uuid.UUID, body: UserPatch, request: Request,
         # refused sooner, because every request re-reads `active` from the database.
         await db.execute(update(Session).where(Session.user_id == u.id, Session.revoked_at.is_(None))
                          .values(revoked_at=func.now()))
+        # Their VIPs aren't handed to anyone automatically: the admins get a task to choose someone for each.
+        from ondra_api.services.vips import orphan_vips
+
+        await orphan_vips(db, u)
         if _clerk() and u.clerk_user_id:
             # Also out of the Clerk Organization. Ondra already refuses them (it re-reads `active` every request).
             from ondra_api import clerk

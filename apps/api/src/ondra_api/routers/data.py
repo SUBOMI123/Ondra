@@ -296,7 +296,7 @@ async def list_users(
 
 class VipIn(BaseModel):
     vip: bool
-    handler_user_id: uuid.UUID | None = None  # who looks after them; null: the owner
+    handler_user_id: uuid.UUID | None = None  # who looks after them; left out: whoever is making them a VIP
 
 
 async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> None:
@@ -323,7 +323,7 @@ async def _tell_vip_handler(db: AsyncSession, c: Contact, caller: Caller) -> Non
 @router.put("/contacts/{contact_id}/vip", response_model=ContactOut)
 async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
                   ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
-    """Make a client a VIP (or not). Owners and managers only: they're the people who can see VIPs at all.
+    """Make a client a VIP (or not), always with a person who looks after them. Admins and managers only: they're the people who can see VIPs at all.
     From the moment a client is a VIP, Ondra stops: any reply it drafted for them is thrown away and any follow-up
     lined up is cancelled, so nothing automated reaches them (CLAUDE.md product rule)."""
     from ondra_core.models import AuditLog, Conversation, Event, Message
@@ -336,7 +336,10 @@ async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
     c = await db.get(Contact, contact_id)
     if c is None or c.merged_into_id is not None:
         raise HTTPException(404, "No client with that id.")
-    if body.handler_user_id is not None:
+    # Every VIP has a person (docs/PLAN.md item 2): the one chosen, else whoever is making them a VIP.
+    if body.vip and body.handler_user_id is None:
+        body.handler_user_id = caller.user_id
+    if body.vip:
         handler = await db.get(User, body.handler_user_id)
         if handler is None or not handler.active:
             raise HTTPException(422, "Choose someone who works here now.")

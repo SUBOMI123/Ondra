@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # Calling a missed caller back through the dealer's line (services/bridge.py). Off: a mock that places nothing;
     # with MOCK_BRIDGE_AUTOPLAY it plays a call out against the local webhooks so the flow can be seen.
     feature_call_bridge: bool = False
+    # VIP calls through the VIP desk (services/vip_desk.py): ring their person, then the dealer's fixed message with
+    # press 1 / press 2. Off until the SIP REFER target is verified (TODO(verify) there); the domain is the Twilio
+    # Programmable Voice SIP domain whose Voice URL points at /webhooks/voice/vip.
+    feature_vip_desk: bool = False
+    vip_desk_sip_domain: str = ""
     mock_bridge_autoplay: bool = False
     mock_bridge_answered_by: str = "human"  # what the mock's answering-machine detection reports: human, machine_start
     feature_email: bool = False

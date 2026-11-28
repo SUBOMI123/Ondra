@@ -14,6 +14,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { VipCallsSection } from "@/components/settings/vip-calls-section"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
@@ -355,7 +356,7 @@ export default function RoutingPage() {
                 <VipTag />
                 <div className="min-w-0">
                   <p>VIPs always go to the person looking after them{q.data.vip_backup ? `, or ${q.data.vip_backup} if nobody is` : ""}.</p>
-                  <p className="text-sm text-muted-foreground">Always first. They get a personal reply and their calls ring through directly.</p>
+                  <p className="text-sm text-muted-foreground">Always first. They get a personal reply and their calls ring through directly. What they hear if nobody answers is below.</p>
                 </div>
               </li>
               {rules.map((r, i) =>
@@ -408,6 +409,7 @@ export default function RoutingPage() {
             <CheckMessage rules={rules} />
           </>
         )}
+        <VipCallsSection />
       </div>
     </>
   )

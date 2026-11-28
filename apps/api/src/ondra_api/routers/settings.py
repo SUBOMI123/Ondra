@@ -320,3 +320,54 @@ async def owner_assistant_thread(limit: int = 50, ctx: tuple[Caller, AsyncSessio
     return {"messages": [{"id": str(m.id), "from": "you" if m.direction == "in" else "ondra", "kind": m.kind, "text": m.body,
                           "at": m.created_at.isoformat(), "failed": m.status == "failed", "error": (m.meta or {}).get("error"),
                           "did": (m.meta or {}).get("did") or [], "template": (m.meta or {}).get("template")} for m in rows]}
+
+
+# --- when a VIP's call isn't answered (docs/PLAN.md item 3; services/vip_desk.py) ---------------------------------
+
+class VipCallsIn(BaseModel):
+    message: str | None = Field(None, max_length=400)
+    backup_number: str | None = None
+    booking_link: str | None = Field(None, max_length=500)
+
+
+def _vip_calls(t: Tenant, caller: Caller) -> dict:
+    from ondra_api.config import get_settings
+    from ondra_api.services.vip_desk import settings_of
+
+    s = settings_of(t)
+    return {**s, "default_message": "Sorry we missed you, {first}. {person} has been told and will call you back shortly.",
+            "live": get_settings().feature_vip_desk, "can_edit": has_perm(caller.role, Perm.SETTINGS_MANAGE)}
+
+
+@router.get("/vip-calls")
+async def get_vip_calls(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    return _vip_calls(t, caller)
+
+
+@router.put("/vip-calls")
+async def put_vip_calls(body: VipCallsIn, request: Request,
+                        ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    """The dealer's own words for a VIP whose call nobody answered, the one backup number press 1 rings, and the
+    booking link press 2 texts. The backup must be a phone a person answers: never one of the dealership's own lines,
+    which forward to Ondra (a VIP would reach the AI)."""
+    from ondra_api.routers.team import clean_phone
+
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    backup = clean_phone(body.backup_number)
+    if backup:
+        own = (await db.execute(select(ChannelAddress.address).where(ChannelAddress.channel.in_(("phone", "sms"))))).scalars().all()
+        if backup in own:
+            raise HTTPException(422, "That's the dealership's own line, which Ondra answers. Choose a phone a person picks up, like the front desk's direct line or a manager's mobile.")
+    link = (body.booking_link or "").strip() or None
+    if link and not link.startswith("https://"):
+        raise HTTPException(422, "The booking link should start with https://")
+    message = (body.message or "").strip() or None
+    before = _vip_calls(t, caller)
+    t.settings = {**(t.settings or {}), "vip_calls": {"message": message, "backup_number": backup, "booking_link": link}}
+    await db.flush()
+    after = _vip_calls(t, caller)
+    _audit(db, caller, request, "settings.vip_calls", f"tenant:{t.id}", before, after)
+    return after

@@ -29,7 +29,7 @@ from ondra_core.channels.base import (
 from ondra_api.channels import CHANNELS, mock, real
 from ondra_api.config import get_settings
 from ondra_api.db import tenant_session
-from ondra_api.services import bridge, inbound
+from ondra_api.services import bridge, inbound, vip_desk
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 log = logging.getLogger("ondra.webhooks")
@@ -178,3 +178,81 @@ async def bridge_webhook(tenant_id: uuid.UUID, call_id: uuid.UUID, step: Literal
         elif status == "completed":
             out.ended_at = out.ended_at or bridge.now()
         return Response(status_code=204)
+
+
+@router.post("/voice/vip/start")
+async def vip_desk_start(request: Request) -> Response:
+    """A VIP's call arriving at the VIP desk (services/vip_desk.py): ring their person. Never the AI."""
+    req = await _request(request)
+    if not bridge.verify(req.url, req.form, req.headers.get("x-twilio-signature", "")):
+        raise HTTPException(403, "bad signature")
+    found = vip_desk.parse_target(req.form.get("To", ""))
+    if found is None:
+        return _twiml(vip_desk.goodbye("Sorry, we couldn't connect your call. Please call again."))
+    return await _vip_step(*found, "start", req.form)
+
+
+@router.post("/voice/vip/{tenant_id}/{call_id}/{step}")
+async def vip_desk_step(tenant_id: uuid.UUID, call_id: uuid.UUID, step: Literal["dialed", "choice", "backup"], request: Request) -> Response:
+    req = await _request(request)
+    if not bridge.verify(req.url, req.form, req.headers.get("x-twilio-signature", "")):
+        raise HTTPException(403, "bad signature")
+    return await _vip_step(tenant_id, call_id, step, req.form)
+
+
+async def _vip_step(tenant_id: uuid.UUID, call_id: uuid.UUID, step: str, f) -> Response:
+    from ondra_core.models import Call, Contact, Tenant
+    from sqlalchemy import select
+
+    from ondra_api.services.calls import finish_call
+
+    base = vip_desk.webhook_base(tenant_id, call_id)
+    missed = False
+    async with tenant_session(tenant_id) as db:
+        call = await db.get(Call, call_id)
+        contact = await db.get(Contact, call.contact_id) if call and call.contact_id else None
+        if call is None or contact is None or not contact.is_vip:
+            return _twiml(vip_desk.goodbye("Sorry, we couldn't connect your call. Please call again."))
+        tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
+        conf = vip_desk.settings_of(tenant)
+        person = await vip_desk.person_for(db, contact)
+        backup = bool(conf["backup_number"])
+        booking = bool(conf["booking_link"]) and await vip_desk.can_text(db, contact)
+        desk = (call.metrics or {}).get("vip_desk") or {}
+
+        if step == "start":
+            if person is not None and not desk.get("rang"):
+                await vip_desk.note(db, call, rang=str(person.id))
+                return _twiml(vip_desk.ring(base, person.phone, call.to_number or ""))
+            step, missed = "unanswered", not desk.get("missed")
+        elif step == "dialed":
+            if f.get("DialCallStatus") == "completed":
+                await vip_desk.note(db, call, answered_by="person")
+                answered = person.id if person else None
+            else:
+                step, missed = "unanswered", not desk.get("missed")
+        elif step == "choice":
+            digit = f.get("Digits", "")
+            if digit == "1" and backup:
+                await vip_desk.note(db, call, pressed="1")
+                return _twiml(vip_desk.ring(base, conf["backup_number"], call.to_number or "", "backup", vip_desk.BACKUP_RING_SECONDS))
+            if digit == "2" and booking:
+                m = await vip_desk.send_booking_link(db, tenant, contact, conf["booking_link"])
+                await vip_desk.note(db, call, pressed="2", booking_text=str(m.id))
+                return _twiml(vip_desk.goodbye("We've sent you a text with the link. Goodbye."))
+            await vip_desk.note(db, call, pressed=digit or None)
+            return _twiml(vip_desk.goodbye())
+        else:  # backup
+            await vip_desk.note(db, call, backup=f.get("DialCallStatus", ""))
+            return _twiml(vip_desk.goodbye("Goodbye.") if f.get("DialCallStatus") != "completed" else vip_desk.goodbye(""))
+
+        if step == "unanswered":
+            if missed:
+                await vip_desk.note(db, call, missed=True)
+            text = vip_desk.message(tenant, contact, person, backup=backup, booking=booking)
+    if step == "dialed":  # answered by their person
+        await finish_call(tenant_id, call_id, handled_by="owner", outcome="answered", transferred_to_user_id=answered)
+        return _twiml(vip_desk.goodbye(""))
+    if missed:  # their person is alerted now and gets a high-priority call-back task
+        await finish_call(tenant_id, call_id, handled_by="missed", outcome="vip not answered")
+    return _twiml(vip_desk.offer(base, text, backup or booking))

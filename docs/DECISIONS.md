@@ -981,3 +981,25 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   bookings. Before, a salesperson saw the whole dealership's draft count and appointments.
 - **Smaller fixes:** numbers at weight 400 (the skill's rule, they were bold); durations read "45 min" rather than
   "45 min 00 s"; the greeting uses the dealership's clock; on phones each row's button sits under its explanation.
+
+## 2026-11-28: Every VIP has a person; the VIP desk for unanswered calls
+
+- **A VIP can't exist without a person.** Making someone a VIP without choosing sets whoever is doing it. When that
+  person is deactivated, their VIPs are cleared from them (not handed to anyone) and each becomes a high-priority task
+  for the longest-serving admin, plus an alert: "choose who looks after Robert". The founder's call: the person
+  deactivating someone may not know the relationship.
+- **Unanswered VIP calls go through a "VIP desk" Ondra controls**, not a blind transfer. A blind transfer hands the
+  call to the carrier and Ondra never learns whether anyone answered, so there's nowhere to hang a message. The desk is
+  plain TwiML on a Twilio Programmable Voice SIP domain: ring their person 20 s, then the dealer's fixed message
+  inside a one-digit Gather. Press 1 dials one backup number; press 2 texts the dealer's own booking link. No AI at
+  any step; tests walk every path (answered, unanswered, press 1, press 2, no consent, hang up, nobody to ring) and
+  check that no AI message or AI-handled call exists.
+- **Press 2 uses the dealer's own booking link**, because Ondra has no self-serve booking page yet (item 4 needs one
+  too). Offered only when a link is set and the VIP has recorded text consent; counsel hasn't said yet whether pressing
+  2 is consent in itself.
+- **The backup number can't be the dealership's own line**: it forwards to Ondra, so a VIP would reach the AI. The
+  API refuses it.
+- **Off until checked (FEATURE_VIP_DESK=false).** Twilio's docs couldn't be reached from the build machine, so it's
+  unverified that an Elastic SIP trunk transfer (REFER) can target a SIP domain address carrying the call id. Until a
+  real call proves it, a VIP's call keeps going straight to their person, and the Settings screen says the message
+  isn't playing yet. If the desk can't be reached on a call, the worker falls back to ringing the person.

@@ -83,7 +83,7 @@ async def test_a_vip_is_put_through_to_the_owner_and_the_ai_never_starts(databas
 
     await worker.ring_someone(plan, transfer)
     async with tenant_session(database["a"]) as db:
-        owner = (await db.execute(select(User).where(User.role == "owner"))).scalar_one()
+        owner = (await db.execute(select(User).where(User.email == "owner@prestigemotors.example"))).scalar_one()
         call = await db.get(Call, plan.call_id)
     assert dialled == [f"tel:{owner.phone}"] and call.handled_by == "owner" and call.transcript == []
 

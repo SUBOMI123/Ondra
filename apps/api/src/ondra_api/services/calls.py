@@ -1,7 +1,8 @@
 """Phone calls (BUILD_PLAN.md §4.2, Step 5). The voice worker calls these; they hold the product rules for calls.
 
     start_call     before anyone speaks: find the dealer and the caller, open the call record, decide the route:
-                   VIP -> ring the owner directly (the AI never answers); voice AI off -> ring the team; else AI.
+                   VIP -> ring their person directly, or the VIP desk (services/vip_desk.py) when it's on; the AI
+                   never answers. Voice AI off -> ring the team; else AI.
     finish_call    store transcript, timings and outcome; queue the summary; handle a missed call.
     missed call    text back within a minute ONLY if the caller has recorded consent to texts (CLAUDE.md: no
                    automated outbound texts without recorded consent); otherwise a call-back task. Never for VIPs.
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.config import get_settings
 from ondra_api.db import no_tenant_session, tenant_session
+from ondra_api.services import vip_desk
 from ondra_api.services.agent_tools import assignee_for
 from ondra_api.services.jobs import enqueue
 
@@ -44,6 +46,7 @@ class CallPlan:
     dealer_name: str
     ring_number: str | None = None  # who to ring when the AI doesn't answer
     ring_user_id: uuid.UUID | None = None
+    desk_target: str | None = None  # a VIP's call goes to the VIP desk (services/vip_desk.py) when it's on
     disclose_recording: bool = False
     upcoming: list = field(default_factory=list)
 
@@ -118,6 +121,7 @@ async def start_call(*, from_number: str, to_number: str, provider_call_sid: str
             caller_name=contact.display_name if known and not contact.display_name.startswith("+") else None,
             known=known, is_vip=contact.is_vip, dealer_name=tenant.name,
             ring_number=ring_user.phone if ring_user else None, ring_user_id=ring_user.id if ring_user else None,
+            desk_target=vip_desk.desk_target(tenant_id, call_id) if route == "ring_owner" else None,
             disclose_recording=settings.get("call_recording") == "with_disclosure",
         )
 
