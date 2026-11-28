@@ -7,7 +7,6 @@ import { useEffect, useState } from "react"
 
 import { OndraMark } from "@/components/ondra-mark"
 import { useAuth } from "@/components/providers"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -69,7 +68,6 @@ export default function LoginPage() {
           <a href={SITE_URL} aria-label="Ondra home">
             <Wordmark className="h-6 w-auto" />
           </a>
-          <ThemeToggle />
         </div>
 
         <div className="flex flex-1 items-center justify-center">

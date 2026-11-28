@@ -11,7 +11,6 @@ import { IconBrandGoogle, IconBrandWindows, IconCalendarPlus, IconMapPin } from 
 import { useSearchParams } from "next/navigation"
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { API_URL } from "@/lib/api"
@@ -220,7 +219,6 @@ function Manage() {
 export default function BookingPage() {
   return (
     <div className="min-h-svh bg-background">
-      <header className="flex justify-end px-4 py-3"><ThemeToggle /></header>
       <main className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 pt-6 pb-16">
         <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
           <Manage />

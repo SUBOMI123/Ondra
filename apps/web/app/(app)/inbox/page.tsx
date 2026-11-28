@@ -31,7 +31,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { WhoseSwitch } from "@/components/whose-switch"
+import { WhoseTitle } from "@/components/whose-switch"
 import { useWhose } from "@/lib/whose"
 import { OndraMark } from "@/components/ondra-mark"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
@@ -683,7 +683,7 @@ function Inbox() {
 
   return (
     <>
-      <SiteHeader title="Inbox" whose={<WhoseSwitch value={whose} onChange={(w) => { setWhose(w); setSelected(null) }} what="conversations" />} />
+      <SiteHeader title={<WhoseTitle value={whose} onChange={(w) => { setWhose(w); setSelected(null) }} noun="inbox" />} />
       {settings.data?.replies.draft_mode && (
         <p className="flex items-center gap-2 border-b bg-ai-subtle/50 px-4 py-2 text-sm lg:px-6">
           <OndraMark className="size-4 shrink-0 text-ai" />
@@ -737,7 +737,7 @@ function Inbox() {
               {items.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground">
                   {saved && !q ? saved.empty : view === "needs" && !q ? "Nothing needs you right now. Ondra is handling everything else." : "No conversations match."}
-                  {whose === "mine" && !q && " Mine shows your own clients; Everyone shows the whole dealership."}
+                  {whose === "mine" && !q && " This is your own clients; Dealership inbox has everyone's."}
                 </p>
               ) : (
                 items.map((c) => (

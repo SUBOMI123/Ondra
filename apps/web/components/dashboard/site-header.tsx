@@ -5,7 +5,6 @@ import { useEffect, useState } from "react"
 
 import { useShell } from "@/components/shell/shell"
 
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Separator } from "@/components/ui/separator"
@@ -21,8 +20,8 @@ function ZoneNote() {
   return note ? <span className="mr-1 hidden text-xs text-muted-foreground tabular-nums xl:inline" title="Times are shown in the dealership's time zone">Times in {note}</span> : null
 }
 
-/** `whose`: the Mine / Everyone switch, right after the title, on every screen that has one. */
-export function SiteHeader({ title = "Today", note, whose }: { title?: string; note?: string; whose?: React.ReactNode }) {
+/** `title` can be a node: list screens pass their My / Dealership title (components/whose-switch.tsx). */
+export function SiteHeader({ title = "Today", note }: { title?: React.ReactNode; note?: string }) {
   const { openSearch } = useShell()
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -30,7 +29,6 @@ export function SiteHeader({ title = "Today", note, whose }: { title?: string; n
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
         <h1 className="text-base font-medium">{title}</h1>
-        {whose && <div className="ml-2 sm:ml-3">{whose}</div>}
         {note && <span className="hidden text-sm text-muted-foreground lg:inline">{note}</span>}
         <div className="ml-auto flex items-center gap-2">
           <ZoneNote />
@@ -42,8 +40,6 @@ export function SiteHeader({ title = "Today", note, whose }: { title?: string; n
             <span className="truncate">Search clients, cars, messages</span>
             <Kbd className="ml-auto">⌘K</Kbd>
           </Button>
-          {/* On a phone the theme lives in the account menu, so the header keeps room for the title and switch. */}
-          <div className="hidden sm:block"><ThemeToggle /></div>
         </div>
       </div>
     </header>

@@ -4,6 +4,7 @@ import {
   IconBrandWhatsapp,
   IconDotsVertical,
   IconLogout,
+  IconSunMoon,
 } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
@@ -21,6 +22,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -39,6 +43,8 @@ const initials = (name: string) =>
     .toUpperCase()
 
 import { useAuth } from "@/components/providers"
+
+const THEMES: Record<string, string> = { system: "System", light: "Light", dark: "Dark" }
 
 export function NavUser({
   user,
@@ -102,16 +108,21 @@ export function NavUser({
                 <Link href="/settings/assistant"><IconBrandWhatsapp />Your WhatsApp assistant</Link>
               </DropdownMenuItem>
             )}
-            {/* Phones: the header has no room for the theme buttons, so they're here. */}
-            <div className="sm:hidden">
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Theme</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-                <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">Match device</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-            </div>
+            {/* Appearance is each person's own choice, so it lives here, not in the dealership's Settings. One row that
+                opens a submenu: it's set once, so it shouldn't take the menu over. Starts on System (follows the device). */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <IconSunMoon />
+                <span>Appearance</span>
+                <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">{THEMES[theme ?? "system"] ?? "System"}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
+                  {Object.entries(THEMES).map(([k, label]) => <DropdownMenuRadioItem key={k} value={k}>{label}</DropdownMenuRadioItem>)}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => signOut()}>
               <IconLogout />
               Log out

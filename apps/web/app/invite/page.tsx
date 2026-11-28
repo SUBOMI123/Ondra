@@ -10,7 +10,6 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -89,7 +88,6 @@ export default function InvitePage() {
     <div className="flex min-h-svh flex-col gap-4 p-6 md:p-10">
       <div className="flex items-center justify-between">
         <Link href="/login" aria-label="Ondra"><Wordmark className="h-6 w-auto" /></Link>
-        <ThemeToggle />
       </div>
       <main className="flex flex-1 items-center justify-center">
         <div className={ClerkSignUp ? "flex w-full max-w-[25rem] justify-center" : "w-full max-w-[22rem]"}>

@@ -27,6 +27,8 @@ import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
 import { OndraMark } from "@/components/ondra-mark"
 import Wordmark from "@/components/wordmark"
+import { useBranding } from "@/lib/branding"
+import { cn } from "@/lib/utils"
 import {
   Sidebar,
   SidebarContent,
@@ -56,6 +58,24 @@ const data = {
   ],
 }
 
+/** The dealership, beside Ondra's wordmark: their logo if they've added one (Settings > Business and hours), else
+ * their name. In dark mode a logo without a dark version sits on a white tile so a dark-ink logo still reads. */
+function DealerMark({ name }: { name?: string }) {
+  const b = useBranding(!!name)
+  const { logo, logo_dark } = b.data ?? { logo: null, logo_dark: null }
+  if (!logo) return <span className="ml-auto truncate text-xs font-normal text-muted-foreground group-data-[collapsible=icon]:hidden">{name}</span>
+  return (
+    <span className="ml-auto flex h-7 max-w-[7.5rem] items-center group-data-[collapsible=icon]:hidden" title={name}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- the dealer's own upload, as a data URL */}
+      <img src={logo} alt={name ?? "Dealership"} className={cn("max-h-7 max-w-full object-contain", logo_dark ? "dark:hidden" : "dark:rounded dark:bg-paper dark:p-0.5")} />
+      {logo_dark && (
+        // eslint-disable-next-line @next/next/no-img-element -- as above
+        <img src={logo_dark} alt={name ?? "Dealership"} className="hidden max-h-7 max-w-full object-contain dark:block" />
+      )}
+    </span>
+  )
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { me } = useAuth()
   // Real counts: conversations that need a person, and my open tasks. Same queries as those pages, so live
@@ -76,7 +96,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <Link href="/" aria-label="Ondra, Today">
                 <span className="flex h-5 items-center group-data-[collapsible=icon]:hidden"><Wordmark className="h-[18px] w-auto" /></span>
                 <OndraMark className="hidden size-5! text-foreground group-data-[collapsible=icon]:block" />
-                <span className="ml-auto truncate text-xs font-normal text-muted-foreground group-data-[collapsible=icon]:hidden">{me?.tenant_name}</span>
+                <DealerMark name={me?.tenant_name} />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

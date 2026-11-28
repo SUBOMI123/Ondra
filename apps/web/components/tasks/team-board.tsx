@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Tasks > Everyone. One job: see who has what on their plate, spot whose work is slipping, and move work to someone
+ * Tasks > Dealership. One job: see who has what on their plate, spot whose work is slipping, and move work to someone
  * who can take it. One column per person who takes work (overdue count in red at the top), plus "Nobody yet" when
  * something is unassigned. Drag a card to another person to give it to them (press and hold on a phone); the card's
  * menu does the same by keyboard. Ticking a card finishes it, same as the list.
