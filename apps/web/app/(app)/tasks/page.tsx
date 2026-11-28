@@ -2,7 +2,7 @@
 
 /**
  * Tasks. Mine: "what do I do next?", a to-do list grouped by urgency, where finishing a task is one tap.
- * Everyone: a board with one column per person, to see whose work is slipping and move it (components/tasks).
+ * Dealership: a board with one column per person, to see whose work is slipping and move it (components/tasks).
  * Where a task came from (Ondra's handoff, a rule) is a quiet mark, and the brief opens only when wanted.
  * Data: GET/POST/PATCH /tasks. Deadlines come from urgency, counted in opening hours; overdue tasks escalate.
  */
@@ -14,7 +14,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { WhoseSwitch } from "@/components/whose-switch"
+import { WhoseTitle } from "@/components/whose-switch"
 import { useWhose } from "@/lib/whose"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -187,7 +187,7 @@ export default function TasksPage() {
 
   return (
     <>
-      <SiteHeader title="Tasks" whose={<WhoseSwitch value={whose} onChange={setWhose} what="tasks" />} />
+      <SiteHeader title={<WhoseTitle value={whose} onChange={setWhose} noun="tasks" />} />
       <div className={cn("mx-auto flex w-full flex-col gap-6 px-4 py-6 lg:px-6", who === "mine" ? "max-w-3xl" : "min-w-0")}>
         <div className="flex items-center justify-end gap-3">
           {!adding && (

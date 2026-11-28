@@ -371,3 +371,60 @@ async def put_vip_calls(body: VipCallsIn, request: Request,
     after = _vip_calls(t, caller)
     _audit(db, caller, request, "settings.vip_calls", f"tenant:{t.id}", before, after)
     return after
+
+
+# --- the dealership's logo, in the sidebar (founder, 2026-11-28) ---------------------------------------------------
+
+LOGO_TYPES = ("image/png", "image/jpeg", "image/webp", "image/svg+xml")
+LOGO_MAX_BYTES = 300_000
+
+
+class BrandingIn(BaseModel):
+    """A logo as a data URL (data:image/png;base64,...), or null to remove it. `logo_dark` is an optional version
+    for dark mode: a logo drawn for white paper often disappears on a dark screen."""
+    logo: str | None = None
+    logo_dark: str | None = None
+
+
+def _check_logo(data_url: str | None) -> str | None:
+    import base64
+    import binascii
+
+    if not data_url:
+        return None
+    head, _, body = data_url.partition(",")
+    mime = head.removeprefix("data:").removesuffix(";base64")
+    if not head.startswith("data:") or not head.endswith(";base64") or mime not in LOGO_TYPES:
+        raise HTTPException(422, "Upload a PNG, JPG, WebP or SVG image.")
+    try:
+        size = len(base64.b64decode(body, validate=True))
+    except (binascii.Error, ValueError):
+        raise HTTPException(422, "That file didn't upload properly. Try again.") from None
+    if size > LOGO_MAX_BYTES:
+        raise HTTPException(422, f"That logo is {size // 1000} KB. Use one under {LOGO_MAX_BYTES // 1000} KB (an SVG or a PNG about 400 px wide is plenty).")
+    return data_url
+
+
+def _branding(t: Tenant) -> dict:
+    s = t.settings or {}
+    return {"name": t.name, "logo": s.get("logo"), "logo_dark": s.get("logo_dark")}
+
+
+@router.get("/branding")
+async def get_branding(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+    """The dealership's name and logo, for everyone signed in (the sidebar shows it)."""
+    _, db = ctx
+    return _branding((await db.execute(select(Tenant).limit(1))).scalar_one())
+
+
+@router.put("/branding")
+async def put_branding(body: BrandingIn, request: Request,
+                       ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    caller, db = ctx
+    t = (await db.execute(select(Tenant).limit(1))).scalar_one()
+    logo, dark = _check_logo(body.logo), _check_logo(body.logo_dark)
+    before = {k: bool(v) for k, v in _branding(t).items() if k != "name"}
+    t.settings = {**(t.settings or {}), "logo": logo, "logo_dark": dark if logo else None}
+    await db.flush()
+    _audit(db, caller, request, "settings.branding", f"tenant:{t.id}", before, {"logo": bool(logo), "logo_dark": bool(dark and logo)})
+    return _branding(t)

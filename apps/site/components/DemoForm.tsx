@@ -6,7 +6,7 @@ import { CONTACT_EMAIL, DEMO_FORM_ENDPOINT } from "@/lib/config";
 type Status = "idle" | "sending" | "sent" | "error";
 type FieldErrors = Record<string, string>;
 
-const CHANNELS = ["Phone", "Text", "Email", "WhatsApp", "Instagram"];
+const CHANNELS = ["Phone", "Text", "Email", "WhatsApp"];
 
 export default function DemoForm() {
   const [status, setStatus] = useState<Status>("idle");

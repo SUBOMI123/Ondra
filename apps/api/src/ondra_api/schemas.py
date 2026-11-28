@@ -30,7 +30,8 @@ class ContactOut(_Out):
     id: uuid.UUID
     display_name: str
     is_vip: bool
-    vip_owner_user_id: uuid.UUID | None = None  # who looks after this VIP (null: the owner)
+    vip_owner_user_id: uuid.UUID | None = None  # who looks after this VIP
+    name_source: str | None = None  # 'call': as Ondra heard it on a call (check the spelling), 'typed', 'staff
     preferred_channel: str | None
     language: str | None
     tags: list[str]

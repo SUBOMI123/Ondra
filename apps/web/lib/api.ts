@@ -135,6 +135,8 @@ export type Contact = {
   display_name: string
   is_vip: boolean
   vip_owner_user_id?: string | null
+  /** Where the name came from: "call" means as Ondra heard it on a phone call (may be misspelt), "typed", "staff". */
+  name_source?: "call" | "typed" | "staff" | null
   preferred_channel: string | null
   language: string | null
   tags: string[]

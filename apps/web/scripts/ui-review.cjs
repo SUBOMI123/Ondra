@@ -61,13 +61,13 @@ for (const scheme of ["light", "dark"]) {
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(BASE + path)
-      if (WHOSE.includes(path)) await page.waitForSelector("header [role=tablist][aria-label^='Whose']", { timeout: 10000 }).catch(() => {})
+      if (WHOSE.includes(path)) await page.waitForSelector("header h1 [data-whose]", { timeout: 10000 }).catch(() => {})
       await page.waitForTimeout(700)
       const r = await page.evaluate(() => ({
         overflow: document.documentElement.scrollWidth - innerWidth,
         h1: document.querySelectorAll("h1").length,
         vipAi: document.querySelectorAll("[data-vip] [data-slot^=ai-], [data-vip] .text-ai").length,
-        whose: document.querySelectorAll("header [role=tablist][aria-label^='Whose']").length,
+        whose: document.querySelectorAll("header h1 [data-whose]").length,
         where: `${location.pathname} h1="${document.querySelector("h1")?.textContent ?? ""}"`,
         unlabeled: [...document.querySelectorAll("button, a")].filter((b) => !b.textContent.trim() && !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby") && !b.title && !(b.labels && b.labels.length)).length,
       }))
@@ -80,7 +80,7 @@ for (const scheme of ["light", "dark"]) {
       if (r.overflow > 0) failures.push(`${at}: scrolls sideways by ${r.overflow}px`)
       if (r.h1 !== 1) failures.push(`${at}: ${r.h1} h1 elements (want 1)`)
       if (r.vipAi) failures.push(`${at}: ${r.vipAi} AI-blue elements inside a VIP surface (product rule)`)
-      if (r.whose !== (WHOSE.includes(path) ? 1 : 0)) failures.push(`${at}: ${r.whose} Mine / Everyone switches in the header (want ${WHOSE.includes(path) ? 1 : 0}; page showed ${r.where})`)
+      if (r.whose !== (WHOSE.includes(path) ? 1 : 0)) failures.push(`${at}: ${r.whose} Mine / Everyone titles in the header (want ${WHOSE.includes(path) ? 1 : 0}; page showed ${r.where})`)
       if (r.unlabeled) failures.push(`${at}: ${r.unlabeled} icon buttons or links without a label`)
     }
   }

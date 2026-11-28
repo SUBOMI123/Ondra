@@ -87,6 +87,15 @@ def test_disclosure_is_when_asked_unless_the_dealer_turns_on_upfront():
         upfront, "sms", CustomerFacts(known=False))[1]["text"]
 
 
+def test_ondra_asks_a_new_customer_for_their_name_once_and_not_a_known_one():
+    from ondra_core.agent.prompt import build_system
+
+    new = build_system(DEALER, "phone", CustomerFacts(known=False))[1]["text"]
+    assert "ask for it once" in new and "update_lead_fields" in new and "don't ask again" in new
+    known = build_system(DEALER, "phone", CustomerFacts(known=True, name="Grace Kim"))[1]["text"]
+    assert "Grace Kim" in known and "ask for it" not in known
+
+
 async def test_reply_written_alongside_the_final_handoff_saves_a_round_trip():
     from ondra_core.agent.llm import LLMResponse, ToolCall
 

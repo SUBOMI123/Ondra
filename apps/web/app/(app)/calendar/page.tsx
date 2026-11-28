@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { WhoseSwitch } from "@/components/whose-switch"
+import { WhoseTitle } from "@/components/whose-switch"
 import { useWhose } from "@/lib/whose"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
@@ -210,7 +210,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <SiteHeader title="Calendar" whose={<WhoseSwitch value={whose} onChange={setWhose} what="appointments" />} />
+      <SiteHeader title={<WhoseTitle value={whose} onChange={setWhose} noun="calendar" />} />
       <div className="flex flex-col gap-4 px-4 py-6 lg:px-6">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label="Previous day">
@@ -242,7 +242,7 @@ export default function CalendarPage() {
           </div>
         ) : appts.length === 0 ? (
           <p className="rounded-xl border p-6 text-sm text-muted-foreground">
-            {whose === "mine" ? "Nothing booked with you. Everyone shows the whole dealership's day." : "Nothing booked. Ondra books test drives and service here as customers ask for them."}
+            {whose === "mine" ? "Nothing booked with you. Dealership calendar shows everyone's day." : "Nothing booked. Ondra books test drives and service here as customers ask for them."}
           </p>
         ) : (
           <>

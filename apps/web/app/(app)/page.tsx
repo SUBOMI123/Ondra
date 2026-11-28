@@ -2,13 +2,13 @@
 
 /**
  * Today. One job: open it and know in five seconds what needs you, then whether things are on track.
- * It opens with a handover note (how many things need you, and what Ondra did while you were away), then what needs
+ * It opens with a handover note (how many things need attention, and what Ondra did while you were away), then what needs
  * you beside today's bookings, then the week: the dealership's for admins and managers (with who's behind), your own
  * for everyone else. Every number opens the events it was counted from. Blue is Ondra's work and nothing else; red
  * is overdue and nothing else.
  */
 
-import { IconAlertTriangle, IconFlame, IconPhoneX } from "@tabler/icons-react"
+import { IconChevronDown, IconChevronRight } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
@@ -264,7 +264,7 @@ function Handover({ first, count, everyone, t, tz }: { first?: string; count: nu
         <Skeleton className="h-10 w-80 max-w-full" />
       ) : (
         <p className="text-3xl font-normal tracking-[-0.035em] text-balance sm:text-4xl">
-          {count === 0 ? (everyone ? "Nothing needs anyone right now." : "Nothing needs you right now.") : `${count === 1 ? "One thing needs" : `${count} things need`} ${everyone ? "someone" : "you"}.`}
+          {count === 0 ? (everyone ? "Nothing needs attention right now." : "Nothing needs your attention right now.") : `${count === 1 ? "One thing needs" : `${count} things need`} ${everyone ? "" : "your "}attention.`}
         </p>
       )}
       {o && did.length > 0 && (
@@ -279,60 +279,66 @@ function Handover({ first, count, everyone, t, tz }: { first?: string; count: nu
 
 /* ------------------------------------------------------------ what needs you */
 
-function Row({ icon, title, detail, action, vip }: { icon: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; action: React.ReactNode; vip?: boolean }) {
+/** One thing that needs someone: what it is in plain words, the count inside the sentence ("2 callers to ring
+ * back"; on its own in a column it read as a rank), and when, aligned down the right. The whole row opens it. Colour is spent sparingly: red only on a time that's overdue, Ondra blue
+ * only on the small "Ondra" label of its draft, ink on the VIP tag. Everything else is the same quiet type. */
+function Item({ href, title, detail, when, late, vip }: {
+  href: string; title: React.ReactNode; detail?: React.ReactNode; when?: string; late?: boolean; vip?: boolean
+}) {
   return (
-    <li className="relative flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:flex-nowrap" data-vip={vip || undefined}>
-      {icon}
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">{title}</p>
-        {detail && <p className="text-sm text-pretty text-muted-foreground sm:truncate">{detail}</p>}
-      </div>
-      {/* Phones: the action goes under the words, lined up with them, so the reason is read in full. */}
-      <div className="w-full shrink-0 pl-13 sm:w-auto sm:pl-0">{action}</div>
+    <li data-vip={vip || undefined}>
+      <Link href={href} className="group relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 px-2 py-4 outline-none hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-3">
+        <span className="flex min-w-0 items-center gap-2 font-medium"><span className="truncate">{title}</span></span>
+        <span className={cn("flex items-center gap-1 justify-self-end text-sm tabular-nums whitespace-nowrap", late ? "text-overdue" : "text-muted-foreground")}>
+          <span className="hidden sm:inline">{when}</span>
+          <IconChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+        {/* Phones: the time sits under the title, so the name keeps the width. */}
+        {when && <span className={cn("col-span-2 text-sm tabular-nums sm:hidden", late ? "text-overdue" : "text-muted-foreground")}>{when.charAt(0).toUpperCase() + when.slice(1)}</span>}
+        {detail && <span className="col-span-2 min-w-0 truncate text-sm text-muted-foreground">{detail}</span>}
+      </Link>
     </li>
   )
 }
 
-const dot = "flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
 
 function Needs({ q, tz }: { q: ReturnType<typeof useQuery<Today>>; tz: string }) {
   const needs = q.data?.needs
+  const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`)
   return (
     <section aria-labelledby="needs" className="flex min-w-0 flex-col gap-3">
-      <h2 id="needs" className="text-sm font-medium text-muted-foreground">{needs?.scope === "everyone" ? "Needs someone" : "Needs you"}</h2>
+      <h2 id="needs" className="text-sm font-medium text-muted-foreground">{needs?.scope === "everyone" ? "Needs attention" : "Needs you"}</h2>
       {q.isPending ? <Skeleton className="h-56 w-full rounded-xl" /> : q.isError ? (
         <LoadError message={q.error.message} onRetry={() => q.refetch()} />
       ) : needCount(needs!) === 0 ? (
-        <p className="rounded-xl border p-5 text-sm text-muted-foreground">VIPs waiting, replies to approve, missed callers and overdue tasks show here the moment there are any.</p>
+        <p className="border-y py-5 text-sm text-muted-foreground">VIPs waiting, replies to approve, missed callers and overdue tasks show here the moment there are any.</p>
       ) : (
-        <ul className="divide-y rounded-xl border bg-card">
+        <ul className="divide-y border-y">
           {needs!.vips.map((v) => (
-            <Row key={v.task_id} vip icon={<ClientAvatar name={v.client ?? ""} vip />} title={`${v.client} is waiting`}
-              detail={`${v.title.replace(`${v.client}: `, "")}, since ${v.since ? since(v.since, tz) : "earlier"}.`}
-              action={<Button asChild size="sm"><Link href={v.conversation_id ? `/inbox?c=${v.conversation_id}` : "/tasks"}>Reply yourself</Link></Button>} />
+            <Item key={v.task_id} vip href={v.conversation_id ? `/inbox?c=${v.conversation_id}` : "/tasks"}
+              title={<><VipTag /> {v.client} is waiting for you</>} detail="A VIP: only a person replies."
+              when={v.since ? `since ${since(v.since, tz)}` : undefined} />
           ))}
           {needs!.callbacks.count > 0 && (
-            <Row icon={<span className={dot} aria-hidden="true"><IconPhoneX className="size-4" /></span>}
-              title={<>{n(needs!.callbacks.count, "caller")} to ring back{needs!.callbacks.overdue > 0 && <span className="text-overdue">, {needs!.callbacks.overdue} overdue</span>}</>}
-              detail={needs!.callbacks.oldest ? `${needs!.callbacks.count > 1 ? "Longest waiting: " : ""}${needs!.callbacks.oldest.client}, since ${since(needs!.callbacks.oldest.since, tz)}.` : undefined}
-              action={<Button asChild variant="outline" size="sm"><Link href="/calls?show=missed">Call back</Link></Button>} />
+            <Item href="/calls?show=missed"
+              title={n(needs!.callbacks.count, "caller") + " to ring back"}
+              detail={needs!.callbacks.oldest ? `${needs!.callbacks.count > 1 ? "Longest waiting: " : ""}${needs!.callbacks.oldest.client}, since ${since(needs!.callbacks.oldest.since, tz)}` : undefined}
+              when={needs!.callbacks.overdue > 0 ? `${needs!.callbacks.overdue} overdue` : undefined} late={needs!.callbacks.overdue > 0} />
           )}
           {needs!.drafts > 0 && (
-            <Row icon={<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ai-subtle text-ai" aria-hidden="true"><OndraMark className="size-4" /></span>}
-              title={`${n(needs!.drafts, "reply", "replies")} to approve`}
-              detail={<span data-slot="ai-note" className="text-ai">Written by Ondra, waiting for a person to send {needs!.drafts === 1 ? "it" : "them"}.</span>}
-              action={<Button asChild variant="outline" size="sm"><Link href="/inbox?filter=drafts">Review</Link></Button>} />
+            <Item href="/inbox?filter=drafts"
+              title={n(needs!.drafts, "reply", "replies") + " to approve"}
+              detail={<>Written by <span data-slot="ai-note" className="inline-flex items-center gap-1 text-ai"><OndraMark className="size-3" />Ondra</span>, waiting for a person to send {needs!.drafts === 1 ? "it" : "them"}</>} />
           )}
           {needs!.overdue_count > 0 && (
-            <Row icon={<span className={dot} aria-hidden="true"><IconAlertTriangle className="size-4" /></span>}
-              title={<span className="text-overdue">{n(needs!.overdue_count, "task")} overdue</span>}
-              detail={`${needs!.overdue.slice(0, 2).map((o) => o.title).join(". ")}${needs!.overdue_count > 2 ? ", and more" : ""}.`}
-              action={<Button asChild variant="outline" size="sm"><Link href="/tasks">Open tasks</Link></Button>} />
+            <Item href="/tasks"
+              title={n(needs!.overdue_count, "task") + " past due"}
+              detail={list(needs!.overdue.slice(0, 3).map((o) => o.client ?? o.title)) + (needs!.overdue_count > 3 ? ` and ${needs!.overdue_count - 3} more` : "")}
+ />
           )}
           {needs!.hot.map((h) => (
-            <Row key={h.task_id} icon={<span className={dot} aria-hidden="true"><IconFlame className="size-4" /></span>} title={h.title}
-              detail={`Marked urgent${h.due_at ? `, due ${since(h.due_at, tz)}` : ""}.`}
-              action={<Button asChild variant="outline" size="sm"><Link href={h.conversation_id ? `/inbox?c=${h.conversation_id}` : "/tasks"}>Open</Link></Button>} />
+            <Item key={h.task_id} href={h.conversation_id ? `/inbox?c=${h.conversation_id}` : "/tasks"}
+              title={h.title} detail="Marked urgent" when={h.due_at ? `due ${since(h.due_at, tz)}` : undefined} />
           ))}
         </ul>
       )}
@@ -410,11 +416,20 @@ function Behind({ team }: { team: Today["team"] }) {
 }
 
 function DealershipWeek({ r, report, days, setDays, team, trace }: { r?: Report; report: ReturnType<typeof useQuery<Report>>; days: number; setDays: (d: number) => void; team: Today["team"]; trace: (m: string) => void }) {
+  // The detail behind the four numbers (each day, each person, each channel), opened from the section's own header
+  // and shown right under the numbers it explains.
+  const [more, setMore] = useState(false)
   return (
     <section aria-labelledby="week" className="flex flex-col gap-6 border-t pt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="week" className="text-xl font-normal tracking-tight">The last {days} days</h2>
-        <PeriodPicker days={days} setDays={setDays} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" aria-expanded={more} aria-controls="more-numbers" onClick={() => setMore((m) => !m)}>
+            {more ? "Fewer numbers" : "More numbers"}
+            <IconChevronDown className={cn("transition-transform", more && "rotate-180")} aria-hidden="true" />
+          </Button>
+          <PeriodPicker days={days} setDays={setDays} />
+        </div>
       </div>
       {report.isPending ? <Skeleton className="h-28 w-full rounded-xl" /> : report.isError ? (
         <LoadError message={report.error.message} onRetry={() => report.refetch()} />
@@ -435,22 +450,8 @@ function DealershipWeek({ r, report, days, setDays, team, trace }: { r?: Report;
               context={<span className="text-muted-foreground">{n(r.totals.calls_missed, "missed call")}, counted while you&apos;re open</span>} />
           </div>
 
-          <div className="grid gap-10 md:grid-cols-2">
-            <Behind team={team} />
-            <div className="flex flex-col gap-3">
-              <h3 className="font-medium">Deals in play</h3>
-              <p className="-mt-2 text-sm text-muted-foreground">
-                {n(r.pipeline.in_play, "open deal")}{r.pipeline.in_play > 0 && <>, <span data-slot="ai-note" className="text-ai">{r.pipeline.in_play_by_ai} brought in by Ondra</span></>}.
-              </p>
-              <BarList empty="No deals yet. A deal starts when Ondra or your team records what a buyer wants." rows={Object.entries(r.pipeline.by_stage).map(([k, v]) => ({ key: k, label: STAGE[k] ?? k, value: v }))} />
-            </div>
-          </div>
-
-          <details className="group rounded-xl border">
-            <summary className="cursor-pointer list-none px-5 py-4 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              More numbers<span className="ml-2 text-sm font-normal text-muted-foreground">Who answered first each day, each person&apos;s speed, where leads came from</span>
-            </summary>
-            <div className="flex flex-col gap-10 border-t p-5">
+          {more && (
+            <div id="more-numbers" className="flex flex-col gap-10 border-t pt-8">
               <div>
                 <h3 className="font-medium">Who answered first</h3>
                 <p className="mb-4 text-sm text-muted-foreground">Each time a customer wrote in and was waiting, who gave the first reply.</p>
@@ -469,7 +470,19 @@ function DealershipWeek({ r, report, days, setDays, team, trace }: { r?: Report;
                   delta={<Delta now={r.totals.follow_ups_sent} before={r.previous.follow_ups_sent} days={r.days} />} />
               </div>
             </div>
-          </details>
+          )}
+
+          <div className="grid gap-10 md:grid-cols-2">
+            <Behind team={team} />
+            <div className="flex flex-col gap-3">
+              <h3 className="font-medium">Deals in play</h3>
+              <p className="-mt-2 text-sm text-muted-foreground">
+                {n(r.pipeline.in_play, "open deal")}{r.pipeline.in_play > 0 && <>, <span data-slot="ai-note" className="text-ai">{r.pipeline.in_play_by_ai} brought in by Ondra</span></>}.
+              </p>
+              <BarList empty="No deals yet. A deal starts when Ondra or your team records what a buyer wants." rows={Object.entries(r.pipeline.by_stage).map(([k, v]) => ({ key: k, label: STAGE[k] ?? k, value: v }))} />
+            </div>
+          </div>
+
         </div>
       )}
     </section>

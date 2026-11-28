@@ -8,7 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from ondra_core.models import Contact, ContactIdentity, Deal, User, Vehicle
 from ondra_core.permissions import Perm, can_see_vips, has_perm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,6 +107,34 @@ async def get_contact(contact_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = 
     # A VIP the caller may not see looks exactly like a contact that doesn't exist.
     if c is None or (c.is_vip and not can_see_vips(caller.role) and c.vip_owner_user_id != caller.user_id):
         raise HTTPException(404, "No client with that id.")
+    idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
+    return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
+
+
+class ContactPatch(BaseModel):
+    display_name: str = Field(min_length=1, max_length=200)
+
+
+@router.patch("/contacts/{contact_id}", response_model=ContactOut)
+async def rename_contact(contact_id: uuid.UUID, body: ContactPatch, request: Request,
+                         ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
+    """Correct a client's name, typically one Ondra heard on a call and spelt wrong. A name a person saves is never
+    replaced by Ondra afterwards (update_lead_fields only fills in a placeholder)."""
+    from ondra_core.models import AuditLog, Event
+
+    caller, db = ctx
+    c = (await db.execute(select(Contact).where(Contact.id == contact_id))).scalar_one_or_none()
+    if c is None or c.merged_into_id is not None or (c.is_vip and not can_see_vips(caller.role) and c.vip_owner_user_id != caller.user_id):
+        raise HTTPException(404, "No client with that id.")
+    name = " ".join(body.display_name.split())
+    if not name:
+        raise HTTPException(422, "Enter their name.")
+    before = {"name": c.display_name, "source": c.name_source}
+    c.display_name, c.name_source = name, "staff"
+    db.add(Event(type="contact.renamed", payload={"contact_id": str(c.id), "from": before["name"], "to": name, "by": str(caller.user_id)}))
+    db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.rename", resource=f"contact:{c.id}", before=before,
+                    after={"name": name, "source": "staff"}, ip=request.client.host if request.client else None))
+    await db.flush()
     idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
 

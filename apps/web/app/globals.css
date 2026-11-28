@@ -120,6 +120,11 @@
   --color-ai-subtle: var(--ai-subtle);
   --color-vip: var(--vip);
   --color-vip-subtle: var(--vip-subtle);
+  /* Fixed in both themes: where a dealer's logo is previewed or shown on paper (white) or on a dark screen. */
+  --color-paper: oklch(1 0 0);
+  --color-paper-muted: oklch(0.55 0 0);
+  --color-night: oklch(0.205 0 0);
+  --color-night-muted: oklch(0.72 0 0);
   --color-overdue: var(--overdue);
   --color-overdue-subtle: var(--overdue-subtle);
   --color-chart-1: var(--chart-1);

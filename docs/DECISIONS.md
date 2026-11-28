@@ -1035,3 +1035,23 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   "you". The VIP story now matches the shipped flow (their person rings; no answer gets your own words, then your
   front desk), not the old "your mobile, then your office line, then a text".
 - **"Needs you 1"** in the inbox mock was red; red means overdue only, so it's neutral now.
+
+## 2026-11-28: Founder feedback round (names, wording, appearance, logo, scope titles)
+
+- **Ondra asks a new customer's name once**, after answering their first question, and saves it
+  (update_lead_fields). Not a gate at the start, and never replacing a name staff entered. Speech recognition can
+  mishear a name; staff correct it on the profile.
+- **Today's headline:** "6 things need attention" (the dealership) / "6 things need your attention" (yours). The
+  number stays: it's the one signal on the page.
+- **Appearance lives in each person's account menu** (one row, "Appearance: System", opening a submenu), not in
+  Settings: Settings is the dealership's configuration, editable by admins only, and a salesperson would find "View
+  only" there. Gone from the header, sign-in, invite, two-step setup and the customer booking page. Default: System.
+- **"More numbers"** is a button in the week's own header (beside 7 days / 30 days) and opens right under the four
+  numbers; it was a bordered box at the bottom that read like a notification.
+- **Dealer logo** (Settings > Business and hours): shown beside Ondra's wordmark in the sidebar, the name as its
+  label. Stored as a data URL on the tenant (no file storage added), PNG/JPG/WebP/SVG under 300 KB, shown only through
+  <img> so an SVG can't run script. Optional dark-mode version; without it the logo sits on a white tile in dark mode.
+- **Scope as the page title:** "My inbox ⌄" / "Dealership inbox ⌄" (and calls, calendar, tasks, deals) instead of a
+  Mine / Everyone pill beside the title. "Dealership" over "Everyone's" (reads like a shared mailbox) or "Team"
+  (the views include unassigned work and what Ondra handled, not only the team's).
+- **No Instagram on the site** until it's supported.

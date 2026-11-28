@@ -9,7 +9,6 @@
 import dynamic from "next/dynamic"
 
 import { useAuth } from "@/components/providers"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import Wordmark from "@/components/wordmark"
 
@@ -21,7 +20,6 @@ export function MfaRequired() {
     <div className="flex min-h-svh flex-col gap-6 p-6 md:p-10">
       <div className="flex items-center justify-between">
         <Wordmark className="h-6 w-auto" />
-        <ThemeToggle />
       </div>
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <div className="max-w-xl">

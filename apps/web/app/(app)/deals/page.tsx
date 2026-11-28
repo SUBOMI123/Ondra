@@ -18,7 +18,7 @@ import { Suspense, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { WhoseSwitch } from "@/components/whose-switch"
+import { WhoseTitle } from "@/components/whose-switch"
 import { useWhose } from "@/lib/whose"
 import { DealSheet, LOST_REASONS, type Stage, stamp } from "@/components/deals/deal-sheet"
 import { LoadError } from "@/components/list-states"
@@ -242,7 +242,7 @@ function Deals() {
 
   return (
     <>
-      <SiteHeader title="Deals" whose={<WhoseSwitch value={whose} onChange={setWhose} what="deals" />} />
+      <SiteHeader title={<WhoseTitle value={whose} onChange={setWhose} noun="deals" />} />
       <div className="flex min-w-0 flex-col gap-4 p-4 lg:p-6">
         {q.isPending ? (
           <div className="grid auto-cols-[17rem] grid-flow-col gap-3 overflow-hidden" aria-busy="true" aria-label="Loading">
@@ -271,7 +271,7 @@ function Deals() {
             {whose === "mine" && mineCount === 0 && all.every((d) => !shown(d)) ? (
               <div className="max-w-prose rounded-xl border p-6 text-sm">
                 <p className="font-medium">No deals of yours yet</p>
-                <p className="mt-1 text-muted-foreground">When Ondra opens a deal it gives it to the next salesperson in turn, and a manager can hand you one from the deal itself. Everyone shows the whole board.</p>
+                <p className="mt-1 text-muted-foreground">When Ondra opens a deal it gives it to the next salesperson in turn, and a manager can hand you one from the deal itself. Dealership deals shows the whole board.</p>
               </div>
             ) : (
               <DndContext sensors={sensors} onDragStart={(e) => setDragging(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>

@@ -18,7 +18,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { WhoseSwitch } from "@/components/whose-switch"
+import { WhoseTitle } from "@/components/whose-switch"
 import { useWhose } from "@/lib/whose"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -492,7 +492,7 @@ export default function CallsPage() {
 
   return (
     <>
-      <SiteHeader title="Calls" whose={<WhoseSwitch value={whose} onChange={setWhose} what="calls" />} />
+      <SiteHeader title={<WhoseTitle value={whose} onChange={setWhose} noun="calls" />} />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
         {!nothingAtAll && (
           <Tabs value={show} onValueChange={(v) => setShow(v as Show)}>
@@ -519,7 +519,7 @@ export default function CallsPage() {
               <LiveCall key={c.id} c={c} onOpen={() => setOpen(c.id)} />
             ))}
             {(show === "all" || show === "missed") && (
-              <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty={whose === "mine" ? "None of your clients is waiting for a call back. Everyone shows the whole dealership." : "Nobody is waiting for a call back."} />
+              <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty={whose === "mine" ? "None of your clients is waiting for a call back. Dealership calls shows everyone's." : "Nobody is waiting for a call back."} />
             )}
             <Group
               id="earlier"
