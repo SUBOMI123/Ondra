@@ -45,7 +45,7 @@ type Rule = {
   alert: boolean
 }
 type Person = { id: string; name: string; role: string }
-type Routing = { rules: Rule[]; people: Person[]; owner: string | null; can_edit: boolean }
+type Routing = { rules: Rule[]; people: Person[]; vip_backup: string | null; can_edit: boolean }
 type Preview = { topic: Topic; rule_id: string | null; team: string | null; person: string | null; in_now: boolean; back_at: string | null; ai: Ai; alert: boolean }
 type Draft = Omit<Rule, "id" | "position">
 
@@ -60,7 +60,7 @@ const TOPIC_A: Record<Topic, string> = {
   sales: "a sales question", service: "a service question", shipping: "a shipping question", finance: "a finance question",
   complaint: "a complaint", other: "a general question",
 }
-const TEAMS: [string, string][] = [["sales", "Sales"], ["service", "Service"], ["manager", "Managers"], ["owner", "The owner"]]
+const TEAMS: [string, string][] = [["sales", "Sales"], ["service", "Service"], ["manager", "Managers"], ["admin", "Admins"]]
 const TEAM_LABEL: Record<string, string> = { ...Object.fromEntries(TEAMS), ops: "Operations", admin: "Admins" }
 const LANGUAGES: [string, string][] = [["es", "Spanish"], ["fr", "French"], ["pt", "Portuguese"]]
 const AI_LINE: Record<Ai, string> = {
@@ -264,7 +264,7 @@ function CheckMessage({ rules }: { rules: Rule[] }) {
             </p>
             <OndraLine ai={r.ai} />
             <p className="text-muted-foreground">
-              {ruleNumber > 0 ? `Decided by rule ${ruleNumber}.` : "No rule fits, so it goes to the usual team."} A VIP would skip all of this and go to the owner.
+              {ruleNumber > 0 ? `Decided by rule ${ruleNumber}.` : "No rule fits, so it goes to the usual team."} A VIP would skip all of this and go to the person looking after them.
             </p>
           </div>
         )}
@@ -341,7 +341,7 @@ export default function RoutingPage() {
         </div>
         <p className="max-w-prose text-sm text-muted-foreground">
           When a message, call or handoff needs a person, these are checked from the top and the first one that fits decides. Within a team, work goes to whoever is in and has waited longest.
-          {data && !canEdit && " Only owners and admins can change them."}
+          {data && !canEdit && " Only admins can change them."}
         </p>
 
         {q.isPending ? (
@@ -354,7 +354,7 @@ export default function RoutingPage() {
               <li className="flex items-start gap-3 px-4 py-3" data-vip>
                 <VipTag />
                 <div className="min-w-0">
-                  <p>VIPs always go to {q.data.owner ?? "the owner"}, or the person looking after them.</p>
+                  <p>VIPs always go to the person looking after them{q.data.vip_backup ? `, or ${q.data.vip_backup} if nobody is` : ""}.</p>
                   <p className="text-sm text-muted-foreground">Always first. They get a personal reply and their calls ring through directly.</p>
                 </div>
               </li>

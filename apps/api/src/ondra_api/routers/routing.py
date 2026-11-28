@@ -25,7 +25,7 @@ router = APIRouter(prefix="/routing", tags=["routing"])
 
 Topic = Literal["sales", "service", "shipping", "finance", "complaint", "other"]
 Channel = Literal["sms", "whatsapp", "email", "phone"]
-Team = Literal["sales", "service", "manager", "owner", "ops", "admin"]
+Team = Literal["sales", "service", "manager", "ops", "admin"]
 MAX_RULES = 50
 
 
@@ -108,12 +108,13 @@ async def _rules(db: AsyncSession) -> list[RoutingRule]:
 async def get_routing(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
     caller, db = ctx
     people = (await db.execute(select(User).where(User.active.is_(True)).order_by(User.name))).scalars()
-    owner = (await db.execute(select(User.name).where(User.role == "owner", User.active.is_(True))
-                              .order_by(User.created_at).limit(1))).scalar_one_or_none()
+    from ondra_api.services.calls import vip_backup
+
+    backup = await vip_backup(db)
     return {
         "rules": [_out(r) for r in await _rules(db)],
         "people": [{"id": str(u.id), "name": u.name, "role": u.role} for u in people],
-        "owner": owner,
+        "vip_backup": backup.name if backup else None,  # who a VIP with no one looking after them reaches
         "can_edit": has_perm(caller.role, Perm.SETTINGS_MANAGE),
     }
 

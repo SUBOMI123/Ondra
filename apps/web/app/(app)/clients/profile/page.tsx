@@ -85,7 +85,7 @@ function TimelineItem({ e, first }: { e: TimelineEntry; first: string }) {
     // A VIP's calls never reach Ondra, and the API sends no summary for them.
     ai = e.handled_by === "ai"
     const length = e.duration_s ? `, ${Math.floor(e.duration_s / 60)}:${String(e.duration_s % 60).padStart(2, "0")}` : ""
-    who = e.handled_by === "missed" ? "Missed call" : ai ? "Call answered by Ondra" : e.handled_by === "owner" ? "Call put through to the owner" : e.handled_by ? "Call taken by your team" : "On a call now"
+    who = e.handled_by === "missed" ? "Missed call" : ai ? "Call answered by Ondra" : e.handled_by === "owner" ? "Rang a person directly" : e.handled_by ? "Call taken by your team" : "On a call now"
     text = (e.summary ?? "") + (e.summary ? "" : length.replace(/^, /, "Length "))
     icon = e.handled_by === "missed" ? <IconPhoneX className="size-4" aria-hidden="true" /> : <IconPhoneIncoming className="size-4" aria-hidden="true" />
   } else {

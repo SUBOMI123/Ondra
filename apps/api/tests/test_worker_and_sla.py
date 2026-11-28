@@ -118,7 +118,7 @@ async def test_message_and_its_ai_turn_are_saved_together(client, database, monk
 
 # --- escalation --------------------------------------------------------------------------------------------------
 
-async def test_overdue_tasks_escalate_once_to_a_manager_then_owner(database):
+async def test_overdue_tasks_escalate_once_to_a_manager_then_an_admin(database):
     async with tenant_session(database["a"]) as db:
         users = {u.role: u.id for u in (await db.execute(select(User).where(User.active.is_(True)))).scalars()}
         past = datetime.now(UTC) - timedelta(minutes=5)
@@ -128,13 +128,14 @@ async def test_overdue_tasks_escalate_once_to_a_manager_then_owner(database):
                                   due_at=past)
         future = await new_task(db, title="Not due yet", assignee_user_id=users["sales"], urgency="low")
         ids = (sales_task.id, mgr_task.id, future.id)
+        admins = {u.id for u in (await db.execute(select(User).where(User.role == "admin"))).scalars()}
 
     assert await worker.sweep() >= 2
     assert await worker.sweep() == 0  # each task escalates once
     async with tenant_session(database["a"]) as db:
         s, m, f = [await db.get(Task, i) for i in ids]
         assert s.escalated_at and s.urgency == "high" and s.assignee_user_id == users["manager"]
-        assert m.escalated_at and m.assignee_user_id == users["owner"]
+        assert m.escalated_at and m.assignee_user_id in admins
         assert f.escalated_at is None and f.due_at > datetime.now(UTC)
         events = (await db.execute(select(Event).where(Event.type == "task.escalated"))).scalars().all()
         assert {e.payload["task_id"] for e in events} >= {str(s.id), str(m.id)}

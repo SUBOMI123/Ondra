@@ -36,7 +36,7 @@ type ApptType = {
 type Template = Omit<ApptType, "id" | "active"> & { key: string }
 type Res = { id: string; kind: "service_bay" | "loaner" | "demo_vehicle" | "room"; name: string; active: boolean }
 
-const ROLE_LABEL: Record<string, string> = { sales: "Sales", service: "Service", manager: "Managers", ops: "Operations", owner: "Owner" }
+const ROLE_LABEL: Record<string, string> = { sales: "Sales", service: "Service", manager: "Managers", ops: "Operations", admin: "Admins" }
 const KIND_LABEL: Record<Res["kind"], string> = { service_bay: "Service bay", loaner: "Loaner", demo_vehicle: "Demo car", room: "Room" }
 const REMINDERS: [number, string][] = [[1440, "The day before"], [120, "2 hours before"]]
 

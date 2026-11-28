@@ -240,7 +240,7 @@ async def call_through_ondra(call_id: uuid.UUID, ctx: tuple[Caller, AsyncSession
         raise HTTPException(409, "There's no number to call them back on.")
     me = await db.get(User, caller.user_id)
     if not me or not me.phone:
-        raise HTTPException(409, "Ondra needs your mobile number to ring you first. An owner can add it on Team.")
+        raise HTTPException(409, "Ondra needs your mobile number to ring you first. An admin can add it on Team.")
     busy = (await db.execute(select(Call).where(Call.direction == "outbound", Call.contact_id == missed.contact_id,
                                                 Call.ended_at.is_(None), Call.started_at > datetime.now(UTC) - LIVE_FOR))).scalars()
     if any(_bridge_live(((k.metrics or {}).get("bridge") or {}).get("state"), k.started_at) for k in busy):

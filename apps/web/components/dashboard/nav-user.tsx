@@ -1,9 +1,11 @@
 "use client"
 
 import {
+  IconBrandWhatsapp,
   IconDotsVertical,
   IconLogout,
 } from "@tabler/icons-react"
+import Link from "next/link"
 
 import {
   Avatar,
@@ -44,7 +46,7 @@ export function NavUser({
     avatar: string
   }
 }) {
-  const { signOut } = useAuth()
+  const { signOut, me } = useAuth()
   const { isMobile } = useSidebar()
 
   return (
@@ -90,6 +92,12 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {/* Each admin's own WhatsApp assistant: their briefing and alerts, on their phone. */}
+            {me?.role === "admin" && (
+              <DropdownMenuItem asChild>
+                <Link href="/settings/assistant"><IconBrandWhatsapp />Your WhatsApp assistant</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={() => signOut()}>
               <IconLogout />
               Log out

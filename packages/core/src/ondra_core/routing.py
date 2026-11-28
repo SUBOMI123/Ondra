@@ -24,8 +24,8 @@ TOPICS = ("sales", "service", "shipping", "finance", "complaint", "other")
 DEFAULT_ROLE = {"sales": "sales", "service": "service", "shipping": "sales", "finance": "sales",
                 "complaint": "manager", "other": "sales"}
 # If nobody holds the role, who is asked next.
-FALLBACK = {"sales": ("manager", "owner"), "service": ("manager", "owner"), "ops": ("manager", "owner"),
-            "manager": ("owner",), "admin": ("owner",), "owner": ()}
+FALLBACK = {"sales": ("manager", "admin"), "service": ("manager", "admin"), "ops": ("manager", "admin"),
+            "manager": ("admin",), "admin": ()}
 AI_MODES = ("auto", "draft", "off")
 _DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
@@ -202,7 +202,7 @@ def pick(people: list[Person], role: str, now: datetime, *, named: uuid.UUID | N
     if named and named in by_id:
         on, start = shift(by_id[named].work_hours, by_id[named].timezone, now)
         return Pick(named, by_id[named].role, on, start, "named")
-    for i, r in enumerate((role, *FALLBACK.get(role, ("manager", "owner")))):
+    for i, r in enumerate((role, *FALLBACK.get(role, ("manager", "admin")))):
         team = [p for p in people if p.role == r]
         if not team:
             continue

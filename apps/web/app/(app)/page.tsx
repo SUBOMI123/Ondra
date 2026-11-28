@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Today. One job: the owner at 7am sees what needs them, then how last night went, then today's bookings, then how
+ * Today. One job: an admin at 7am sees what needs them, then how last night went, then today's bookings, then how
  * the week is going. Every number comes from the dealership's own events, and each one opens the list behind it.
  * Blue is Ondra's work and nothing else; red is a VIP or something overdue.
  */
@@ -57,7 +57,7 @@ type Trace = {
   events: { event_id: string; type: string; at: string; who: string | null; detail: Record<string, string | number | boolean>; backfilled: boolean }[]
 }
 
-const CHANNEL: Record<string, string> = { sms: "Text", whatsapp: "WhatsApp", email: "Email", phone: "Calls", owner: "Added by the owner", unknown: "Not recorded" }
+const CHANNEL: Record<string, string> = { sms: "Text", whatsapp: "WhatsApp", email: "Email", phone: "Calls", owner: "Added from the WhatsApp assistant", unknown: "Not recorded" }
 const STAGE: Record<string, string> = { new: "New", qualified: "Qualified", appointment: "Appointment", negotiating: "Negotiating", won: "Won", lost: "Lost" }
 const chartConfig = { responses_by_ai: { label: "Ondra", color: "var(--chart-1)" }, responses_by_team: { label: "Your team", color: "var(--chart-staff)" } } satisfies ChartConfig
 
@@ -128,7 +128,7 @@ function describe(e: Trace["events"][number]) {
     return { by: typeof d.by === "string" ? d.by : null, text: `${rang}${did} ${duration(Number(d.seconds))} after the first ring, counting open hours` }
   }
   const by = d.by === "ai" || d.source === "ai" || d.handled_by === "ai" ? "Ondra" : d.by === "user" || d.source === "staff" || d.handled_by === "staff" ? "your team"
-    : d.by === "owner" || d.handled_by === "owner" ? "the owner" : d.handled_by === "missed" ? "nobody (missed)" : null
+    : d.by === "owner" || d.handled_by === "owner" ? "a person directly" : d.handled_by === "missed" ? "nobody (missed)" : null
   const parts: string[] = []
   if (typeof d.channel === "string") parts.push(CHANNEL[d.channel] ?? d.channel)
   if (typeof d.type === "string") parts.push(d.type)
@@ -262,7 +262,7 @@ function RepliesChart({ r }: { r: Report }) {
 /* ------------------------------------------------------------ calling back missed callers */
 
 /** How fast missed callers get a call back: from the first ring to the first try (a voicemail counts; reaching them
- * is up to them), counted only while the dealership is open. Per person for owners and managers. */
+ * is up to them), counted only while the dealership is open. Per person for admins and managers. */
 function CallBacks({ r, everyone, onOpen }: { r: Report; everyone: boolean; onOpen: () => void }) {
   const t = r.totals
   if (t.calls_missed === 0 && t.callbacks === 0) {

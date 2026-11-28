@@ -9,7 +9,7 @@ async def test_sign_in_and_me(client):
     h = await login(client, "owner@prestigemotors.example")
     r = await client.get("/me", headers=h)
     assert r.status_code == 200
-    assert r.json()["tenant_name"] == "Prestige Motors" and r.json()["role"] == "owner"
+    assert r.json()["tenant_name"] == "Prestige Motors" and r.json()["role"] == "admin"
 
 
 async def test_wrong_password_and_unknown_email_look_the_same(client):

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     clerk_jwt_key: str = ""  # optional PEM public key (Dashboard > API keys) for networkless verification
     clerk_authorized_parties: str = ""  # comma-separated origins allowed to use tokens, e.g. https://app.ondra.ai
     # Owners and admins must have a second factor (MFA) when signing in with Clerk.
-    clerk_mfa_roles: str = "owner,admin"
+    clerk_mfa_roles: str = "admin"
 
     # --- AI ---
     anthropic_api_key: str = ""

@@ -34,7 +34,7 @@ from ondra_api.services import booking
 router = APIRouter(tags=["booking"])
 
 CATEGORIES = ("test_drive", "showroom", "appraisal", "service", "delivery", "custom")
-ROLES = ("owner", "admin", "manager", "sales", "service", "ops")
+ROLES = ("admin", "manager", "sales", "service", "ops")
 
 
 # --- types -------------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ class TypeIn(BaseModel):
     category: Literal["test_drive", "showroom", "appraisal", "service", "delivery", "custom"] | None = None
     duration_min: int | None = Field(None, ge=10, le=480)
     buffer_min: int | None = Field(None, ge=0, le=240)
-    eligible_roles: list[Literal["owner", "admin", "manager", "sales", "service", "ops"]] | None = None
+    eligible_roles: list[Literal["admin", "manager", "sales", "service", "ops"]] | None = None
     required_resource_kinds: list[Literal["service_bay", "loaner", "demo_vehicle", "room"]] | None = None
     min_notice_min: int | None = Field(None, ge=0, le=10080)
     max_days_ahead: int | None = Field(None, ge=1, le=365)

@@ -29,7 +29,7 @@ export type BoardTask = {
 }
 export type Person = { id: string; name: string; role: string }
 
-const ROLE: Record<string, string> = { owner: "Owner", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations" }
+const ROLE: Record<string, string> = { admin: "Admin", manager: "Manager", sales: "Sales", service: "Service", ops: "Operations" }
 const NOBODY = "nobody"
 
 /** Short enough for a card: "today, 3:08 pm", "yesterday, 9:30 am", "Monday, 10 am", then "Nov 20". */

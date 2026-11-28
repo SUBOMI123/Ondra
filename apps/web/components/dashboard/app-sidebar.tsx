@@ -85,7 +85,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <React.Suspense fallback={null}>
           <NavMain items={navMain} />
-          <NavShortcuts rows={inbox.data?.items} seesVips={me?.role === "owner" || me?.role === "manager"} />
+          <NavShortcuts rows={inbox.data?.items} seesVips={me?.role === "admin" || me?.role === "manager"} />
         </React.Suspense>
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

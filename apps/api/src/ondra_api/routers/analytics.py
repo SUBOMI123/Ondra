@@ -192,7 +192,7 @@ async def deal_detail(deal_id: uuid.UUID, ctx: tuple[Caller, AsyncSession] = Dep
     people = []
     if can_move:
         people = [{"id": str(u.id), "name": u.name} for u in (await db.execute(
-            select(User).where(User.active.is_(True), User.role.in_(("sales", "manager", "owner")),
+            select(User).where(User.active.is_(True), User.role.in_(("sales", "manager", "admin")),
                                User.password_hash.isnot(None) | User.clerk_user_id.isnot(None)).order_by(User.name))).scalars()]
     task = tasks.get(contact.id)
     return {
@@ -298,7 +298,7 @@ async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_RE
     tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
     tz = ZoneInfo((tenant.timezones or ["America/Chicago"])[0])
     now = datetime.now(UTC)
-    everything = caller.role in ("owner", "manager", "admin")
+    everything = caller.role in ("admin", "manager")
     sees_vips = can_see_vips(caller.role)
     q = select(Task, Contact).outerjoin(Contact, Contact.id == Task.contact_id).where(Task.status.in_(OPEN))
     if not everything:

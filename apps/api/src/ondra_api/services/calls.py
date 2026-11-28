@@ -53,6 +53,13 @@ async def _find_tenant(to_number: str) -> uuid.UUID | None:
         return (await db.execute(text("SELECT channel_find_tenant('phone', :a)"), {"a": to_number})).scalar()
 
 
+async def vip_backup(db: AsyncSession) -> User | None:
+    """Who a VIP reaches when no one is looking after them: the longest-serving active admin with a phone. One rule,
+    used for their calls and shown on the routing screen. (Every VIP should have a person; this is the safety net.)"""
+    return (await db.execute(select(User).where(User.role == "admin", User.active.is_(True), User.phone.isnot(None))
+                             .order_by(User.created_at, User.id).limit(1))).scalar_one_or_none()
+
+
 async def _contact_for(db: AsyncSession, number: str) -> tuple[Contact, bool]:
     ident = (await db.execute(
         select(ContactIdentity).where(ContactIdentity.kind.in_(("phone", "whatsapp")), ContactIdentity.value == number)
@@ -97,11 +104,11 @@ async def start_call(*, from_number: str, to_number: str, provider_call_sid: str
         route: Route = "ai"
         ring_user = None
         if contact.is_vip:
-            # Product rule: a VIP's call rings the owner (or the VIP's handler) directly. The AI never speaks.
+            # Product rule: a VIP's call rings their person (else an admin) directly. The AI never speaks.
             route = "ring_owner"
             ring_user = await db.get(User, contact.vip_owner_user_id) if contact.vip_owner_user_id else None
             if ring_user is None or not ring_user.active:
-                ring_user = (await db.execute(select(User).where(User.role == "owner", User.active.is_(True)).limit(1))).scalar_one_or_none()
+                ring_user = await vip_backup(db)
         elif settings.get("voice_ai") is False or conv.ai_mode == "off":
             route = "ring_team"
             ring_user = await db.get(User, await assignee_for(db, "sales"))
@@ -261,7 +268,7 @@ async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None
     first = contact.display_name.split()[0] if not contact.display_name.startswith("+") else "the caller"
     if contact.is_vip:
         # Plan §4.2: an unanswered VIP gets the owner alerted and a high-priority task, never an automated text.
-        owner = contact.vip_owner_user_id or await assignee_for(db, "owner")
+        owner = contact.vip_owner_user_id or await assignee_for(db, "admin")
         await new_task(db, title=f"{contact.display_name}: Call {first} back (VIP)", contact_id=contact.id,
                        conversation_id=call.conversation_id, assignee_user_id=owner, source="rule", urgency="high",
                        brief="A VIP called and nobody answered.")

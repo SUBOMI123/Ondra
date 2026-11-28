@@ -88,8 +88,8 @@ async def schedule(db: AsyncSession) -> datetime | None:
     """Drop any briefing lined up and, if briefings are on, queue the next one. Call after the settings change."""
     await db.execute(delete(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))
     tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-    if not settings_of(tenant)["briefing_on"]:
-        return None
+    if not await owners(db, "briefing_on"):
+        return None  # nobody has switched it on for themselves
     at = next_time(tenant)
     enqueue(db, "owner_briefing", {}, run_at=at)
     return at
@@ -99,7 +99,7 @@ async def send_now(tenant_id: uuid.UUID, now: datetime | None = None) -> dict:
     """Send the briefing to every owner. Returns the counts and how many it reached."""
     async with tenant_session(tenant_id) as db:
         c = await counts(db, now)
-        to = [(u.id, u.name.split()[0]) for u in await owners(db)]
+        to = [(u.id, u.name.split()[0]) for u in await owners(db, "briefing_on")]
     sent = 0
     for user_id, first in to:
         sent += await send_to_owner(tenant_id, user_id, render(first, c), kind="briefing", template=template(first, c),
@@ -111,8 +111,8 @@ async def run(tenant_id: uuid.UUID, payload: dict, now: datetime | None = None) 
     """The job. Tomorrow's is lined up first, so one failed send never stops the briefings."""
     async with tenant_session(tenant_id) as db:
         tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-        if not settings_of(tenant)["briefing_on"]:
-            return "skipped: briefings are off"
+        if not await owners(db, "briefing_on"):
+            return "skipped: nobody has the briefing on"
         enqueue(db, "owner_briefing", {}, run_at=next_time(tenant, (now or datetime.now(UTC)) + timedelta(minutes=1)))
     out = await send_now(tenant_id, now)
     return f"sent to {out['sent']} of {out['owners']}"

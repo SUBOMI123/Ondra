@@ -6,7 +6,7 @@ Agreed with the founder 2026-11-28. Each item ships on its own, with its tests, 
 
 ## Agreed
 
-### 1. One top role: Admin (owner merges into it)
+### 1. One top role: Admin (owner merges into it) ✅ Done 2026-11-28
 
 **Why:** two top roles confused people, and today's admin (setup only, no VIPs, no selling screens) is the opposite
 of what dealers mean by admin: the owner, or the most trusted person when the owner isn't hands-on.

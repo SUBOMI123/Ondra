@@ -75,11 +75,11 @@ async def test_the_person_chosen_for_a_vip_hears_about_it_and_only_they_do(clien
         async with tenant_session(t) as db:
             task = (await db.execute(select(Task).where(Task.contact_id == ids[0], Task.created_at >= started))).scalar_one()
             assert (task.assignee_user_id, task.title) == (ids[1], "Ben Carter: You now look after Ben (VIP)")
-            assert "Add your mobile" in task.brief  # Daniel has no mobile, so his calls would ring the owner
+            assert "Add your mobile" in task.brief  # Daniel has no mobile, so his calls would ring an admin
             alert = (await db.execute(select(Event).where(Event.type == "alert.created", Event.created_at >= started))).scalar_one()
             payload = dict(alert.payload)
-        # No mobile: nobody is messaged. The owners don't get a note that was meant for Daniel.
-        assert await deliver_alert(t, payload) == "skipped: no owner with a mobile on file"
+        # No mobile: nobody is messaged. The admins don't get a note that was meant for Daniel.
+        assert (await deliver_alert(t, payload)).startswith("skipped: no one to alert")
         assert channels.mock("whatsapp").outbox == []
         async with tenant_session(t) as db:
             (await db.get(User, ids[1])).phone = "+12145558111"

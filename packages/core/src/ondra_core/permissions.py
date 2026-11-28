@@ -8,8 +8,7 @@ from enum import StrEnum
 
 
 class Role(StrEnum):
-    OWNER = "owner"
-    ADMIN = "admin"
+    ADMIN = "admin"  # the top role: everything (owner merged into it, 2026-11-28)
     MANAGER = "manager"
     SALES = "sales"
     SERVICE = "service"
@@ -40,11 +39,7 @@ _READ_WORK = {Perm.CONTACTS_READ, Perm.VEHICLES_READ, Perm.CONVERSATIONS_READ, P
 _DO_WORK = _READ_WORK | {Perm.CONTACTS_WRITE, Perm.CONVERSATIONS_REPLY, Perm.DEALS_WRITE, Perm.TASKS_WRITE}
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
-    Role.OWNER: frozenset(Perm),
-    Role.ADMIN: frozenset(
-        _READ_WORK | {Perm.USERS_READ, Perm.USERS_MANAGE, Perm.SETTINGS_MANAGE, Perm.KNOWLEDGE_WRITE,
-                      Perm.INTEGRATIONS_MANAGE, Perm.AUDIT_READ}
-    ),
+    Role.ADMIN: frozenset(Perm),
     Role.MANAGER: frozenset(_DO_WORK | {Perm.VEHICLES_WRITE, Perm.USERS_READ, Perm.AUDIT_READ, Perm.KNOWLEDGE_WRITE}),
     Role.SALES: frozenset(_DO_WORK),
     Role.SERVICE: frozenset(_DO_WORK),
@@ -58,5 +53,5 @@ def has_perm(role: str, perm: Perm) -> bool:
 
 
 def can_see_vips(role: str) -> bool:
-    """VIP contacts are visible to the owner and managers. Anyone else sees a VIP only if they are its handler."""
-    return Role(role) in (Role.OWNER, Role.MANAGER)
+    """VIP contacts are visible to admins and managers. Anyone else sees a VIP only if they are its handler."""
+    return Role(role) in (Role.ADMIN, Role.MANAGER)

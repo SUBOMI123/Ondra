@@ -319,7 +319,7 @@ export default function IntegrationsPage() {
           <LoadError message={q.error.message} onRetry={() => q.refetch()} />
         ) : (
           <>
-            {!q.data.can_edit && <p className="text-sm text-muted-foreground">Only owners and admins can change these.{q.data.can_import ? " You can import an inventory file." : ""}</p>}
+            {!q.data.can_edit && <p className="text-sm text-muted-foreground">Only admins can change these.{q.data.can_import ? " You can import an inventory file." : ""}</p>}
             <CrmBlock d={q.data.crm} canEdit={q.data.can_edit} />
             <InventoryBlock d={q.data.inventory} canEdit={q.data.can_edit} canImport={q.data.can_import} />
             <DmsBlock d={q.data.dms} canEdit={q.data.can_edit} />

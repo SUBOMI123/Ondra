@@ -59,7 +59,7 @@ def seed_password() -> str:
     return pw or DEV_PASSWORD
 
 USERS = [
-    ("owner@prestigemotors.example", "Samuel Adeyemi", "owner", "+12145550100"),
+    ("owner@prestigemotors.example", "Samuel Adeyemi", "admin", "+12145550100"),
     ("manager@prestigemotors.example", "Grace Thompson", "manager", "+12145550101"),
     ("daniel@prestigemotors.example", "Daniel Okafor", "sales", "+12145550102"),
     ("maria@prestigemotors.example", "Maria Lopez", "service", "+12145550103"),
@@ -146,7 +146,7 @@ async def _seed_conversations(db, t, contacts: dict, users: dict) -> None:
     await db.flush()
     msg(robert, "inbound", "customer", "Sam, call me when you get a minute. It's about the Range Rover for my daughter.", 95, "received")
     db.add(Task(tenant_id=t, title="Robert Hale: VIP message waiting for a personal reply", contact_id=contacts["Robert Hale"].id,
-                conversation_id=robert.id, assignee_user_id=users["owner"].id, source="rule", urgency="high",
+                conversation_id=robert.id, assignee_user_id=users["principal"].id, source="rule", urgency="high",
                 brief="VIP message waiting for a personal reply", due_at=at(80)))
 
     # 2. Ondra's draft waiting for approval (draft mode).
@@ -329,7 +329,7 @@ async def _seed_calls(db, t, contacts: dict, users: dict, tenant=None) -> None:
        metrics={"summary": {"turns": 4, "avg_ms": 1240, "p90_ms": 1710, "over_1s": 3, "tools": ["check_availability",
                                                                                               "book_appointment"]}})
     # 2. A VIP: rang the owner directly; Ondra never answered.
-    await call("Robert Hale", 140, 312, "owner", "transferred", transferred_to_user_id=users["owner"].id)
+    await call("Robert Hale", 140, 312, "owner", "transferred", transferred_to_user_id=users["principal"].id)
     # 3. Put through to sales by Ondra (warm transfer).
     await call("Ethan Walker", 230, 418, "staff", "transferred", transferred_to_user_id=users["sales"].id, transcript=[
         {"who": "agent", "text": "Thanks for calling Prestige Motors. How can I help you today?"},
@@ -396,6 +396,8 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             password = seed_password()
             pw = hash_password(password)
             users = [User(tenant_id=t, email=e, name=n, role=r, phone=p, password_hash=pw) for e, n, r, p in USERS]
+            # Samuel signed the dealership up, so he's been here longest (who a VIP with no one assigned reaches).
+            users[0].created_at = datetime.now(UTC) - timedelta(days=400)
             db.add_all(users)
             await db.flush()
             owner = users[0]
@@ -470,9 +472,12 @@ async def seed(if_empty: bool = False) -> uuid.UUID | None:
             except Exception as exc:  # noqa: BLE001  answers stay; search uses full text until they're embedded
                 print(f"seed: couldn't embed knowledge answers ({type(exc).__name__}); "
                       "run `python -m ondra_api.services.knowledge` later")
-            await _seed_conversations(db, t, by_name, {u.role: u for u in users})
-            await _seed_calls(db, t, by_name, {u.role: u for u in users}, tenant)
-            await _seed_pipeline(db, t, by_name, {u.role: u for u in users})
+            # One person per role, plus the principal: Samuel, the admin who runs the dealership (Chris is the
+            # other admin). Example data, like the rest of the seed.
+            staff = {u.role: u for u in users} | {"principal": next(u for u in users if u.email.startswith("owner@"))}
+            await _seed_conversations(db, t, by_name, staff)
+            await _seed_calls(db, t, by_name, staff, tenant)
+            await _seed_pipeline(db, t, by_name, staff)
             # The seeded history gets its events, so the dashboard has numbers to show (marked as backfilled).
             from ondra_api.services.metrics import backfill
 

@@ -62,7 +62,7 @@ async def list_tasks(
     if scope == "all":
         # The team board's columns: everyone who takes work, even with nothing open, so there's somewhere to drop it.
         out["people"] = [{"id": str(u.id), "name": u.name, "role": u.role} for u in (await db.execute(
-            select(User).where(User.active.is_(True), User.role.in_(("owner", "manager", "sales", "service", "ops")),
+            select(User).where(User.active.is_(True), User.role.in_(("admin", "manager", "sales", "service", "ops")),
                                User.password_hash.isnot(None) | User.clerk_user_id.isnot(None)).order_by(User.name))).scalars()]
     return out
 

@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-27. **Now:** Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-28. **Now:** One top role (Admin; owner merged into it) and every-control-works are done from `docs/PLAN.md`; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -36,7 +36,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
 | Check | Status | Evidence |
 |---|---|---|
 | A staff user can work a lead end to end in the UI | Met | Browser run on a fresh stack (`scratchpad/step3-acceptance.cjs`). New text appears live without reload. Ondra's draft is edited and sent, credited to the approver. Take over, then a staff reply. Opted-out client has no reply box. Task completed with undo. Client history shows the reply and Ondra's brief. VIP profile has no AI content |
-| An overdue task escalates | Met | Seeded overdue task escalated by the worker to the manager within a minute of start; `test_overdue_tasks_escalate_once_to_a_manager_then_owner` |
+| An overdue task escalates | Met | Seeded overdue task escalated by the worker to the manager within a minute of start; `test_overdue_tasks_escalate_once_to_a_manager_then_an_admin` |
 
 ### Step 2 acceptance
 
@@ -62,7 +62,7 @@ The one place to see where Ondra is. Updated with every piece of work (see `CLAU
   - live updates (server-sent events).
 - **Worker** (`python -m ondra_api.worker`, compose service `worker`): runs the AI's replies from a durable Postgres queue with retries, and escalates overdue tasks every minute.
 - **Voice agent** (`apps/voice`, see `docs/VOICE.md`): LiveKit Agents worker on the same tools as text, every spoken sentence checked before it's said, warm transfer, per-turn latency on the call record. Runs against the real model in text mode; registers with the LiveKit Cloud project. Not yet on a phone line.
-- **Sign-in with Clerk** (switch `AUTH_PROVIDER=clerk`): Clerk handles sign-in, two-step sign-in and invitation emails; Ondra keeps roles, permissions and tenant isolation. Owners and admins must use two-step sign-in. Invite-only. Prestige Motors is linked to a Clerk Organization on the development instance. Proven in a real browser with Clerk test accounts: a salesperson signs in to the dashboard; an owner without two-step sign-in is held on the setup screen and gets no client data. Local sign-in remains for development and tests.
+- **Sign-in with Clerk** (switch `AUTH_PROVIDER=clerk`): Clerk handles sign-in, two-step sign-in and invitation emails; Ondra keeps roles, permissions and tenant isolation. Admins must use two-step sign-in (one top role since 2026-11-28; owner merged into admin). Invite-only. Prestige Motors is linked to a Clerk Organization on the development instance. Proven in a real browser with Clerk test accounts: a salesperson signs in to the dashboard; an owner without two-step sign-in is held on the setup screen and gets no client data. Local sign-in remains for development and tests.
 - **Calls (API, Step 5):** call records, routing before anyone speaks (VIP rings the owner, never the AI), missed-call text-back only with recorded consent (otherwise a call-back task), summaries after the call, calls in the Inbox thread and client timeline. No voice agent or phone line yet.
 - **Booking:** appointment types from templates or custom, bays and loaners, availability (hours, notice, buffer, eligible staff, bays), the AI's booking tools, database-enforced no double-booking, reminders, the calendar, no-show tracking.
 - **Dashboard** (`apps/web`) on real data (the Inbox shows one thread per client across text, WhatsApp, email and calls): sign-in, invites, Inbox (live), Tasks, Clients and client profile, Inventory, Calendar (live), Settings (including Booking), Team (search, role and status filters, 25 per page), and sidebar counts. Calls (call-backs first, Ondra's summaries and transcripts, VIP calls with no AI content) and phone threads in the Inbox are on real data. Today and Deals still show **example data** until Step 9 (analytics and pipeline).
@@ -159,7 +159,7 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 
 - **Analytics:** (1) reply time covers messages, not calls (needs ring timing from the carrier); (2) the dollar value of deals is an estimate on the Deals board only, not on Today; (3) leads from before Step 9 count toward neither Ondra nor the team, and replies before 2026-11-27 have no person attached; (4) no exports or custom dates.
 
-- **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) owners only, not managers.
+- **Owner's WhatsApp line:** (1) no real speech-to-text for voice notes; (2) nothing has been sent through real WhatsApp, and the two templates aren't approved anywhere; (3) the briefing has no approve buttons; (4) admins only, not managers (each admin switches it on for themselves).
 
 - **Integrations, not proven or not built:** (1) no real CRM has received an ADF lead, and how each CRM wants the email (body or attachment, subject) is unverified; (2) scheduled feed fetching pins the checked address, but behind an HTTPS proxy needs the proxy to refuse private ranges, and can't use feeds that need a login; (3) no real DMS vendor adapter exists (partner programs); (4) the CSV repair-order upload is manual and replaces the last one; (5) XML feeds that put data in attributes only aren't read.
 

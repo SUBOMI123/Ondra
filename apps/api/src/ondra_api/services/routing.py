@@ -87,8 +87,8 @@ async def route(db: AsyncSession, *, topic: str, channel: str, contact: Contact 
     people = await load_people(db, tenant)
     rule, named = None, None
     if contact is not None and contact.is_vip:
-        # Product rule, not a dealer rule: a VIP goes to the owner or their handler. Nothing reorders this.
-        role, named = "owner", contact.vip_owner_user_id
+        # Product rule, not a dealer rule: a VIP goes to their person, else an admin. Nothing reorders this.
+        role, named = "admin", contact.vip_owner_user_id
         if named and not any(p.id == named for p in people):
             named = None
     else:

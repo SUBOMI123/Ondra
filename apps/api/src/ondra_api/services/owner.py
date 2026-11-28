@@ -1,4 +1,5 @@
-"""The owner's line to Ondra on WhatsApp (BUILD_PLAN.md §4.4).
+"""Each admin's line to Ondra on WhatsApp (BUILD_PLAN.md §4.4; "owner" in names here is historical: since
+2026-11-28 it's any admin who turns it on for themselves).
 
 Who counts as the owner: an active user with the owner role whose mobile (Settings > Team) is the number writing in,
 and only on WhatsApp. WhatsApp verifies the sender's number; a text message's sender can be faked, so the assistant
@@ -33,6 +34,13 @@ TEMPLATES = {
     "ondra_alert": "{{1}}, this needs you: {{2}} Reply here and I'll help.",
 }
 DEFAULTS = {"briefing_on": False, "briefing_time": "07:30", "alerts_on": True}
+# Each person's own switches, on their user record (notification_prefs.assistant). Nobody gets a briefing until they
+# turn it on themselves (WhatsApp wants each person's opt-in); alerts about their own work are on unless turned off.
+PERSONAL = {"briefing_on": False, "alerts_on": True}
+
+
+def prefs_of(user: User) -> dict:
+    return {**PERSONAL, **((user.notification_prefs or {}).get("assistant") or {})}
 
 
 def settings_of(tenant: Tenant) -> dict:
@@ -40,13 +48,15 @@ def settings_of(tenant: Tenant) -> dict:
 
 
 async def owner_by_phone(db: AsyncSession, phone: str) -> User | None:
-    return (await db.execute(select(User).where(User.phone == phone, User.role == "owner", User.active.is_(True)).limit(1))).scalar_one_or_none()
+    return (await db.execute(select(User).where(User.phone == phone, User.role == "admin", User.active.is_(True)).limit(1))).scalar_one_or_none()
 
 
-async def owners(db: AsyncSession) -> list[User]:
-    """Owners who can be reached: active, with a mobile on file."""
-    return list((await db.execute(select(User).where(User.role == "owner", User.active.is_(True), User.phone.isnot(None))
-                                  .order_by(User.created_at))).scalars())
+async def owners(db: AsyncSession, want: str | None = None) -> list[User]:
+    """Admins who can be reached on their WhatsApp assistant: active, with a mobile on file, and (with `want`, e.g.
+    "briefing_on") who switched that on for themselves."""
+    people = list((await db.execute(select(User).where(User.role == "admin", User.active.is_(True), User.phone.isnot(None))
+                                    .order_by(User.created_at))).scalars())
+    return [u for u in people if not want or prefs_of(u)[want]]
 
 
 async def in_window(db: AsyncSession, user_id: uuid.UUID, now: datetime | None = None) -> bool:
@@ -96,9 +106,6 @@ async def send_to_owner(tenant_id: uuid.UUID, user_id: uuid.UUID, text: str, *, 
 async def deliver_alert(tenant_id: uuid.UUID, payload: dict) -> str:
     """The job behind every alert raised for the owner (queued by a database trigger as the alert is recorded)."""
     async with tenant_session(tenant_id) as db:
-        tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
-        if not settings_of(tenant)["alerts_on"]:
-            return "skipped: alerts are off"
         task = await db.get(Task, uuid.UUID(payload["task_id"])) if payload.get("task_id") else None
         contact_id = payload.get("contact_id") or (str(task.contact_id) if task and task.contact_id else None)
         contact = await db.get(Contact, uuid.UUID(contact_id)) if contact_id else None
@@ -106,9 +113,9 @@ async def deliver_alert(tenant_id: uuid.UUID, payload: dict) -> str:
         named = payload.get("user_id")
         handler = (await db.get(User, uuid.UUID(named)) if named
                    else await db.get(User, contact.vip_owner_user_id) if contact is not None and contact.vip_owner_user_id else None)
-        reachable = handler is not None and handler.active and handler.phone
+        reachable = handler is not None and handler.active and handler.phone and prefs_of(handler)["alerts_on"]
         # A note meant for the handler alone (they were just put on a VIP) never falls back to the owners.
-        to = [handler] if reachable else [] if payload.get("only_handler") else await owners(db)
+        to = [handler] if reachable else [] if payload.get("only_handler") else await owners(db, "alerts_on")
         reason = str(payload.get("reason") or "Something needs you").rstrip(".")
         who = contact.display_name if contact is not None else None
         line = f"{who}: {reason}." if who and who.lower() not in reason.lower() else f"{reason}."
@@ -116,7 +123,7 @@ async def deliver_alert(tenant_id: uuid.UUID, payload: dict) -> str:
             line = f"Still waiting ({payload['repeat']}). {line}"
         targets = [(u.id, u.name.split()[0]) for u in to]
     if not targets:
-        return "skipped: no owner with a mobile on file"
+        return "skipped: no one to alert (no mobile on file, or alerts switched off)"
     sent = 0
     for user_id, first in targets:
         sent += await send_to_owner(tenant_id, user_id, line, kind="alert", meta={"task_id": payload.get("task_id")},

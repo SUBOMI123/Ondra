@@ -94,7 +94,7 @@ function Deal({ d }: { d: Row["deal"] }) {
 
 export default function ClientsPage() {
   const { me } = useAuth()
-  const seesVips = me?.role === "owner" || me?.role === "manager"
+  const seesVips = me?.role === "admin" || me?.role === "manager"
   const [q, setQ] = useState("")
   const [show, setShow] = useState<"all" | "vip">("all")
   const [sort, setSort] = useState<"recent" | "name">("recent")

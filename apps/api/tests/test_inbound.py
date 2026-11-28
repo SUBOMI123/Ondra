@@ -135,7 +135,7 @@ async def test_vip_gets_no_ai_and_the_owner_is_alerted(client, database, llm, ou
     assert not any(author == "ai" for _, author, *_ in rows)  # no AI reply, no AI draft (people may reply)
     async with tenant_session(t) as db:
         task = (await db.execute(select(Task).where(Task.contact_id == cid).order_by(Task.created_at.desc()))).scalars().first()
-        owner = (await db.execute(text("SELECT id FROM users WHERE role = 'owner'"))).scalar_one()
+        owner = (await db.execute(text("SELECT id FROM users WHERE email = 'owner@prestigemotors.example'"))).scalar_one()
         vip_owner = (await db.get(Contact, cid)).vip_owner_user_id
         alerts = (await db.execute(select(Event).where(Event.type == "alert.created"))).scalars().all()
     assert task.urgency == "high" and task.source == "rule" and task.assignee_user_id in (vip_owner, owner)

@@ -125,7 +125,7 @@ async def _alert(db: AsyncSession, alert: Alert, contact: Contact, conv: Convers
     from ondra_api.services.tasks import new_task
 
     preferred = contact.vip_owner_user_id if alert.to == "owner" else conv.assigned_user_id if alert.to == "assigned" else None
-    role = "owner" if alert.to == "owner" else "sales" if alert.to == "assigned" else alert.to
+    role = "admin" if alert.to == "owner" else "sales" if alert.to == "assigned" else alert.to
     task = await new_task(db, title=f"{contact.display_name}: {alert.reason}", contact_id=contact.id,
                           conversation_id=conv.id, assignee_user_id=await assignee_for(db, role, preferred),
                           source="rule", urgency=alert.urgency, brief=alert.reason)

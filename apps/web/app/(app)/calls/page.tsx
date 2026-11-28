@@ -6,7 +6,7 @@
  * why in words (including why no text went out: the consent rule), who's to ring them, and any try so far. Each row
  * dials in one tap and is marked done ("Spoke to them") or tried ("Left a message") right there. Everything earlier
  * says who rang back and how long it took. Filters: missed, Ondra answered, put through to a person.
- * Details open in a side sheet with Ondra's summary and the transcript. VIP calls ring the owner directly, so they
+ * Details open in a side sheet with Ondra's summary and the transcript. VIP calls ring their person directly, so they
  * never carry an Ondra summary or transcript.
  * Data: GET /calls?show=, GET /calls/{id}, POST /calls/{id}/called-back, POST /calls/{id}/reopen; live updates refresh it.
  */

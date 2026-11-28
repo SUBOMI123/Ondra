@@ -922,3 +922,24 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   or a sidebar or header control that doesn't do what it says (it clicks each one, opens search three ways, runs a
   search, opens New message). It passed every page before while these buttons did nothing, because it only checked
   layout.
+
+## 2026-11-28: One top role, Admin
+
+- **Owner merges into Admin** (founder). Admin gets every permission, VIPs included. Migration 0019 turns owners
+  into admins, drops "owner" from the role list, and rewrites anything that named the role (booking types' eligible
+  roles, routing rules that assigned to "the owner"). It writes one audit-log row per former owner, so the history
+  is kept and a downgrade restores exactly those people (not "the oldest admin", which picked the wrong person when
+  two admins were created together).
+- **The WhatsApp assistant is each admin's own switch** (`users.notification_prefs.assistant`), not the dealership's.
+  WhatsApp wants each person's opt-in, and two admins shouldn't share one on/off. Former owners keep what the
+  dealership had set; admins who existed before start with both off (they never got these messages, and nobody is
+  messaged on WhatsApp without opting in). Admins added later get alerts on, briefing off. The briefing time stays
+  one shared dealership setting. It moved from Settings to each person's account menu.
+- **Who a VIP reaches when nobody is looking after them:** the oldest active admin with a mobile (`vip_backup`).
+  A stopgap until plan item 2 makes a person required on every VIP.
+- **Kept as they are, because they aren't roles:** a call's `handled_by = 'owner'` (a VIP's call that rang a
+  person directly, now shown as "Rang a person directly") and alert payloads addressed `to: "owner"` (now meaning
+  the admins). Renaming them means a data migration of events for no change in behaviour.
+- **Alternatives:** keep both roles with owner as a flag on one admin (rejected: the flag carries the same
+  confusion); auto-enable the assistant for every admin (rejected: WhatsApp opt-in, and nobody wants messages they
+  didn't ask for).

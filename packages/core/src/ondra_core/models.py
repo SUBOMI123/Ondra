@@ -34,7 +34,7 @@ def _in(col: str, values: tuple[str, ...]) -> str:
     return f"{col} IN ({', '.join(repr(v) for v in values)})"
 
 
-ROLES = ("owner", "admin", "manager", "sales", "service", "ops", "viewer")
+ROLES = ("admin", "manager", "sales", "service", "ops", "viewer")
 CHANNELS = ("phone", "whatsapp", "sms", "email", "instagram")
 
 

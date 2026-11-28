@@ -170,4 +170,4 @@ def has_mfa_set_up(user_id: str) -> bool:
 
 # Clerk Organization roles mirror Ondra's for Clerk's own screens; Ondra's database is what's enforced.
 def clerk_role(role: str) -> str:
-    return "org:admin" if role in ("owner", "admin") else "org:member"
+    return "org:admin" if role == "admin" else "org:member"

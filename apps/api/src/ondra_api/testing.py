@@ -51,7 +51,7 @@ async def ensure_test_database() -> dict:
         b = Tenant(name="Lone Star Autos")
         db.add(b)
         await db.flush()
-        db.add(User(tenant_id=b.id, email="owner@lonestar.example", name="Lone Star Owner", role="owner",
+        db.add(User(tenant_id=b.id, email="owner@lonestar.example", name="Lone Star Owner", role="admin",
                     password_hash=hash_password(DEV_PASSWORD)))
         db.add(Contact(tenant_id=b.id, display_name="Only In Tenant B"))
         db.add(Vehicle(tenant_id=b.id, stock_number="B-1", year=2024, make="Kia", model="Telluride"))

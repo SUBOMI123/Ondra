@@ -4,13 +4,12 @@
  * Settings. One job: find the thing you want to change, and see at a glance what's set and whether anything needs you.
  * An index, not a form: four groups (your dealership, your team, Ondra, you), one row per page. Each row says in
  * plain words what's set right now, read from the same API the page uses, and calls out what's waiting on someone.
- * Rows a role can't open are left out, and "You" is the owner's alone.
+ * Rows a role can't open are left out. Each person's own WhatsApp assistant lives in their account menu, not here.
  */
 
 import {
   IconArrowsSplit,
   IconBook,
-  IconBrandWhatsapp,
   IconBuildingStore,
   IconCalendarEvent,
   IconChevronRight,
@@ -25,7 +24,6 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 import Link from "next/link"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
-import { useAuth } from "@/components/providers"
 import { type Day, type SettingsData, useSettings } from "@/components/settings/shell"
 import { ROLE_LABEL, type TeamData } from "@/components/settings/team"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -131,11 +129,8 @@ function Group({ id, title, description, rows }: { id: string; title: string; de
 
 type Health = { state: "off" | "ok" | "warning" | "error" }
 type FollowUps = { sequences: { active: boolean }[]; scheduled: number; awaiting_approval: number }
-type Assistant = { briefing_on: boolean; briefing_time: string; alerts_on: boolean }
 
 export default function SettingsPage() {
-  const { me } = useAuth()
-  const isOwner = me?.role === "owner"
   const opts = { retry: false } as const
   const settings = useSettings()
   const team = useQuery({ queryKey: ["users", "summary"], queryFn: () => api<TeamData>("/users?limit=1"), ...opts })
@@ -144,7 +139,6 @@ export default function SettingsPage() {
   const knowledge = useQuery({ queryKey: ["knowledge"], queryFn: () => api<{ unanswered: unknown[]; answers: unknown[] }>("/knowledge"), ...opts })
   const followUps = useQuery({ queryKey: ["follow-ups"], queryFn: () => api<FollowUps>("/follow-ups"), ...opts })
   const types = useQuery({ queryKey: ["appointment-types"], queryFn: () => api<{ items: { name: string; active: boolean }[] }>("/appointment-types"), ...opts })
-  const assistant = useQuery({ queryKey: ["owner-assistant"], queryFn: () => api<Assistant>("/settings/owner-assistant"), enabled: isOwner, ...opts })
 
   const canEdit = settings.data?.can_edit ?? true
   const s = (make: (d: SettingsData) => Status) => from(settings, make, "Couldn't load this")
@@ -213,23 +207,13 @@ export default function SettingsPage() {
       }, "Couldn't load what customers can book"),
     },
   ]
-  const you: Row[] = [
-    {
-      href: "/settings/assistant", title: "Your WhatsApp assistant", icon: IconBrandWhatsapp, hidden: !isOwner,
-      status: assistant.isPending ? null : assistant.isError ? { text: "Couldn't load this" } : {
-        text: `${assistant.data.briefing_on ? `Morning briefing at ${clock(assistant.data.briefing_time)}` : "Morning briefing off"}, VIP alerts ${assistant.data.alerts_on ? "on" : "off"}`,
-      },
-    },
-  ]
-
   return (
     <>
-      <SiteHeader title="Settings" note={settings.data && !canEdit ? "View only. Owners and admins can change these." : undefined} />
+      <SiteHeader title="Settings" note={settings.data && !canEdit ? "View only. Admins can change these." : undefined} />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-6 lg:px-6">
         <Group id="g-dealership" title="Your dealership" description="When you're open, and the numbers and systems Ondra works with." rows={dealership} />
         <Group id="g-team" title="Your team" description="Who works here, and who gets each message, call and handoff." rows={people} />
         <Group id="g-ondra" title="Ondra" description="How it talks to customers, what it can answer, and what it can book." rows={ondra} />
-        <Group id="g-you" title="You" description="Just for the owner." rows={you} />
       </div>
     </>
   )

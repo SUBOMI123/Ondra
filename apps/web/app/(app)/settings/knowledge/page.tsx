@@ -83,7 +83,7 @@ function CorrectionsList({ onSaveAsAnswer }: { onSaveAsAnswer: (answer: string) 
   if (q.isPending) return <TableSkeleton rows={3} />
   if (q.isError)
     return q.error instanceof ApiError && q.error.status === 403
-      ? <p className="rounded-xl border p-6 text-sm text-muted-foreground">Only owners, admins and managers can see corrections.</p>
+      ? <p className="rounded-xl border p-6 text-sm text-muted-foreground">Only admins and managers can see corrections.</p>
       : <LoadError message={q.error.message} onRetry={() => q.refetch()} />
   const { edits, rated, good } = q.data
   if (edits.length === 0 && rated.length === 0)

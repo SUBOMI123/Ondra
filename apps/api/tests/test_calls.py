@@ -49,7 +49,7 @@ async def test_vip_calls_ring_the_owner_and_never_reach_the_ai(database):
     phone = await _phone_of(database["a"], "Robert Hale")
     plan = await calls.start_call(from_number=phone, to_number=DEALER, provider_call_sid=_sid())
     async with tenant_session(database["a"]) as db:
-        owner = (await db.execute(select(User).where(User.role == "owner"))).scalar_one()
+        owner = (await db.execute(select(User).where(User.email == "owner@prestigemotors.example"))).scalar_one()
     assert plan.route == "ring_owner" and plan.is_vip and plan.ring_number == owner.phone
 
 

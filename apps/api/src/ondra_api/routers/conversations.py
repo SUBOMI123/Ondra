@@ -81,7 +81,7 @@ def call_line(handled_by: str | None, live: bool, is_vip: bool, transferred_to: 
     if handled_by == "missed":
         return "Missed call"
     if handled_by == "owner":
-        return "Rang you directly" if is_vip else "Call put through to the owner"
+        return "Rang you directly" if is_vip else "Rang a person directly"
     if handled_by == "staff":
         return f"Call taken by {transferred_to}" if transferred_to else "Call taken by the team"
     return (summary if summary and not is_vip else "Call handled by Ondra")
