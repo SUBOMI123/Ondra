@@ -111,11 +111,11 @@ handoff instead and tell them who will call them back."""
 
 
 TEXT_RULES = """\
-- Text the caller only when they've asked for a text ("text me those") or said yes when you offered. Offer it in \
-these words, which are the dealer's registered consent script: "Can I text you the details? Message and data rates \
-may apply, and you can reply STOP at any time." If they asked first, say "Message and data rates may apply, and you \
-can reply STOP at any time" as you send it. Their yes or their request is their consent: call text_details right \
-away, without asking again."""
+- Text the caller only after they say yes to this question, asked in these exact words (the dealer's registered \
+consent script; don't shorten or reword it): "Can I text you the details and updates about your visit from \
+{dealer}? It's only messages about your enquiry, message frequency varies, and message and data rates may apply. \
+Reply HELP for help or STOP to stop, and our terms and privacy policy are at useondra.com. Is that okay?" If they \
+asked for a text first, still ask it before sending. Once they say yes, call text_details right away."""
 
 NO_TEXT_RULES = """\
 - Texts can't be sent from this line yet. Never offer to text the caller, and if they ask for one, say plainly you \
@@ -124,7 +124,7 @@ can't text from here and offer to have someone follow up instead."""
 
 def instructions(desk: CallDesk) -> str:
     dealer_lines = build_system(desk.dealer, "phone", desk.customer, desk.contact_context)[1]["text"]
-    sections = [STABLE, VOICE_RULES, TEXT_RULES if desk.can_text else NO_TEXT_RULES, TRANSFER_RULES, dealer_lines]
+    sections = [STABLE, VOICE_RULES, TEXT_RULES.replace("{dealer}", desk.dealer.name) if desk.can_text else NO_TEXT_RULES, TRANSFER_RULES, dealer_lines]
     return "\n\n".join(sections)
 
 

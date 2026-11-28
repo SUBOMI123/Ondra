@@ -315,7 +315,7 @@ async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(dat
         desk = await CallDesk.open(await _plan(database, "Ben Carter"))
     finally:
         os.environ.pop("VOICE_TEXT_ON_MOCK")
-    assert desk.can_text and agents.TEXT_RULES in agents.instructions(desk)
+    assert desk.can_text and agents.TEXT_RULES.replace("{dealer}", desk.dealer.name) in agents.instructions(desk)
     out = await desk.run("search_inventory", {"query": "SUV"})
     assert out["total_found"] > 2 and len(out["best"]) == 2 and len(desk.last_cars) == out["total_found"]
     assert "text_details" in out["next"]
@@ -346,7 +346,7 @@ async def test_while_texting_isnt_live_ondra_never_offers_a_text(database):
     desk = await CallDesk.open(await _plan(database, "Ben Carter"))
     assert desk.can_text is False
     rules = agents.instructions(desk)
-    assert agents.NO_TEXT_RULES in rules and agents.TEXT_RULES not in rules
+    assert agents.NO_TEXT_RULES in rules and "Can I text you the details" not in rules
     out = await desk.run("search_inventory", {"query": "SUV"})
     assert "don't offer one" in out["next"] and "text_details" not in out["next"]
     channels.mock("sms").outbox.clear()

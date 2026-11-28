@@ -65,7 +65,7 @@ export default function TermsPage() {
           <li>Reply HELP for help, call {TEXT_NUMBER}, or email {mail}.</li>
           <li>Carriers are not liable for delayed or undelivered messages.</li>
         </ul>
-        <p id="verbal-consent"><strong>How callers agree to texts.</strong> When a caller asks about cars or a booking, Ondra asks: &ldquo;Can I text you the details? Message and data rates may apply, and you can reply STOP at any time.&rdquo; It sends a text only after the caller says yes. Their answer, the time and the call are stored as their consent, and the first text confirms it, with how to get help or stop.</p>
+        <p id="verbal-consent"><strong>How callers agree to texts.</strong> Before sending any text after a call, Ondra asks: &ldquo;Can I text you the details and updates about your visit from {BRAND_NAME}? It&apos;s only messages about your enquiry, message frequency varies, and message and data rates may apply. Reply HELP for help or STOP to stop, and our terms and privacy policy are at useondra.com. Is that okay?&rdquo; It sends a text only after the caller says yes. Their answer, the time and the call are stored as their consent. The first text confirms it: &ldquo;{BRAND_NAME}: you&apos;re signed up for texts about your enquiry. Msg frequency varies, msg &amp; data rates may apply. Reply HELP for help, STOP to opt out.&rdquo;</p>
         <p>How mobile numbers are handled is in our <a href="/privacy#texts">privacy policy</a>.</p>
       </Section>
 

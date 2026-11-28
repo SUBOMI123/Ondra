@@ -385,15 +385,16 @@ def _spoken(c: dict) -> dict:
 
 
 def _details_text(dealer: str, cars: list[dict]) -> str:
-    lines = [f"{dealer}: the cars we talked about."]
+    # The first text after a call confirms the enrollment, with every disclosure, before anything else.
+    lines = [f"{dealer}: you're signed up for texts about your enquiry. Msg frequency varies, msg & data rates may apply. "
+             "Reply HELP for help, STOP to opt out.", "The cars we talked about:"]
     for c in cars[:6]:
         name = " ".join(str(c[k]) for k in ("year", "make", "model", "trim") if c.get(k))
         price = f"${c['price']:,.0f}" if isinstance(c.get("price"), (int, float)) else c.get("price_range") or "ask us"
         miles = f"{c['mileage']:,} mi" if c.get("mileage") else "new"
         lines.append(f"{name}, {miles}, {price} (stock {c.get('stock')})")
     # The first text after a call: it names the dealer (above) and says how to stop (carrier rules).
-    lines.append("Reply here with questions, or to book a test drive. Msg & data rates may apply. Reply HELP for help, "
-                 "STOP to opt out.")
+    lines.append("Reply here with questions, or to book a test drive.")
     return "\n".join(lines)
 
 
