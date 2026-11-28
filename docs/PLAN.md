@@ -121,7 +121,7 @@ feed, and the Inventory screen already shows them when they exist.
 
 **Done when:** every demo car has a photo, and a test proves a real dealer's car without a feed photo shows none.
 
-### 9. The marketing site catches up
+### 9. The marketing site catches up ✅ Done 2026-11-28 (live once deployed to Pages)
 
 - **No owner:** "owner briefing", "straight to the owner" and the like become "you" or "your team", in line with 1.
 - **VIP mark:** the site still shows the old **crown** (homepage, the stories, the channel diagram); the app uses

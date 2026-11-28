@@ -42,10 +42,10 @@
   --color-ai-subtle: #161a2c;
   --color-ai-mark: #8aa6ff;
 
-  /* VIPs and overdue only */
-  --color-vip: #ff6b6b;
-  --color-vip-subtle: #321416;
-  --color-vip-on-dark: #ff8585;
+  /* VIPs: ink, never red (founder, 2026-11-27). Red is for overdue only. */
+  --color-vip: #f6efe3;
+  --color-vip-subtle: #1c1813;
+  --color-vip-on-dark: #f6efe3;
 
   --color-ok: #4ade9a;
   --color-wa: #25d366;

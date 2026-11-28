@@ -1025,3 +1025,13 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   Google, Apple and Outlook calendars.
 - **Not built:** a WhatsApp template for confirmations outside the 24-hour window. Those customers get text (with
   consent) or email instead, and staff see why.
+
+## 2026-11-28: The marketing site matches the product again
+
+- **VIPs in ink on the site too** (the `--color-vip` token was still red), with the app's own tag and ring
+  (`apps/site/components/vip.tsx`, a copy of the app's). All four crowns are gone: the inbox mock, the VIP call story
+  and both versions of the channel diagram.
+- **No owner:** VIP calls ring "their person" / "whoever looks after them"; the morning briefing is described for
+  "you". The VIP story now matches the shipped flow (their person rings; no answer gets your own words, then your
+  front desk), not the old "your mobile, then your office line, then a text".
+- **"Needs you 1"** in the inbox mock was red; red means overdue only, so it's neutral now.
