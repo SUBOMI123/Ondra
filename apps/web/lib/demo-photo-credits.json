@@ -12,5 +12,12 @@
     "license": "CC BY-SA 4.0",
     "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
     "source": "https://commons.wikimedia.org/wiki/File:2021_Ford_F150_Supercrew,_Front_Right,_03-09-2021.jpg"
+  },
+  "/demo-cars/toyota-rav4-hybrid.jpg": {
+    "model": "Toyota RAV4",
+    "artist": "Ethan Llamas",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2020_Toyota_RAV4_2.5_LTD_in_Urban_Khaki,_front_right,_06-20-2024.jpg"
   }
 }

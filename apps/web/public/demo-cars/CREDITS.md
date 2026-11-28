@@ -5,3 +5,4 @@ and never sent to a customer. From Wikimedia Commons, under the licence named, r
 
 - `bmw-x5.jpg` (BMW X5): "2020 BMW X5 G05 xDrive30d M Sport, front right, 06-30-2024.jpg" by Ethan Llamas, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0). Source: https://commons.wikimedia.org/wiki/File:2020_BMW_X5_G05_xDrive30d_M_Sport,_front_right,_06-30-2024.jpg
 - `ford-f-150.jpg` (Ford F-150): "2021 Ford F150 Supercrew, Front Right, 03-09-2021.jpg" by SsmIntrigue, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0). Source: https://commons.wikimedia.org/wiki/File:2021_Ford_F150_Supercrew,_Front_Right,_03-09-2021.jpg
+- `toyota-rav4-hybrid.jpg` (Toyota RAV4 Hybrid): "2020 Toyota RAV4 2.5 LTD in Urban Khaki, front right, 06-20-2024.jpg" by Ethan Llamas, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0). Source: https://commons.wikimedia.org/wiki/File:2020_Toyota_RAV4_2.5_LTD_in_Urban_Khaki,_front_right,_06-20-2024.jpg
