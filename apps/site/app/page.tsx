@@ -1,6 +1,5 @@
 import {
   IconArrowForwardUp,
-  IconBrandInstagram,
   IconBrandWhatsapp,
   IconCalendarEvent,
   IconCheck,
@@ -155,10 +154,6 @@ function Hero() {
                 {name}
               </li>
             ))}
-            <li className="flex items-center gap-2 text-muted-foreground">
-              <IconBrandInstagram size={16} stroke={1.5} aria-hidden="true" />
-              Instagram, later
-            </li>
           </ul>
         </div>
       </Wrap>
