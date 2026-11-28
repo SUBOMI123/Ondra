@@ -392,7 +392,8 @@ def _details_text(dealer: str, cars: list[dict]) -> str:
         miles = f"{c['mileage']:,} mi" if c.get("mileage") else "new"
         lines.append(f"{name}, {miles}, {price} (stock {c.get('stock')})")
     # The first text after a call: it names the dealer (above) and says how to stop (carrier rules).
-    lines.append("Reply here with questions, or to book a test drive. Reply STOP to opt out.")
+    lines.append("Reply here with questions, or to book a test drive. Msg & data rates may apply. Reply HELP for help, "
+                 "STOP to opt out.")
     return "\n".join(lines)
 
 

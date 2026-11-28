@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import LegalPage, { Section } from "@/components/LegalPage";
-import { CONTACT_EMAIL } from "@/lib/config";
+import { BRAND_NAME, CONTACT_EMAIL, TEXT_NUMBER } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Privacy policy: Ondra",
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy policy"
       updated="November 28, 2026"
-      intro={<p>Ondra answers calls and messages for car dealerships. This page explains what information we handle, why, who helps us handle it, and what you can ask us to do with it. If anything here is unclear, email {mail}.</p>}
+      intro={<p>Ondra is operated by {BRAND_NAME}. It answers calls and messages for car dealerships. This page explains what information we handle, why, who helps us handle it, and what you can ask us to do with it. If anything here is unclear, email {mail}.</p>}
     >
       <Section id="who" title="Two kinds of information">
         <p>
@@ -59,8 +59,8 @@ export default function PrivacyPage() {
         <p>We don&apos;t sell personal information, and we don&apos;t use a dealership&apos;s data to train AI models.</p>
       </Section>
 
-      <Section id="texts" title="Text messages">
-        <p>We do not sell, rent or share mobile phone numbers, or text messaging opt-in data and consent, with third parties or affiliates for their marketing or promotional purposes. Mobile numbers are shared only with the providers that deliver messages for us (such as Twilio), and only to deliver them.</p>
+      <Section id="texts" title="Text messages (SMS)">
+        <p>We do not sell or share your SMS opt-in data or personal information with third parties for marketing purposes. {BRAND_NAME} does not sell, rent or share mobile phone numbers, or text messaging opt-in data and consent, with third parties or affiliates for their marketing or promotional purposes. Mobile numbers are shared only with the providers that deliver messages for us (such as Twilio), and only to deliver them.</p>
         <p>Texts go only to people who texted first or agreed to receive them, for example by saying yes on a call. Reply STOP to stop, or HELP for help. Message and data rates may apply. The <a href="/terms#texts">text messaging terms</a> have the details.</p>
       </Section>
 

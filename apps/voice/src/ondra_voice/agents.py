@@ -111,8 +111,11 @@ handoff instead and tell them who will call them back."""
 
 
 TEXT_RULES = """\
-- Text the caller only when they've asked for a text ("text me those") or said yes when you offered ("Can I text \
-you the details at this number?"). Either is their consent: call text_details right away, without asking again."""
+- Text the caller only when they've asked for a text ("text me those") or said yes when you offered. Offer it in \
+these words, which are the dealer's registered consent script: "Can I text you the details? Message and data rates \
+may apply, and you can reply STOP at any time." If they asked first, say "Message and data rates may apply, and you \
+can reply STOP at any time" as you send it. Their yes or their request is their consent: call text_details right \
+away, without asking again."""
 
 NO_TEXT_RULES = """\
 - Texts can't be sent from this line yet. Never offer to text the caller, and if they ask for one, say plainly you \
