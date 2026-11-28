@@ -153,6 +153,8 @@ class DbToolBackend:
         name = self_name = self.contact.display_name
         if fields.get("name") and (self_name.startswith("+") or "@" in name):
             self.contact.display_name = str(fields["name"])[:200]
+            # Heard on a call, speech recognition may have misspelt it: staff see it flagged until they check it.
+            self.contact.name_source = "call" if self.conversation.channel == "phone" else "typed"
         if fields.get("language"):
             self.contact.language = str(fields["language"])[:20]
         if fields.get("phone") or fields.get("email"):

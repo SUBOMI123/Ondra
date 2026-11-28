@@ -107,6 +107,8 @@ class Session(Base, TenantScoped):
 class Contact(Base, TenantScoped):
     __tablename__ = "contacts"
     display_name: Mapped[str] = mapped_column(String(200))
+    # Where the name came from: 'call' (heard by Ondra on a call: may be misspelt), 'typed', 'staff', or null.
+    name_source: Mapped[str | None] = mapped_column(String(10))
     is_vip: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     vip_owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     preferred_channel: Mapped[str | None] = mapped_column(String(20))

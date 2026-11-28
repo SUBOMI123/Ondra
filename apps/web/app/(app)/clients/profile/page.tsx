@@ -24,6 +24,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
+import { ContactName } from "@/components/contact-name"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -139,10 +140,7 @@ function Profile({ id }: { id: string }) {
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="flex items-center gap-2 text-2xl font-medium tracking-tight">
-              {c.is_vip && <VipTag size="lg" />}
-              {c.display_name}
-            </h2>
+            <ContactName c={c} />
             <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {pref && (
                 <span className="flex items-center gap-1.5">
