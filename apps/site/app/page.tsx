@@ -666,24 +666,39 @@ function Faq() {
 /* ---------------------------------------------------------------- footer */
 
 function Footer() {
+  const col = "flex flex-col gap-2.5";
+  const link = "w-fit text-white/65 no-underline hover:text-white";
   return (
-    <footer className="on-dark bg-night py-12 text-white/65">
-      <Wrap className="flex flex-wrap items-end justify-between gap-6">
-        <div>
+    <footer className="on-dark bg-night text-white/65">
+      <Wrap className="grid grid-cols-2 gap-x-8 gap-y-12 py-16 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))]">
+        <div className="col-span-2 flex flex-col items-start gap-5 md:col-span-1">
           <Logo className="text-white" />
-          <p className="text-small mt-3 max-w-[40ch]">AI agents that answer, book and route for car dealerships.</p>
+          <p className="text-small max-w-[34ch]">AI staff for car dealerships: answers every call, text, WhatsApp and email, books the test drive, and hands the rest to your team.</p>
+          <a href="#demo" className="btn btn-primary min-h-11 px-4">Book a demo</a>
         </div>
-        <div className="text-small">
-          <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white hover:underline">
-            {CONTACT_EMAIL}
-          </a>
-          <p className="mt-1">© {new Date().getFullYear()} Ondra (working name)</p>
-        </div>
-        <p className="text-micro w-full border-t border-white/10 pt-5 text-white/45">
-          3D car models from Blend Swap: Audi A8 by 50Groszy (CC BY-SA 3.0), BMW M4 F82 (#81957, CC BY 3.0), Lamborghini Urus
-          2019 (#92440, CC BY-NC 3.0), 1968 Mustang GT Fastback (#82339, CC0). Badges and logos removed, paint changed.
-        </p>
+        <nav aria-label="Product" className={col}>
+          <p className="text-small font-medium text-white">Product</p>
+          {NAV_LINKS.map(([label, href]) => (
+            <a key={href} href={href} className={`text-small ${link}`}>{label}</a>
+          ))}
+        </nav>
+        <nav aria-label="Company" className={col}>
+          <p className="text-small font-medium text-white">Company</p>
+          <a href={SIGN_IN_URL} className={`text-small ${link}`}>Sign in</a>
+          <a href="#demo" className={`text-small ${link}`}>Book a demo</a>
+          <a href={`mailto:${CONTACT_EMAIL}`} className={`text-small ${link}`}>{CONTACT_EMAIL}</a>
+        </nav>
       </Wrap>
+      <div className="border-t border-white/10">
+        <Wrap className="flex flex-col gap-3 py-6 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-micro shrink-0">© {new Date().getFullYear()} Ondra</p>
+          {/* The licences require these credits (design/3d/README.md). */}
+          <p className="text-micro max-w-[80ch] text-white/40 sm:text-right">
+            3D car models from Blend Swap: Audi A8 by 50Groszy (CC BY-SA 3.0), BMW M4 F82 (#81957, CC BY 3.0), Lamborghini Urus
+            2019 (#92440, CC BY-NC 3.0), 1968 Mustang GT Fastback (#82339, CC0). Badges and logos removed, paint changed.
+          </p>
+        </Wrap>
+      </div>
     </footer>
   );
 }
