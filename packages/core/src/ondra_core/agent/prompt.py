@@ -141,7 +141,10 @@ def build_system(dealer: DealerFacts, channel: str, customer: CustomerFacts,
     if customer.known:
         lines.append(f"The customer is known to the dealership: {customer.name or 'name not on file'}.")
     else:
-        lines.append("This customer isn't in the dealership's records yet.")
+        # Staff see a phone number where a name should be until someone asks (founder, 2026-11-28).
+        lines.append("You don't have this customer's name yet. Once you've answered their first question, ask for it "
+                     "once, the way a person at the front desk would (on a call: \"Can I get your name?\"), and save "
+                     "it with update_lead_fields. If they'd rather not say, carry on without it and don't ask again.")
     if contact_context:
         # Preloaded so the model doesn't spend a round trip on get_contact_context (BUILD_PLAN 6.1).
         import json
