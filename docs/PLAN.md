@@ -70,7 +70,7 @@ opt-out, VIP and reschedule; the .ics opens in Google, Apple and Outlook calenda
 
 **Estimate for 1–4:** about 2.5–3 days.
 
-### 5. Every button and link works
+### 5. Every button and link works ✅ Done 2026-11-28
 
 Checked in the code 2026-11-28. Dead today:
 

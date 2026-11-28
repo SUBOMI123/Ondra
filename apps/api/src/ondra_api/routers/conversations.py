@@ -405,3 +405,88 @@ async def assign(conversation_id: uuid.UUID, body: AssignIn,
                                                         "by": str(caller.user_id)}))
     return {"id": str(conv.id), "assigned_user_id": str(body.user_id) if body.user_id else None}
 
+
+
+# --- starting a conversation ("New message") -----------------------------------------------------------------------
+
+WHATSAPP_WINDOW = timedelta(hours=24)
+WRITE_CHANNELS = ("whatsapp", "sms", "email")
+_IDENTITY = {"whatsapp": ("whatsapp", "phone"), "sms": ("phone",), "email": ("email",)}
+
+
+async def _channel_options(db: AsyncSession, contact: Contact) -> list[dict]:
+    """Each channel this client can be written to on now, or why not, in words a salesperson understands."""
+    from ondra_core.models import ChannelAddress
+
+    idents = (await db.execute(select(ContactIdentity.kind).where(ContactIdentity.contact_id == contact.id))).scalars().all()
+    ours = set((await db.execute(select(ChannelAddress.channel).where(ChannelAddress.active.is_(True)))).scalars())
+    last_wa = (await db.execute(select(Conversation.last_inbound_at).where(
+        Conversation.contact_id == contact.id, Conversation.channel == "whatsapp")
+        .order_by(Conversation.last_inbound_at.desc().nulls_last()).limit(1))).scalar_one_or_none()
+    out = []
+    for ch in WRITE_CHANNELS:
+        why = None
+        if not any(k in idents for k in _IDENTITY[ch]):
+            why = {"email": "no email address on file", "sms": "no phone number on file",
+                   "whatsapp": "no WhatsApp number on file"}[ch]
+        elif ch not in ours:
+            why = "not connected for your dealership yet"
+        elif ch == "whatsapp" and (last_wa is None or datetime.now(UTC) - last_wa > WHATSAPP_WINDOW):
+            # WhatsApp only allows a business to start with free text within 24 hours of the customer's last message.
+            why = "only within 24 hours of their last message (WhatsApp's rule)"
+        out.append({"channel": ch, "available": why is None, "why": why})
+    return out
+
+
+@router.get("/contacts/{contact_id}/write-options")
+async def write_options(contact_id: uuid.UUID,
+                        ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_REPLY))) -> dict:
+    """What New message offers for this client: their channels, and whether anything can be sent at all."""
+    caller, db = ctx
+    contact = await db.get(Contact, contact_id)
+    if contact is None or contact.merged_into_id is not None or _hidden_vip(caller, contact):
+        raise HTTPException(404, "No client with that id.")
+    opted_out = await contact_opted_out(db, contact.id)
+    return {"contact": {"id": str(contact.id), "name": contact.display_name, "is_vip": contact.is_vip},
+            "opted_out": opted_out, "channels": [] if opted_out else await _channel_options(db, contact)}
+
+
+class StartIn(BaseModel):
+    contact_id: uuid.UUID
+    channel: Literal["whatsapp", "sms", "email"]
+    body: str = Field(min_length=1, max_length=4000)
+
+
+@router.post("/conversations/start", status_code=201)
+async def start(body: StartIn, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_REPLY))) -> dict:
+    """A person writes to a client first (New message). The same send path as every reply, so opt-outs block it; it
+    goes into the client's thread on that channel (opened if there isn't one) and that thread is theirs to follow up.
+    Written by a person, never by Ondra, so it's fine for VIPs too (for the people who may see them)."""
+    caller, db = ctx
+    contact = await db.get(Contact, body.contact_id)
+    if contact is None or contact.merged_into_id is not None or _hidden_vip(caller, contact):
+        raise HTTPException(404, "No client with that id.")
+    if await contact_opted_out(db, contact.id):
+        raise HTTPException(409, "They've opted out, so nothing can be sent to them.")
+    option = next(o for o in await _channel_options(db, contact) if o["channel"] == body.channel)
+    if not option["available"]:
+        label = {"whatsapp": "WhatsApp", "sms": "text", "email": "email"}[body.channel]
+        raise HTTPException(409, f"Can't send by {label}: {option['why']}.")
+    async with tenant_session(caller.tenant_id) as w:
+        conv = (await w.execute(select(Conversation).where(
+            Conversation.contact_id == contact.id, Conversation.channel == body.channel, Conversation.status != "closed")
+            .order_by(Conversation.updated_at.desc()).limit(1))).scalar_one_or_none()
+        if conv is None:
+            # A person started it, so Ondra drafts any reply for them to check rather than answering on its own.
+            conv = Conversation(contact_id=contact.id, channel=body.channel, ai_mode="draft", assigned_user_id=caller.user_id)
+            w.add(conv)
+            await w.flush()
+        elif conv.assigned_user_id is None:
+            conv.assigned_user_id = caller.user_id
+        m = Message(conversation_id=conv.id, direction="outbound", author_type="user", author_user_id=caller.user_id,
+                    body=body.body.strip(), status="queued")
+        w.add(m)
+        await w.flush()
+        conversation_id, message_id = conv.id, m.id
+    sent = await _send_or_explain(caller.tenant_id, message_id)
+    return {**sent, "conversation_id": str(conversation_id)}

@@ -902,3 +902,23 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   fit for real dealer data: no backups, call minutes capped.
 - **Public-site safety:** the API refuses to start over https with the repo's development JWT_SECRET or
   MOCK_WEBHOOK_SECRET, and the seed refuses demo users without a SEED_PASSWORD there.
+
+## 2026-11-28: Every control works, and a test keeps it that way
+
+- **Search** (sidebar, header bar, ⌘K/Ctrl+K) is one palette over `GET /search`: clients (name, email, or phone
+  however it's typed), cars (stock number, VIN, make, model, year), conversations (what was said, with the words
+  around the match) and deals (the client or the car they want). VIPs are hidden exactly as on every list, and their
+  conversations' text isn't searched for people who can't see them.
+- **New message** writes to a client first: pick the client, a channel, write, send. `POST /conversations/start`
+  goes through the same send path as replies (opt-outs block it on every channel), into the client's open thread on
+  that channel or a new one, assigned to the writer. A thread a person started is in draft mode, so Ondra drafts any
+  reply for them to check rather than answering on its own. Each channel that can't be used says why: no number or
+  email on file, the channel not connected, or WhatsApp's 24-hour rule (WhatsApp rejects a business's free text to
+  someone who hasn't written in 24 hours; nothing enforced that before). Only clients already in Ondra; writing to a
+  brand-new number isn't built.
+- **The duplicate inbox icon** next to New message is gone (the Inbox link sits right below it). **Help** is a page;
+  **the logo** goes to Today.
+- **The review now fails on any dead control:** a link to "#" in the source, an in-app link on any page that 404s,
+  or a sidebar or header control that doesn't do what it says (it clicks each one, opens search three ways, runs a
+  search, opens New message). It passed every page before while these buttons did nothing, because it only checked
+  layout.

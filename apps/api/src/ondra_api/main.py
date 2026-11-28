@@ -16,6 +16,7 @@ from ondra_api.routers import (
     integrations,
     knowledge,
     routing,
+    search,
     settings,
     tasks,
     team,
@@ -50,6 +51,7 @@ app.include_router(analytics.router)
 app.include_router(integrations.router)
 app.include_router(knowledge.router)
 app.include_router(knowledge.ratings_router)
+app.include_router(search.router)
 
 
 @app.get("/health", tags=["ops"])
