@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.services import booking
+from ondra_api.services.confirmations import summary as confirmations_summary
 from ondra_api.services.whose import Whose
 
 router = APIRouter(tags=["booking"])
@@ -193,7 +194,7 @@ async def _appointment_out(db: AsyncSession, caller: Caller, a: Appointment, typ
         "category": t.category if t else None,
         "client": None if private else {"id": str(c.id), "name": c.display_name, "is_vip": c.is_vip},
         "with": names.get(a.assigned_user_id), "assigned_user_id": str(a.assigned_user_id) if a.assigned_user_id else None,
-        "bays": [bays[r] for r in bay_ids], "lane_ids": [str(r) for r in bay_ids] or ([str(a.assigned_user_id)] if a.assigned_user_id else []),
+        "told": confirmations_summary(a), "bays": [bays[r] for r in bay_ids], "lane_ids": [str(r) for r in bay_ids] or ([str(a.assigned_user_id)] if a.assigned_user_id else []),
         "details": {} if private else (a.details or {}), "conversation_id": str(a.conversation_id) if a.conversation_id and not private else None,
     }
 

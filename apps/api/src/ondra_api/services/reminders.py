@@ -76,6 +76,17 @@ async def send_reminder(tenant_id: uuid.UUID, payload: dict) -> str:
         if conv_id is None:
             db.add(Event(type="appointment.reminder_skipped", payload={"appointment_id": str(a.id), "reason": "no channel"}))
             return "skipped: no channel"
+        # The same rules as every automated message: no VIPs (their person reminds them), no opt-outs, no text without
+        # recorded consent, WhatsApp only inside its 24-hour window.
+        from ondra_core.models import Contact
+
+        from ondra_api.services.confirmations import may_send
+
+        channel = (await db.get(Conversation, conv_id)).channel
+        ok, why = await may_send(db, await db.get(Contact, a.contact_id), channel)
+        if not ok:
+            db.add(Event(type="appointment.reminder_skipped", payload={"appointment_id": str(a.id), "reason": why, "channel": channel}))
+            return f"skipped: {why}"
         tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
         t = await db.get(AppointmentType, a.appointment_type_id)
         who = (await db.get(User, a.assigned_user_id)).name.split()[0] if a.assigned_user_id else None

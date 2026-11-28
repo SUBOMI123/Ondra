@@ -253,7 +253,7 @@ async def test_opted_out_customers_get_no_reminders(database):
         payload = {"appointment_id": str(a.id), "starts_at": a.starts_at.isoformat(), "minutes_before": 120}
         a_id = a.id
     result = await send_reminder(database["a"], payload)
-    assert result in ("blocked: opted_out", "skipped: no channel")
+    assert result in ("blocked: opted_out", "skipped: they opted out", "skipped: no channel")
     async with tenant_session(database["a"]) as db:
         await booking.set_status(db, await db.get(Appointment, a_id), "cancelled", by="test")
 

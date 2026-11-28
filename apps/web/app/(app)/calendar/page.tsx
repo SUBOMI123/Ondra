@@ -44,6 +44,8 @@ type Appt = {
   with: string | null
   bays: string[]
   lane_ids: string[]
+  /** What the customer was told about this booking, and why anything wasn't sent (services/confirmations.py). */
+  told: string[]
   details: { loaner?: string | null; loaner_note?: string; transport?: string; service_type?: string; vehicle?: string; notes?: string }
   conversation_id: string | null
 }
@@ -155,6 +157,10 @@ function Details({ a, tz, onClose }: { a: Appt; tz: string; onClose: () => void 
           {a.details.service_type && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">For</dt><dd>{a.details.service_type}</dd></div>}
           {transport && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Transport</dt><dd>{transport}</dd></div>}
           {a.details.notes && <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Notes</dt><dd>{a.details.notes}</dd></div>}
+          <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
+            <dt className="text-muted-foreground">They were told</dt>
+            <dd>{a.told?.length ? a.told.map((line) => <span key={line} className="block">{line}</span>) : <span className="text-muted-foreground">No confirmation recorded. New bookings are confirmed within a minute, or at 8 am if made overnight.</span>}</dd>
+          </div>
         </dl>
         {a.client && (
           <div className="flex flex-wrap gap-2">

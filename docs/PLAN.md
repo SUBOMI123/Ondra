@@ -49,7 +49,7 @@ tests prove a non-admin still can't see VIPs or settings.
 **Done when:** on every path (answered, unanswered, press 1, press 2, hang up) tests prove the AI never speaks to the
 VIP, the person is alerted, and a task exists for every call not answered by a person.
 
-### 4. Booking confirmations
+### 4. Booking confirmations ✅ Built 2026-11-28 (calendar apps and Postmark attachments to check on real accounts)
 
 | | Rule |
 |---|---|

@@ -179,6 +179,7 @@ class Message(Base, TenantScoped):
     author_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     body: Mapped[str | None] = mapped_column(Text)
     attachments: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+    meta: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))  # send options, e.g. an email's subject
     provider: Mapped[str | None] = mapped_column(String(40))
     provider_message_id: Mapped[str | None] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(12), server_default="queued")
@@ -306,6 +307,8 @@ class Appointment(Base, TenantScoped):
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"))
     details: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))  # loaner, notes, vehicle
     reminders_sent: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+    # What was sent for this booking (and each move or cancellation), and why anything wasn't. services/confirmations.py
+    confirmations: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
 
 
 class AppointmentResource(Base, TenantScoped):

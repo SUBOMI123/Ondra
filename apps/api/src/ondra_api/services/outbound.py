@@ -57,7 +57,9 @@ async def deliver(tenant_id: uuid.UUID, message_id: uuid.UUID) -> Delivery:
             reason = "no customer address" if to_address is None else f"no active {conv.channel} channel"
             db.add(Event(type="message.send_failed", payload={"message_id": str(m.id), "error": reason}))
             return Delivery(False, reason)
-        out = OutboundMessage(channel=conv.channel, to_address=to_address, from_address=sender.address, body=m.body or "")
+        meta = m.meta or {}
+        out = OutboundMessage(channel=conv.channel, to_address=to_address, from_address=sender.address, body=m.body or "",
+                              subject=meta.get("subject"), attachments=[a for a in (m.attachments or []) if "content_b64" in a] or None)
         provider = sender.provider
 
     adapter = adapter_for(out.channel, provider)

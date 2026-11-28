@@ -76,6 +76,9 @@ class OutboundMessage:
     # starts a conversation outside it; `body` is then what the template renders to, for our own record.
     buttons: list[dict] | None = None
     template: dict | None = None
+    # Email only: files to attach, [{"name": "invite.ics", "content_type": "text/calendar; method=REQUEST",
+    # "content_b64": "..."}].
+    attachments: list[dict] | None = None
 
 
 @dataclass(frozen=True)

@@ -1003,3 +1003,25 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   unverified that an Elastic SIP trunk transfer (REFER) can target a SIP domain address carrying the call id. Until a
   real call proves it, a VIP's call keeps going straight to their person, and the Settings screen says the message
   isn't playing yet. If the desk can't be reached on a call, the worker falls back to ringing the person.
+
+## 2026-11-28: Booking confirmations, and the booking's own page
+
+- **Every booking, move and cancellation is confirmed** (services/confirmations.py): on the customer's channel, plus
+  an email copy with a calendar invite (.ics, one UID per booking so a move updates the event and a cancellation
+  removes it). At most two messages per change. A booking Ondra made inside a written conversation skips the main
+  message (its reply already confirmed it) but still sends the email copy.
+- **One link in every message** to the booking's own page (`/b?t=<token>`, no sign-in): add to Apple, Google or
+  Outlook calendar, move it to another free time, or cancel. The token is HMAC-signed and opens that one booking only.
+  A query parameter rather than `/b/<token>` so the shared preview's static export keeps working.
+- **The same rules as every automated message**, in one function (`may_send`) now used by reminders too: no opt-outs
+  (email included), no VIPs (their person gets a task to confirm personally), no text without recorded consent, and
+  WhatsApp only inside its 24-hour window. Staff see on the appointment what the customer was told and why anything
+  wasn't sent ("No confirmation by text: no consent to texts on file").
+- **Fixed on the way: reminders reached VIPs and went by text without recorded consent.** The send gate only stopped
+  AI-written messages to VIPs; system reminders passed. Both broke product rules in CLAUDE.md.
+- **Quiet hours:** a change made 8 pm to 8 am, dealer time, is confirmed at 8 am.
+- **Not verified (docs unreachable from the build machine), marked TODO(verify):** Postmark's attachment fields, and
+  the Google and Outlook add-event link parameters. The .ics follows RFC 5545/5546; it still needs opening once in
+  Google, Apple and Outlook calendars.
+- **Not built:** a WhatsApp template for confirmations outside the 24-hour window. Those customers get text (with
+  consent) or email instead, and staff see why.
