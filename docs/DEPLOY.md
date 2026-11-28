@@ -8,6 +8,7 @@ Set up 2026-11-27. Where each part runs and why: `docs/ARCHITECTURE.md`.
 | Voice worker | Fly.io, `sjc`, 2 GB | `ondra-voice-staging` (`infra/fly/voice.toml`) |
 | Database | Supabase, us-west-2 (Oregon), Free plan | project `Ondra` (`sbesiusjfltienbbieyv`) |
 | Dashboard | Fly.io, `sjc`, 512 MB, sleeps when idle | `ondra-web-staging` (`infra/fly/web.toml`), https://app.useondra.com |
+| Marketing site | Cloudflare Pages, built from GitHub on every push | `ondra-site`, https://useondra.com and www (static export of `apps/site`) |
 | Phone | Twilio number (707) 306-8599 to LiveKit Cloud SIP, dispatch to `ondra-voice` | `infra/telephony/connect_line.py` |
 
 `sjc` because Fly's Seattle region is deprecated (no new machines) and San Jose is the nearest open region to the
@@ -48,6 +49,16 @@ the session's proxy swaps wrangler's short-lived upload token for the saved API 
 From Ondra's cloud build sessions, `docker build` can't get through the session's network proxy, so build and
 push with `infra/deploy/sandbox_build.py`, then `fly deploy ... --image <the printed tag>`. It also pulls official base images through mirror.gcr.io, since the
 session often hits Docker Hub's anonymous rate limit.
+
+## Marketing site (Cloudflare Pages)
+
+Set up 2026-11-28 in the Cloudflare dashboard (Workers & Pages > Pages > Import an existing Git repository): repo
+`SUBOMI123/Ondra`, production branch `claude/magical-galileo-kn5bw6` (until the work is merged to `master`), root
+directory `apps/site`, build `npm ci && npm run build`, output `out`, env `NEXT_PUBLIC_SITE_URL=https://useondra.com`,
+`NEXT_PUBLIC_APP_URL=https://app.useondra.com`, `NEXT_PUBLIC_CONTACT_EMAIL=hello@useondra.com`, `NODE_VERSION=22`.
+Custom domains `useondra.com` and `www.useondra.com` (Cloudflare made the DNS records). Every push to the production
+branch redeploys it; nothing to run by hand. Use the Pages flow, not "Workers with Git": that one wants a wrangler
+config in the repo and converts the site to a server-rendered Worker.
 
 ## Limits to know
 
