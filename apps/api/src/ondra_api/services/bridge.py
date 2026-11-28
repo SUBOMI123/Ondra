@@ -149,9 +149,21 @@ def dialer() -> Dialer:
     return MockDialer(auth_token=s.mock_webhook_secret, autoplay=s.mock_bridge_autoplay, answered_by=s.mock_bridge_answered_by)
 
 
+def signing_key() -> str:
+    """Twilio signs every voice webhook (call-back bridge and VIP desk) with the account's auth token. Locally,
+    the mock dialer signs with the mock secret. On a public site with no real voice feature on, nothing is
+    accepted: the mock secret must never be the key to these webhooks there."""
+    s = get_settings()
+    if s.feature_call_bridge or s.feature_vip_desk:
+        return s.twilio_auth_token
+    return "" if s.is_public_site else s.mock_webhook_secret
+
+
 def verify(url: str, form: dict[str, str], signature: str) -> bool:
-    expected = twilio_signature(dialer().auth_token, url, form)
-    return bool(signature) and hmac.compare_digest(signature, expected)
+    key = signing_key()
+    if not key or not signature:
+        return False
+    return hmac.compare_digest(signature.encode(), twilio_signature(key, url, form).encode())
 
 
 def webhook_base(tenant_id: uuid.UUID, call_id: uuid.UUID) -> str:

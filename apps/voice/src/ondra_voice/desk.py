@@ -164,7 +164,7 @@ class CallDesk:
         if not self.can_text:
             return {"error": "Texts can't be sent from this line yet. Tell them plainly, and offer to have sales follow up "
                              "with the list instead (handoff, low urgency)."}
-        if not _AGREED.search(said or ""):
+        if not agreed_to_text(said):
             return {"error": "They haven't agreed to a text yet. Ask first, and wait for a yes."}
         wanted = {s.strip().upper() for s in (stock_numbers or []) if s}
         cars = [c for c in self.last_cars if not wanted or str(c.get("stock", "")).upper() in wanted] or self.last_cars
@@ -297,6 +297,16 @@ async def _backend(db, plan: CallPlan, dealer: DealerFacts) -> DbToolBackend:
 
 _AGREED = re.compile(r"\b(yes|yeah|yep|yup|sure|ok(?:ay)?|please|go ahead|do it|send it|text (?:it|me|them)|"
                      r"that works|sounds good|perfect|absolutely|of course)\b", re.IGNORECASE)
+# Any refusal anywhere in the answer wins over the yes words: "No, please don't text me" contains "please" and
+# "text me". "No problem" and "no worries" are agreement, so they're taken out first. A refusal-and-yes answer
+# ("not now, but yes") is treated as no: the agent asks again, which is cheap; a text without consent isn't.
+_REFUSED = re.compile(r"\b(no|nope|nah|not|never|don'?t|do not|doesn'?t|stop|rather not|no thanks?)\b", re.IGNORECASE)
+_NOT_A_REFUSAL = re.compile(r"\bno (?:problem|worries|doubt)\b|\bwhy not\b|\bnot a problem\b", re.IGNORECASE)
+
+
+def agreed_to_text(said: str) -> bool:
+    words = _NOT_A_REFUSAL.sub(" ", said or "")
+    return bool(_AGREED.search(words)) and not _REFUSED.search(words)
 
 
 def _spoken(c: dict) -> dict:

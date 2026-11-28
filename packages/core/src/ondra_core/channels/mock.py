@@ -10,6 +10,7 @@ Sent messages are kept in `outbox` for tests and the dev UI.
 
 from __future__ import annotations
 
+import hmac
 import json
 import uuid
 from datetime import UTC, datetime
@@ -40,7 +41,8 @@ class MockAdapter:
         return normalize_email(raw) if self.channel == "email" else normalize_phone(raw)
 
     def verify_signature(self, request: WebhookRequest) -> None:
-        if request.headers.get("x-mock-signature") != self.secret:
+        given = request.headers.get("x-mock-signature", "")
+        if not self.secret or not hmac.compare_digest(given.encode(), self.secret.encode()):
             raise SignatureError("bad mock signature")
 
     def parse_webhook(self, request: WebhookRequest) -> list[InboundEvent]:

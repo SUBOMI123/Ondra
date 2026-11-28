@@ -62,3 +62,15 @@ def tenant_of_refresh_token(token: str) -> uuid.UUID | None:
         return uuid.UUID(token.split(".", 1)[0])
     except (ValueError, IndexError):
         return None
+
+
+def client_ip(request) -> str | None:
+    """The caller's IP for audit rows and sign-in throttling. On Fly, the edge proxy sets Fly-Client-IP to the
+    address it accepted the connection from. X-Forwarded-For isn't used: its left-most entry is whatever the client
+    sent. TODO(verify): Fly's docs describe Fly-Client-IP as set by the proxy; confirm it overwrites a client-sent
+    value (a spoofed header would only change audit IPs and the per-IP limit, never who is signed in)."""
+    from ondra_api.config import get_settings
+
+    if get_settings().is_public_site and request.headers.get("fly-client-ip"):
+        return request.headers["fly-client-ip"][:64]
+    return request.client.host if request.client else None

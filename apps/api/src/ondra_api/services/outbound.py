@@ -47,7 +47,7 @@ async def deliver(tenant_id: uuid.UUID, message_id: uuid.UUID) -> Delivery:
         kinds = ("email",) if conv.channel == "email" else ("phone", "whatsapp")
         to_address = (await db.execute(
             select(ContactIdentity.value).where(ContactIdentity.contact_id == contact.id, ContactIdentity.kind.in_(kinds))
-            .order_by(ContactIdentity.verified.desc()).limit(1)
+            .order_by(ContactIdentity.verified.desc(), ContactIdentity.created_at).limit(1)
         )).scalar_one_or_none()
         sender = (await db.execute(
             select(ChannelAddress).where(ChannelAddress.channel == conv.channel, ChannelAddress.active.is_(True)).limit(1)

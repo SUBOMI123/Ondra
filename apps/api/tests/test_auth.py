@@ -7,8 +7,9 @@ def test_a_public_site_refuses_development_secrets(monkeypatch):
     assert local.public_site_problems() == []
     public = Settings(app_base_url="https://app.useondra.com", jwt_secret="dev-only-change-me-dev-only-change-me",
                       mock_webhook_secret="mock-secret")
-    assert len(public.public_site_problems()) == 2
-    safe = Settings(app_base_url="https://app.useondra.com", jwt_secret="x" * 48, mock_webhook_secret="y" * 32)
+    assert len(public.public_site_problems()) == 3  # the two secrets, and local sign-in (no second factor)
+    safe = Settings(app_base_url="https://app.useondra.com", jwt_secret="x" * 48, mock_webhook_secret="y" * 32,
+                    auth_provider="clerk")
     assert safe.public_site_problems() == []
 
 

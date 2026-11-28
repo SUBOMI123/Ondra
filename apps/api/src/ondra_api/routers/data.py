@@ -25,6 +25,7 @@ from ondra_api.schemas import (
     VehiclePage,
     VehicleRowOut,
 )
+from ondra_api.security import client_ip
 
 router = APIRouter(tags=["data"])
 
@@ -133,7 +134,7 @@ async def rename_contact(contact_id: uuid.UUID, body: ContactPatch, request: Req
     c.display_name, c.name_source = name, "staff"
     db.add(Event(type="contact.renamed", payload={"contact_id": str(c.id), "from": before["name"], "to": name, "by": str(caller.user_id)}))
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.rename", resource=f"contact:{c.id}", before=before,
-                    after={"name": name, "source": "staff"}, ip=request.client.host if request.client else None))
+                    after={"name": name, "source": "staff"}, ip=client_ip(request)))
     await db.flush()
     idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
@@ -278,7 +279,7 @@ async def set_vehicle_status(vehicle_id: uuid.UUID, body: VehicleStatusIn, reque
         raw.pop("hold", None)
     v.status, v.raw = body.status, raw
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="vehicle.status", resource=f"vehicle:{v.id}",
-                    before=before, after={"status": v.status, "hold": raw.get("hold")}, ip=request.client.host if request.client else None))
+                    before=before, after={"status": v.status, "hold": raw.get("hold")}, ip=client_ip(request)))
     await db.flush()
     return {"id": str(v.id), "status": v.status, "hold": raw.get("hold")}
 
@@ -387,7 +388,7 @@ async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
         await _tell_vip_handler(db, c, caller)
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.vip", resource=f"contact:{c.id}", before=before,
                     after={"vip": c.is_vip, "handler": str(c.vip_owner_user_id) if c.vip_owner_user_id else None},
-                    ip=request.client.host if request.client else None))
+                    ip=client_ip(request)))
     await db.flush()
     idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})

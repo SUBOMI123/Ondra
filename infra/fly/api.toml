@@ -12,13 +12,17 @@ primary_region = "sjc"  # San Jose: the nearest open region to the Supabase proj
   release_command = "sh -c 'alembic upgrade head && python -m ondra_api.seed --if-empty'"
 
 [processes]
-  app = "uvicorn ondra_api.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"
+  # No --proxy-headers: X-Forwarded-For's left-most entry is whatever the client sent. The caller's IP comes from
+  # Fly-Client-IP instead (security.client_ip).
+  app = "uvicorn ondra_api.main:app --host 0.0.0.0 --port 8000"
   worker = "python -m ondra_api.worker"
 
 [env]
   APP_BASE_URL = "https://app.useondra.com"
   PUBLIC_API_URL = "https://api.useondra.com"
   AUTH_PROVIDER = "local"
+  # Staging holds demo data only. Before a real dealer's data goes here, switch to Clerk (MFA) and remove this.
+  ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE = "true"
 
 [http_service]
   internal_port = 8000

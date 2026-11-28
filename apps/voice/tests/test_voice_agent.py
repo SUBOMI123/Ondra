@@ -423,3 +423,16 @@ async def test_a_handoff_already_announced_isnt_announced_again(database):
 
         await db.execute(Task.__table__.delete().where(Task.contact_id == desk.plan.contact_id, Task.source == "ai_handoff",
                                                         Task.brief == "Wants a trade value."))
+
+
+# --- security audit, 2026-11-28: "No, please don't text me" used to count as a yes ------------------------------
+
+@pytest.mark.parametrize("said,agreed", [
+    ("Yes please", True), ("Sure, text me those", True), ("No problem, send it", True), ("yeah go ahead", True),
+    ("No, please don't text me", False), ("Please don't", False), ("not right now, ok?", False),
+    ("Nah, I'm good", False), ("stop texting me please", False), ("", False),
+])
+def test_only_a_plain_yes_is_consent_to_a_text(said, agreed):
+    from ondra_voice.desk import agreed_to_text
+
+    assert agreed_to_text(said) is agreed

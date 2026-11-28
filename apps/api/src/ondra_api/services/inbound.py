@@ -168,8 +168,24 @@ async def vip_realert(tenant_id: uuid.UUID, p: dict) -> bool:
         return True
 
 
+async def _may_opt_back_in(db: AsyncSession, contact_id: uuid.UUID, channel: str) -> bool:
+    if channel not in ("sms", "whatsapp"):
+        return False
+    source = (await db.execute(
+        select(Consent.source).where(Consent.contact_id == contact_id, Consent.status == "opted_out")
+        .order_by(Consent.captured_at.desc(), Consent.created_at.desc()).limit(1)
+    )).scalar_one_or_none()
+    return source is None or source == f"keyword:{channel}"
+
+
 async def _record_consent(db: AsyncSession, contact: Contact, change: str, msg_id: uuid.UUID, channel: str) -> None:
     status = "opted_out" if change == "opted_out_all_channels" else "opted_in"
+    if status == "opted_in" and not await _may_opt_back_in(db, contact.id, channel):
+        # A forged START must never undo a STOP. Inbound email's From can be forged (no SPF/DKIM check here), so email
+        # never re-subscribes anyone, and START counts only on the channel the STOP itself came in on (a texted STOP
+        # is lifted by a texted START from that number). Staff see the ignored START in the event log.
+        db.add(Event(type="consent.opt_in_ignored", payload={"contact_id": str(contact.id), "via": channel}))
+        return
     # TODO(verify, counsel): START re-subscribes every channel the STOP covered. Confirm with counsel per channel.
     for ch in ALL_CHANNELS:
         for purpose in ("transactional", "marketing"):

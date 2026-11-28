@@ -1,5 +1,12 @@
 import pytest
-from ondra_core.agent.detectors import POSITIVE_CHECKS, ReplyContext, money_amounts, review_reply
+from ondra_core.agent.detectors import (
+    POSITIVE_CHECKS,
+    ReplyContext,
+    money_amounts,
+    promises_discount,
+    quotes_final_price,
+    review_reply,
+)
 
 CTX = ReplyContext(price_disclosure="listed", listed_prices={44900, 33900}, known_makes={"Chevrolet", "Toyota"},
                    customer_text="whats your best price on the silverado lt. i got 41k cash today can u do it")
@@ -138,3 +145,29 @@ def test_a_callers_spoken_ask_said_back_in_a_referral_is_not_a_quote():
     ctx = ReplyContext(price_disclosure="listed", listed_prices={25100}, customer_text="Can you do five hundred off if I come in today?")
     assert not review_reply("Our sales team will get back to you shortly about the $500.", ctx)
     assert review_reply("Sure, we can do $500 off.", ctx)
+
+
+# --- security audit, 2026-11-28: a "not" elsewhere in the sentence used to excuse a commitment ---------------------
+
+@pytest.mark.parametrize("reply", [
+    "Not a problem, we can do $25,000.",
+    "$25,000 is fine.",
+    "Deal, $25,000 it is.",
+    "We will let it go for twenty-five thousand.",
+    "Not a problem, I can give you a discount.",
+])
+def test_a_negation_elsewhere_doesnt_excuse_a_commitment(reply):
+    ctx = ReplyContext(price_disclosure="none", customer_text="Can you do $25,000?")
+    assert quotes_final_price(reply, ctx) or promises_discount(reply, ctx)
+
+
+@pytest.mark.parametrize("reply", [
+    "I can't confirm $25,000, someone from sales will call you.",
+    "I can't offer a discount, but sales can talk it through.",
+    "I can't do that price.",
+    "No problem, I can book you a test drive Saturday at 10.",
+    "Both are under your $25,000 budget.",
+])
+def test_refusals_and_echoes_still_pass(reply):
+    ctx = ReplyContext(price_disclosure="none", customer_text="Can you do $25,000?")
+    assert not quotes_final_price(reply, ctx) and not promises_discount(reply, ctx)

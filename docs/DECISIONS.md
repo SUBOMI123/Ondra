@@ -1069,3 +1069,41 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **"Send me today's briefing now" is a preview for whoever asks**, whatever their morning switch says. It used to
   send only to admins with the briefing on (and refuse otherwise). In test mode it says the message is in the thread
   on the page, not on their phone.
+
+## 2026-11-28: Security audit, fixes 1 to 7
+
+Audit of auth and tenant isolation, webhooks, the AI agent, the browser side, and secrets and infrastructure. Tenant
+isolation held. The serious gaps were in the AI, consent and configuration; these seven are fixed, the rest are in
+STATUS "Known gaps".
+
+1. **A number or email the customer types is a claim, not an identity.** `update_lead_fields` used to add it as a
+   ContactIdentity, so "my email is victim@x.com" made the repair-order tool search with the victim's email, could
+   make replies go to that address, and filed the victim's later messages under the attacker. Now it's kept on the
+   deal as `phone_given` / `email_given` (staff see it, it goes to the CRM as a note) and is used for nothing else.
+   Only an address a message or call came from becomes an identity. Alternative considered: unverified identities
+   plus a `verified` filter everywhere they're read; rejected, because every new reader would have to remember it.
+   Identities already added this way (staging demo data only) aren't cleaned up: they can't be told apart.
+2. **START counts only on the channel the STOP came in on, and never by email.** Inbound email's From isn't
+   authenticated here (no SPF/DKIM/DMARC check), so a forged "START" used to re-subscribe every channel, marketing
+   texts included. An ignored START is recorded as `consent.opt_in_ignored`. TODO(verify, counsel) stays on what a
+   START should cover.
+3. **A real channel with an empty secret refuses every webhook**, and a public site refuses to start with one (an
+   empty HMAC key or empty basic auth is one anyone can produce). Signature compares are on bytes (a non-ASCII value
+   was a 500, not a 403).
+4. **The mock webhook is off on a public site (404)**, and so is the mock secret as the key to the voice webhooks:
+   with no real voice feature on, a public site accepts none. With the VIP desk or call bridge on, Twilio's auth
+   token is the key (the VIP desk used to check against the mock secret when the bridge was off).
+5. **On a call, a text needs a plain yes.** "No, please don't text me" counted as consent because it contains
+   "please" and "text me". Any refusal word now wins; a mixed answer is a no and the agent asks again (cheap,
+   unlike a text without consent).
+6. **The price and discount checks judge each clause.** Any "not" in the sentence used to excuse it, so "Not a
+   problem, we can do $25,000" went out. Negation now only excuses its own clause, a plain commitment ("we can do",
+   "I'll give you") is never excused, "is fine / ok / deal" turns the customer's own number into a commitment, and
+   amounts in words ("twenty-five thousand") are checked on every channel, not only voice.
+7. **Sign-in:** 5 wrong passwords for an email, or 30 from one address, in 15 minutes and sign-in waits (Postgres
+   table `login_attempts`, no new infrastructure; counted for unknown emails too, so it doesn't reveal accounts). MFA
+   is required for managers as well as admins with Clerk (managers see every VIP). A public site refuses local
+   sign-in unless `ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE=true`, which staging sets because it holds demo data only; it must
+   move to Clerk before a real dealer's data goes there. The caller's IP comes from `Fly-Client-IP`, not
+   X-Forwarded-For (the client controls its left-most entry), so uvicorn no longer trusts proxy headers.
+   TODO(verify): Fly overwrites a client-sent Fly-Client-IP.

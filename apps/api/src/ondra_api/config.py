@@ -24,8 +24,11 @@ class Settings(BaseSettings):
     clerk_api_base: str = "https://api.clerk.com"
     clerk_jwt_key: str = ""  # optional PEM public key (Dashboard > API keys) for networkless verification
     clerk_authorized_parties: str = ""  # comma-separated origins allowed to use tokens, e.g. https://app.ondra.ai
-    # Owners and admins must have a second factor (MFA) when signing in with Clerk.
-    clerk_mfa_roles: str = "admin"
+    # Roles that must have a second factor (MFA) when signing in with Clerk. Managers too: they see every VIP.
+    clerk_mfa_roles: str = "admin,manager"
+    # Ondra's own passwords have no second factor, so a public site refuses them unless this says otherwise. Only for
+    # a staging site holding demo data, never production (sign-in there is Clerk, with MFA).
+    allow_local_auth_on_public_site: bool = False
 
     # --- AI ---
     anthropic_api_key: str = ""
@@ -69,14 +72,37 @@ class Settings(BaseSettings):
     def public_site_problems(self) -> list[str]:
         """Development defaults that are in the repo, so must never guard a public (https) site: with them, anyone
         could sign tokens as any user or post fake customer messages."""
-        if not self.app_base_url.startswith("https://"):
+        if not self.is_public_site:
             return []
         problems = []
         if len(self.jwt_secret) < 32 or self.jwt_secret.startswith("dev-only"):
             problems.append("JWT_SECRET is the development default or shorter than 32 characters")
         if self.mock_webhook_secret in ("", "mock-secret"):
             problems.append("MOCK_WEBHOOK_SECRET is the development default")
+        if self.auth_provider == "local" and not self.allow_local_auth_on_public_site:
+            problems.append("AUTH_PROVIDER is local (passwords with no second factor); use clerk, or set "
+                            "ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE=true on a staging site with demo data only")
+        # A real channel switched on without its secret would accept forged webhooks (an empty HMAC key, or empty
+        # basic auth, is one anyone can produce). The adapters refuse too; this stops the site starting at all.
+        needs = {
+            "FEATURE_WHATSAPP": (self.feature_whatsapp, {"WHATSAPP_APP_SECRET": self.whatsapp_app_secret,
+                                                          "WHATSAPP_VERIFY_TOKEN": self.whatsapp_verify_token}),
+            "FEATURE_SMS": (self.feature_sms, {"TWILIO_AUTH_TOKEN": self.twilio_auth_token}),
+            "FEATURE_CALL_BRIDGE": (self.feature_call_bridge, {"TWILIO_AUTH_TOKEN": self.twilio_auth_token}),
+            "FEATURE_VIP_DESK": (self.feature_vip_desk, {"TWILIO_AUTH_TOKEN": self.twilio_auth_token}),
+            "FEATURE_EMAIL": (self.feature_email, {"POSTMARK_INBOUND_USER": self.postmark_inbound_user,
+                                                    "POSTMARK_INBOUND_PASSWORD": self.postmark_inbound_password}),
+        }
+        for flag, (on, secrets) in needs.items():
+            missing = [name for name, value in secrets.items() if not value]
+            if on and missing:
+                problems.append(f"{flag} is on but {', '.join(missing)} is empty")
         return problems
+
+    @property
+    def is_public_site(self) -> bool:
+        """Staging and production: the dashboard is served over https. Mock-only paths are switched off there."""
+        return self.app_base_url.startswith("https://")
 
     @property
     def cookie_secure(self) -> bool:

@@ -79,7 +79,9 @@ async def _process(adapter: ChannelAdapter, req: WebhookRequest) -> dict:
 
 @router.post("/mock/{channel}")
 async def mock_webhook(channel: str, request: Request) -> dict:
-    if channel not in CHANNELS:
+    # Local development and tests only. On a public site a mock message to a dealer's real number would land in
+    # their account and the AI would answer through the real provider, guarded only by one shared secret.
+    if channel not in CHANNELS or get_settings().is_public_site:
         raise HTTPException(404)
     return await _process(mock(channel), await _request(request))
 
