@@ -45,6 +45,8 @@ class PostmarkAdapter:
         self._client = client
 
     def verify_signature(self, request: WebhookRequest) -> None:
+        if not (self.webhook_user and self.webhook_password):
+            raise SignatureError("POSTMARK_INBOUND_USER and POSTMARK_INBOUND_PASSWORD are not set")
         header = request.headers.get("authorization", "")
         if not header.lower().startswith("basic "):
             raise SignatureError("missing basic auth")
@@ -52,8 +54,9 @@ class PostmarkAdapter:
             user, _, pw = base64.b64decode(header[6:]).decode().partition(":")
         except ValueError:
             raise SignatureError("bad basic auth") from None
-        ok_user = hmac.compare_digest(user, self.webhook_user)
-        ok_pw = hmac.compare_digest(pw, self.webhook_password)
+        # Bytes, not str: compare_digest raises on non-ASCII str, which would be a 500 instead of a 403.
+        ok_user = hmac.compare_digest(user.encode(), self.webhook_user.encode())
+        ok_pw = hmac.compare_digest(pw.encode(), self.webhook_password.encode())
         if not (ok_user and ok_pw):
             raise SignatureError("bad basic auth")
 

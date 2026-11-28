@@ -136,10 +136,18 @@ class DbToolBackend:
         return [apply_price_policy(_vehicle_dict(v), self.price_disclosure) for v in rows]
 
     async def get_vehicle(self, stock_or_vin: str) -> dict | None:
+        # An exact match (case aside), not a pattern: "%" from the customer isn't a wildcard.
+        key = (stock_or_vin or "").strip().lower()
         v = (await self.db.execute(
-            select(Vehicle).where(or_(Vehicle.stock_number.ilike(stock_or_vin), Vehicle.vin.ilike(stock_or_vin)))
+            select(Vehicle).where(or_(func.lower(Vehicle.stock_number) == key, func.lower(Vehicle.vin) == key)).limit(1)
         )).scalar_one_or_none()
-        return apply_price_policy(_vehicle_dict(v), self.price_disclosure) if v else None
+        if v is None:
+            return None
+        if v.status != "available":
+            # Sold or on hold: say so, without a price to quote for a car the customer can't have.
+            return {"stock": v.stock_number, "year": v.year, "make": v.make, "model": v.model, "status": v.status,
+                    "available": False}
+        return apply_price_policy(_vehicle_dict(v), self.price_disclosure)
 
     async def search_knowledge(self, query: str) -> list[dict]:
         self.last_question = query
@@ -157,13 +165,12 @@ class DbToolBackend:
             self.contact.name_source = "call" if self.conversation.channel == "phone" else "typed"
         if fields.get("language"):
             self.contact.language = str(fields["language"])[:20]
-        if fields.get("phone") or fields.get("email"):
-            for kind in ("phone", "email"):
-                if fields.get(kind):
-                    exists = (await self.db.execute(select(ContactIdentity.id).where(
-                        ContactIdentity.kind == kind, ContactIdentity.value == str(fields[kind]).lower()))).first()
-                    if not exists:
-                        self.db.add(ContactIdentity(contact_id=self.contact.id, kind=kind, value=str(fields[kind]).lower()))
+        # A number or address the customer types or says is a claim, not an identity: anyone can say "my email is
+        # victim@x.com". It is kept on the deal for staff ("Phone given") and never used to find records, match later
+        # messages or send anything. Only an address a message or call actually came from becomes a ContactIdentity.
+        for kind in ("phone", "email"):
+            if fields.get(kind):
+                fields[f"{kind}_given"] = str(fields.pop(kind)).strip()[:120]
         deal = (await self.db.execute(
             select(Deal).where(Deal.contact_id == self.contact.id, Deal.type == "sales",
                                Deal.stage.notin_(("won", "lost"))).order_by(Deal.created_at.desc()).limit(1)
@@ -189,8 +196,8 @@ class DbToolBackend:
                 setattr(deal, k, v)
             elif k == "vehicle_interest":
                 voi["description"] = v
-            elif k not in ("name", "language", "phone", "email"):
-                voi[k] = v
+            elif k not in ("name", "language"):
+                voi[k] = str(v)[:500] if isinstance(v, str) else v
         deal.vehicle_of_interest = voi
         await self.db.flush()
         from ondra_api.services.crm import maybe_queue

@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.config import get_settings
 from ondra_api.deps import Caller, require
-from ondra_api.security import hash_token
+from ondra_api.security import client_ip, hash_token
 
 log = logging.getLogger("ondra.team")
 router = APIRouter(prefix="/users", tags=["team"])
@@ -136,7 +136,7 @@ async def _send_invite(db: AsyncSession, u: User, tenant_id: uuid.UUID) -> dict:
 
 def _audit(db: AsyncSession, caller: Caller, request: Request, action: str, u: User, before, after) -> None:
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action=action, resource=f"user:{u.id}",
-                    before=before, after=after, ip=request.client.host if request.client else None))
+                    before=before, after=after, ip=client_ip(request)))
 
 
 @router.post("/invite", status_code=201)

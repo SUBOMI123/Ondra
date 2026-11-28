@@ -1,1 +1,37 @@
-{}
+{
+  "/demo-cars/bmw-x5.jpg": {
+    "model": "BMW X5",
+    "artist": "Ethan Llamas",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2020_BMW_X5_G05_xDrive30d_M_Sport,_front_right,_06-30-2024.jpg"
+  },
+  "/demo-cars/ford-f-150.jpg": {
+    "model": "Ford F-150",
+    "artist": "SsmIntrigue",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2021_Ford_F150_Supercrew,_Front_Right,_03-09-2021.jpg"
+  },
+  "/demo-cars/jeep-grand-cherokee-l.jpg": {
+    "model": "Jeep Grand Cherokee L",
+    "artist": "MercurySable99",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2023_Jeep_Grand_Cherokee_L_Altitude_4x4,_front_left,_09-09-2023.jpg"
+  },
+  "/demo-cars/toyota-highlander.jpg": {
+    "model": "Toyota Highlander",
+    "artist": "SsmIntrigue",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2020_Toyota_Highlander_Platinum,_Front_Right,_07-05-2020.jpg"
+  },
+  "/demo-cars/toyota-rav4-hybrid.jpg": {
+    "model": "Toyota RAV4",
+    "artist": "Ethan Llamas",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2020_Toyota_RAV4_2.5_LTD_in_Urban_Khaki,_front_right,_06-20-2024.jpg"
+  }
+}

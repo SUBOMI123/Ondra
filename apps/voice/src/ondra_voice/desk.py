@@ -62,6 +62,11 @@ class CallDesk:
     last_cars: list[dict] = field(default_factory=list)
     last_reply_spoke: bool = False  # whether the model's last reply said anything before its tool calls
     can_text: bool = False  # the dealer's SMS is live, so offering to text the caller is honest
+    # Caller ID is trivial to fake, so cancelling or moving a booking, or hearing repair status, first needs a code
+    # texted to the number on file and read back (security audit, 2026-11-28). The hash lives only for this call.
+    code_hash: str | None = None
+    code_tries: int = 0
+    caller_verified: bool = False
     # Quick fillers: whether one was said this turn and last turn, and which phrase comes next.
     filled_this_turn: bool = False
     filled_last_turn: bool = False
@@ -121,6 +126,12 @@ class CallDesk:
         """Run one shared tool for this caller, in its own transaction, and remember what it returned so the
         spoken-reply checks know which prices and cars are real."""
         args = self._real_slots(name, args)
+        if name in NEEDS_CODE and not self.caller_verified:
+            return {"error": (
+                "First check it's really them: caller ID can be faked. Offer to text a code to the number on file "
+                "(send_code), wait for a yes, then have them read it back (check_code)." if self.can_text else
+                "This can't be done on a call yet (the caller can't be checked without a text). Point them to the "
+                "link in their booking confirmation, or hand off to service with a callback.")}
         async with tenant_session(self.plan.tenant_id) as db:
             backend = await _backend(db, self.plan, self.dealer)
             if self.transcript:
@@ -134,6 +145,61 @@ class CallDesk:
         if name == "search_inventory" and isinstance(out, list):
             return self._best_two(out)
         return self._short_slots(out)
+
+    async def send_code(self, said: str) -> dict:
+        """Text a 6-digit code to the caller's number on file. Goes through the one send path (opt-outs, VIPs)."""
+        import hashlib
+        import secrets
+
+        from ondra_api.services.inbound import contact_opted_out
+        from ondra_api.services.jobs import enqueue
+        from ondra_core.models import Consent, Event, Message
+
+        if not self.can_text:
+            return {"error": "Texts can't be sent from this line yet. Point them to their booking link, or hand off."}
+        if not agreed_to_text(said):
+            return {"error": "Ask if you can text a code to the number on file, and wait for a yes."}
+        if self.code_tries >= 3:
+            return {"error": "Too many tries on this call. Hand off to service for a callback."}
+        code = f"{secrets.randbelow(10**6):06d}"
+        self.code_hash = hashlib.sha256(code.encode()).hexdigest()
+        async with tenant_session(self.plan.tenant_id) as db:
+            if await contact_opted_out(db, self.plan.contact_id):
+                return {"error": "They've opted out of texts, so no code can be sent. Hand off to service."}
+            db.add(Consent(contact_id=self.plan.contact_id, channel="sms", purpose="transactional", status="opted_in",
+                           source="voice_call", evidence={"call_id": str(self.plan.call_id), "said": said[:300],
+                                                          "asked_for": "a verification code by text"}))
+            conv = (await db.execute(select(Conversation).where(
+                Conversation.contact_id == self.plan.contact_id, Conversation.channel == "sms",
+                Conversation.status != "closed").limit(1))).scalar_one_or_none()
+            if conv is None:
+                conv = Conversation(contact_id=self.plan.contact_id, channel="sms", ai_mode="auto")
+                db.add(conv)
+                await db.flush()
+            m = Message(conversation_id=conv.id, direction="outbound", author_type="system", status="queued",
+                        body=f"Your {self.dealer.name} code is {code}. Read it to the person you're on the phone with. "
+                             "If you're not on a call with us, ignore this.")
+            db.add(m)
+            await db.flush()
+            enqueue(db, "send_message", {"message_id": str(m.id)})
+            db.add(Event(type="call.code_sent", payload={"call_id": str(self.plan.call_id), "message_id": str(m.id)}))
+        self.tools_called.append("send_code")
+        return {"sent": True, "tell_caller": "I've texted a six-digit code to the number on file. Read it to me when it arrives."}
+
+    def check_code(self, code: str) -> dict:
+        import hashlib
+
+        if self.code_hash is None:
+            return {"error": "No code has been sent yet. Offer to send one first."}
+        self.code_tries += 1
+        digits = re.sub(r"\D", "", code or "")
+        if hashlib.sha256(digits.encode()).hexdigest() == self.code_hash:
+            self.caller_verified, self.code_hash = True, None
+            return {"verified": True}
+        if self.code_tries >= 3:
+            self.code_hash = None
+            return {"verified": False, "error": "That's not it, and that was the last try. Hand off to service."}
+        return {"verified": False, "error": "That doesn't match. Ask them to read it again, digit by digit."}
 
     def _best_two(self, cars: list[dict]) -> Any:
         """On a call, the model gets two cars to name, not a list to read out: reading four cars and prices aloud
@@ -164,7 +230,7 @@ class CallDesk:
         if not self.can_text:
             return {"error": "Texts can't be sent from this line yet. Tell them plainly, and offer to have sales follow up "
                              "with the list instead (handoff, low urgency)."}
-        if not _AGREED.search(said or ""):
+        if not agreed_to_text(said):
             return {"error": "They haven't agreed to a text yet. Ask first, and wait for a yes."}
         wanted = {s.strip().upper() for s in (stock_numbers or []) if s}
         cars = [c for c in self.last_cars if not wanted or str(c.get("stock", "")).upper() in wanted] or self.last_cars
@@ -295,8 +361,21 @@ async def _backend(db, plan: CallPlan, dealer: DealerFacts) -> DbToolBackend:
                          open_now=dealer.open_now)
 
 
+# Actions a caller can only take after proving the number on file is theirs.
+NEEDS_CODE = {"reschedule_or_cancel", "get_repair_order_status"}
+
 _AGREED = re.compile(r"\b(yes|yeah|yep|yup|sure|ok(?:ay)?|please|go ahead|do it|send it|text (?:it|me|them)|"
                      r"that works|sounds good|perfect|absolutely|of course)\b", re.IGNORECASE)
+# Any refusal anywhere in the answer wins over the yes words: "No, please don't text me" contains "please" and
+# "text me". "No problem" and "no worries" are agreement, so they're taken out first. A refusal-and-yes answer
+# ("not now, but yes") is treated as no: the agent asks again, which is cheap; a text without consent isn't.
+_REFUSED = re.compile(r"\b(no|nope|nah|not|never|don'?t|do not|doesn'?t|stop|rather not|no thanks?)\b", re.IGNORECASE)
+_NOT_A_REFUSAL = re.compile(r"\bno (?:problem|worries|doubt)\b|\bwhy not\b|\bnot a problem\b", re.IGNORECASE)
+
+
+def agreed_to_text(said: str) -> bool:
+    words = _NOT_A_REFUSAL.sub(" ", said or "")
+    return bool(_AGREED.search(words)) and not _REFUSED.search(words)
 
 
 def _spoken(c: dict) -> dict:
@@ -306,12 +385,15 @@ def _spoken(c: dict) -> dict:
 
 
 def _details_text(dealer: str, cars: list[dict]) -> str:
-    lines = [f"{dealer}: the cars we talked about."]
+    # The first text after a call confirms the enrollment, with every disclosure, before anything else.
+    lines = [f"{dealer}: you're signed up for texts about your enquiry. Msg frequency varies, msg & data rates may apply. "
+             "Reply HELP for help, STOP to opt out.", "The cars we talked about:"]
     for c in cars[:6]:
         name = " ".join(str(c[k]) for k in ("year", "make", "model", "trim") if c.get(k))
         price = f"${c['price']:,.0f}" if isinstance(c.get("price"), (int, float)) else c.get("price_range") or "ask us"
         miles = f"{c['mileage']:,} mi" if c.get("mileage") else "new"
         lines.append(f"{name}, {miles}, {price} (stock {c.get('stock')})")
+    # The first text after a call: it names the dealer (above) and says how to stop (carrier rules).
     lines.append("Reply here with questions, or to book a test drive.")
     return "\n".join(lines)
 

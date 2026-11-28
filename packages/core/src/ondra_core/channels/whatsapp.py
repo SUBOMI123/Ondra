@@ -62,20 +62,22 @@ class WhatsAppCloudAdapter:
 
     # GET handshake when the webhook is registered in the Meta app dashboard.
     def verify_subscription(self, query: dict[str, str]) -> str | None:
-        if query.get("hub.mode") == "subscribe" and hmac.compare_digest(
+        if self.verify_token and query.get("hub.mode") == "subscribe" and hmac.compare_digest(
             query.get("hub.verify_token", ""), self.verify_token
         ):
             return query.get("hub.challenge", "")
         return None
 
     def verify_signature(self, request: WebhookRequest) -> None:
+        if not self.app_secret:
+            raise SignatureError("WHATSAPP_APP_SECRET is not set")  # an empty HMAC key is one anyone can compute
         header = request.headers.get("x-hub-signature-256", "")
         if not header.startswith("sha256="):
             raise SignatureError("missing X-Hub-Signature-256")
         # TODO(verify): the docs say "SHA256 signature using the payload and your app's App Secret" without naming
         # HMAC or hex; HMAC-SHA256 over the raw body, hex-encoded, is the documented sample apps' behaviour.
         expected = hmac.new(self.app_secret.encode(), request.body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, header[7:]):
+        if not hmac.compare_digest(expected.encode(), header[7:].encode()):
             raise SignatureError("bad X-Hub-Signature-256")
 
     def parse_webhook(self, request: WebhookRequest) -> list[InboundEvent]:

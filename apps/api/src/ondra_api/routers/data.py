@@ -25,6 +25,7 @@ from ondra_api.schemas import (
     VehiclePage,
     VehicleRowOut,
 )
+from ondra_api.security import client_ip
 
 router = APIRouter(tags=["data"])
 
@@ -115,6 +116,49 @@ class ContactPatch(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
 
 
+class EraseIn(BaseModel):
+    confirm: str  # the client's current name, typed: erasing can't be undone
+
+
+@router.get("/contacts/{contact_id}/export")
+async def export_contact(contact_id: uuid.UUID, request: Request,
+                         ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    """Everything held about one client, for their data request. Admins only; recorded in the audit log."""
+    from ondra_core.models import AuditLog
+
+    from ondra_api.services import privacy
+
+    caller, db = ctx
+    c = await db.get(Contact, contact_id)
+    if c is None:
+        raise HTTPException(404, "No client with that id.")
+    db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.export", resource=f"contact:{c.id}",
+                    ip=client_ip(request)))
+    return await privacy.export(db, c)
+
+
+@router.post("/contacts/{contact_id}/erase")
+async def erase_contact(contact_id: uuid.UUID, body: EraseIn, request: Request,
+                        ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    """Anonymise a client everywhere (services/privacy.py). Admins only, with their name typed to confirm."""
+    from ondra_core.models import AuditLog
+
+    from ondra_api.services import privacy
+    from ondra_api.services.inbound import contact_opted_out
+
+    caller, db = ctx
+    c = await db.get(Contact, contact_id)
+    if c is None:
+        raise HTTPException(404, "No client with that id.")
+    if " ".join(body.confirm.split()).lower() != " ".join(c.display_name.split()).lower():
+        raise HTTPException(422, "Type the client's name exactly as shown to confirm.")
+    done = await privacy.erase(db, c, opted_out=await contact_opted_out(db, c.id))
+    # The audit row says that it happened and how much, not who it was.
+    db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.erase", resource=f"contact:{c.id}",
+                    after=done, ip=client_ip(request)))
+    return {"erased": True, **done}
+
+
 @router.patch("/contacts/{contact_id}", response_model=ContactOut)
 async def rename_contact(contact_id: uuid.UUID, body: ContactPatch, request: Request,
                          ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_WRITE))) -> ContactOut:
@@ -133,7 +177,7 @@ async def rename_contact(contact_id: uuid.UUID, body: ContactPatch, request: Req
     c.display_name, c.name_source = name, "staff"
     db.add(Event(type="contact.renamed", payload={"contact_id": str(c.id), "from": before["name"], "to": name, "by": str(caller.user_id)}))
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.rename", resource=f"contact:{c.id}", before=before,
-                    after={"name": name, "source": "staff"}, ip=request.client.host if request.client else None))
+                    after={"name": name, "source": "staff"}, ip=client_ip(request)))
     await db.flush()
     idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})
@@ -278,7 +322,7 @@ async def set_vehicle_status(vehicle_id: uuid.UUID, body: VehicleStatusIn, reque
         raw.pop("hold", None)
     v.status, v.raw = body.status, raw
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="vehicle.status", resource=f"vehicle:{v.id}",
-                    before=before, after={"status": v.status, "hold": raw.get("hold")}, ip=request.client.host if request.client else None))
+                    before=before, after={"status": v.status, "hold": raw.get("hold")}, ip=client_ip(request)))
     await db.flush()
     return {"id": str(v.id), "status": v.status, "hold": raw.get("hold")}
 
@@ -387,7 +431,7 @@ async def set_vip(contact_id: uuid.UUID, body: VipIn, request: Request,
         await _tell_vip_handler(db, c, caller)
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action="contact.vip", resource=f"contact:{c.id}", before=before,
                     after={"vip": c.is_vip, "handler": str(c.vip_owner_user_id) if c.vip_owner_user_id else None},
-                    ip=request.client.host if request.client else None))
+                    ip=client_ip(request)))
     await db.flush()
     idents = (await db.execute(select(ContactIdentity).where(ContactIdentity.contact_id == c.id))).scalars().all()
     return ContactOut.model_validate(c).model_copy(update={"identities": [IdentityOut.model_validate(i) for i in idents]})

@@ -75,7 +75,18 @@ def pinned(url: str, ip: str) -> tuple[str, dict, dict]:
     return parts._replace(netloc=literal).geturl(), {"Host": host}, {"sni_hostname": host}
 
 
+# httpx's timeout is per read: a server dripping a byte every few seconds could hold a worker for hours.
+TOTAL_SECONDS = 60
+
+
 async def fetch(url: str) -> str:
+    try:
+        return await asyncio.wait_for(_fetch(url), timeout=TOTAL_SECONDS)
+    except TimeoutError:
+        raise FeedError(f"The feed took longer than {TOTAL_SECONDS} seconds to download.") from None
+
+
+async def _fetch(url: str) -> str:
     url = check_url(url)
     ip = await _check_host(urlsplit(url).hostname)
     proxied = any(os.environ.get(k) for k in ("HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"))

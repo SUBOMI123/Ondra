@@ -406,7 +406,7 @@ export default function RoutingPage() {
                 </div>
               </li>
             </ol>
-            <CheckMessage rules={rules} />
+            {canEdit && <CheckMessage rules={rules} />}
           </>
         )}
         <VipCallsSection />

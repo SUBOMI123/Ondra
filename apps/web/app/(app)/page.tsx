@@ -60,7 +60,7 @@ type Trace = {
   events: { event_id: string; type: string; at: string; who: string | null; detail: Record<string, string | number | boolean>; backfilled: boolean }[]
 }
 
-const CHANNEL: Record<string, string> = { sms: "Text", whatsapp: "WhatsApp", email: "Email", phone: "Calls", owner: "Added from the WhatsApp assistant", unknown: "Not recorded" }
+const CHANNEL: Record<string, string> = { sms: "Text", whatsapp: "WhatsApp", email: "Email", phone: "Calls", owner: "Added from your assistant", unknown: "Not recorded" }
 const STAGE: Record<string, string> = { new: "New", qualified: "Qualified", appointment: "Appointment", negotiating: "Negotiating", won: "Won", lost: "Lost" }
 const chartConfig = { responses_by_ai: { label: "Ondra", color: "var(--chart-1)" }, responses_by_team: { label: "Your team", color: "var(--chart-staff)" } } satisfies ChartConfig
 

@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Your WhatsApp assistant (from the account menu). One job: decide when Ondra messages you on WhatsApp, and show
+ * Your assistant (from the account menu), on WhatsApp for now. One job: decide when Ondra messages you on WhatsApp, and show
  * whether it can actually reach you. Each admin's own switches (their phone, their opt-in); the briefing time is the
  * dealership's, shared. It also says which other admins get the briefing, so nobody wonders whether anyone does.
  */
@@ -92,8 +92,12 @@ export function OwnerAssistantSection() {
     },
   })
   const now = useMutation({
-    mutationFn: () => send<{ sent: number; owners: number }>("POST", "/settings/owner-assistant/briefing"),
-    onSuccess: (r) => toast(r.owners === 1 ? "Sent. Check your WhatsApp." : `Sent to ${r.sent} of the ${r.owners} admins who have it on.`),
+    // A preview for you, whatever your morning switch says. In test mode it can't reach a phone, so say where it went.
+    mutationFn: () => send<{ sent: number; live: boolean }>("POST", "/settings/owner-assistant/briefing"),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["owner-assistant", "thread"] })
+      toast(r.live ? "Sent. Check your WhatsApp." : "Sent in test mode: your WhatsApp number isn't live yet, so it's in \"Your recent messages with the assistant\" below, not on your phone.")
+    },
     onError: (e) => toast(errorText(e)),
   })
 
@@ -128,7 +132,7 @@ export function OwnerAssistantSection() {
         ) : !d.whatsapp.live ? (
           <p className="text-muted-foreground">Your WhatsApp number is in test mode, so nothing reaches a real phone yet.</p>
         ) : null}
-        {!canEdit && <p className="text-muted-foreground">The WhatsApp assistant is for admins.</p>}
+        {!canEdit && <p className="text-muted-foreground">The assistant is for admins.</p>}
       </div>
 
       <div className="grid gap-4">

@@ -18,6 +18,7 @@ from ondra_api.db import no_tenant_session, tenant_session
 from ondra_api.deps import Caller, get_db
 from ondra_api.schemas import MeOut
 from ondra_api.security import (
+    client_ip,
     create_access_token,
     hash_token,
     new_refresh_token,
@@ -62,26 +63,55 @@ async def _start_session(db: AsyncSession, user_id: uuid.UUID, tenant_id: uuid.U
             tenant_id=tenant_id, user_id=user_id, token_hash=hash_token(token),
             expires_at=datetime.now(UTC) + timedelta(days=get_settings().refresh_token_days),
             user_agent=request.headers.get("user-agent", "")[:300],
-            ip=request.client.host if request.client else None,
+            ip=client_ip(request),
         )
     )
     return token
 
 
+# Password guessing: after 5 wrong passwords for one email, or 30 from one address, in 15 minutes, sign-in waits.
+# Counted for unknown emails too, so the answer never says whether an account exists.
+LOGIN_WINDOW = timedelta(minutes=15)
+LOGIN_MAX_PER_EMAIL = 5
+LOGIN_MAX_PER_IP = 30
+
+
+async def _too_many_attempts(db: AsyncSession, email: str, ip: str | None) -> bool:
+    since = datetime.now(UTC) - LOGIN_WINDOW
+    row = (await db.execute(text("""
+        SELECT count(*) FILTER (WHERE email = :e), count(*) FILTER (WHERE ip = :ip)
+        FROM login_attempts WHERE at > :since AND (email = :e OR ip = :ip)"""),
+        {"e": email, "ip": ip, "since": since})).one()
+    return row[0] >= LOGIN_MAX_PER_EMAIL or (ip is not None and row[1] >= LOGIN_MAX_PER_IP)
+
+
 @router.post("/login", response_model=TokenOut)
 async def login(body: LoginIn, request: Request, response: Response) -> TokenOut:
+    ip = client_ip(request)
     async with no_tenant_session() as db:
+        if await _too_many_attempts(db, body.email, ip):
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                "Too many attempts. Wait 15 minutes and try again, or ask an admin to reset your password.")
         row = (await db.execute(text("SELECT * FROM auth_find_user(:e)"), {"e": body.email})).mappings().first()
     ok = verify_password(body.password, row["password_hash"] if row else None)
     if not row or not ok or not row["active"]:
+        async with no_tenant_session() as db:
+            await db.execute(text("INSERT INTO login_attempts (email, ip) VALUES (:e, :ip)"), {"e": body.email, "ip": ip})
+            await db.execute(text("DELETE FROM login_attempts WHERE at < now() - interval '1 day'"))
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "That email and password don't match an account.")
+    async with no_tenant_session() as db:
+        await db.execute(text("DELETE FROM login_attempts WHERE email = :e"), {"e": body.email})
     async with tenant_session(row["tenant_id"]) as db:
         refresh = await _start_session(db, row["id"], row["tenant_id"], request)
         db.add(AuditLog(tenant_id=row["tenant_id"], actor_type="user", actor_user_id=row["id"], action="auth.login",
-                        resource=f"user:{row['id']}", ip=request.client.host if request.client else None))
+                        resource=f"user:{row['id']}", ip=client_ip(request)))
     _set_cookie(response, refresh)
     return TokenOut(access_token=create_access_token(row["id"], row["tenant_id"], row["role"]),
                     expires_in=get_settings().access_token_minutes * 60)
+
+
+# Two tabs refreshing at the same moment both present the same token; only a reuse after this long is treated as theft.
+REUSE_GRACE = timedelta(seconds=30)
 
 
 @router.post("/refresh", response_model=TokenOut)
@@ -89,15 +119,31 @@ async def refresh(request: Request, response: Response, ondra_refresh: str | Non
     tenant_id = tenant_of_refresh_token(ondra_refresh or "")
     if tenant_id is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in to continue.")
+    now = datetime.now(UTC)
+    token_hash = hash_token(ondra_refresh or "")
     async with tenant_session(tenant_id) as db:
-        sess = (await db.execute(select(Session).where(Session.token_hash == hash_token(ondra_refresh or "")))).scalar_one_or_none()
-        if sess is None or sess.revoked_at is not None or sess.expires_at < datetime.now(UTC):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Your session expired. Sign in again.")
-        user = (await db.execute(select(User).where(User.id == sess.user_id))).scalar_one()
-        if not user.active:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active.")
-        sess.revoked_at = datetime.now(UTC)  # rotate: each refresh token works once
-        new = await _start_session(db, user.id, tenant_id, request)
+        # Rotate atomically: each refresh token works once, even when two requests race with the same one.
+        claimed = (await db.execute(
+            update(Session).where(Session.token_hash == token_hash, Session.revoked_at.is_(None), Session.expires_at > now)
+            .values(revoked_at=now).returning(Session.user_id)
+        )).scalar_one_or_none()
+        if claimed is None:
+            old = (await db.execute(select(Session).where(Session.token_hash == token_hash))).scalar_one_or_none()
+            if old is not None and old.revoked_at is not None and now - old.revoked_at > REUSE_GRACE:
+                # A used token came back: someone else has a copy. End every session of that person, so whoever
+                # holds a stolen token loses it too, and leave a trace.
+                await db.execute(update(Session).where(Session.user_id == old.user_id, Session.revoked_at.is_(None))
+                                 .values(revoked_at=now))
+                db.add(AuditLog(tenant_id=tenant_id, actor_type="system", action="auth.refresh_reused",
+                                resource=f"user:{old.user_id}", ip=client_ip(request)))
+        else:
+            user = (await db.execute(select(User).where(User.id == claimed))).scalar_one()
+            new = await _start_session(db, user.id, tenant_id, request) if user.active else None
+    # Raised outside the transaction, so a revocation above is committed, not rolled back with the error.
+    if claimed is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Your session expired. Sign in again.")
+    if new is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active.")
     _set_cookie(response, new)
     return TokenOut(access_token=create_access_token(user.id, tenant_id, user.role),
                     expires_in=get_settings().access_token_minutes * 60)
@@ -139,7 +185,7 @@ async def accept_invite(body: AcceptInviteIn, request: Request) -> None:
         u.invite_token_hash = None
         u.invite_expires_at = None
         db.add(AuditLog(actor_type="user", actor_user_id=u.id, action="auth.accept_invite", resource=f"user:{u.id}",
-                        ip=request.client.host if request.client else None))
+                        ip=client_ip(request)))
 
 
 me_router = APIRouter(tags=["auth"])

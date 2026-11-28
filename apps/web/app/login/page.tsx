@@ -37,9 +37,17 @@ export default function LoginPage() {
   }, [])
 
   // Where to go after signing in: the page that sent them here (same site only), else Today.
+  // Parsed, not pattern-matched: browsers read "/\\evil.com" and "/%09/evil.com" as another site, so a prefix check let
+  // a crafted link send someone who just signed in to a look-alike page (security audit, 2026-11-28).
   const next = () => {
     const n = new URLSearchParams(window.location.search).get("next")
-    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/"
+    if (!n || !n.startsWith("/")) return "/"
+    try {
+      const url = new URL(n, window.location.origin)
+      return url.origin === window.location.origin ? url.pathname + url.search + url.hash : "/"
+    } catch {
+      return "/"
+    }
   }
   useEffect(() => {
     if (status === "signed-in") router.replace(next())

@@ -4,7 +4,7 @@
  * Settings. One job: find the thing you want to change, and see at a glance what's set and whether anything needs you.
  * An index, not a form: four groups (your dealership, your team, Ondra, you), one row per page. Each row says in
  * plain words what's set right now, read from the same API the page uses, and calls out what's waiting on someone.
- * Rows a role can't open are left out. Each person's own WhatsApp assistant lives in their account menu, not here.
+ * Rows a role can't open are left out. Each person's own assistant lives in their account menu, not here.
  */
 
 import {

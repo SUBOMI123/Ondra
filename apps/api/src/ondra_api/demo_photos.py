@@ -16,7 +16,13 @@ PREFIX = "/demo-cars/"
 
 # model as seeded -> file in apps/web/public/demo-cars/. A model is listed only once its file and credit are in the
 # repo; until then its demo cars stay without a photo rather than pointing at a missing image.
-FILES: dict[str, str] = {}
+FILES: dict[str, str] = {
+    "BMW X5": "bmw-x5.jpg",
+    "Ford F-150": "ford-f-150.jpg",
+    "Jeep Grand Cherokee L": "jeep-grand-cherokee-l.jpg",
+    "Toyota Highlander": "toyota-highlander.jpg",
+    "Toyota RAV4 Hybrid": "toyota-rav4-hybrid.jpg",
+}
 
 
 def is_demo(url: str) -> bool:

@@ -3,3 +3,7 @@ node_modules
 out
 .open-next
 .wrangler
+# Never send local secrets to an image builder (Fly's remote builder included).
+.env
+.env.*
+!.env.example

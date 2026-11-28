@@ -1,6 +1,7 @@
 """Prepare a Supabase project for Ondra, the way infra/postgres/init.sh prepares the local database.
 
     uv run python infra/deploy/supabase_bootstrap.py --project <ref> --fly-app ondra-api-staging [--fly-app ondra-voice-staging]
+    (The first --fly-app runs migrations and gets the owner URL too; the others get the app role only.)
 
 1. Through Supabase's Management API (POST /v1/projects/{ref}/database/query, which runs as `postgres`): install the
    extensions Ondra needs, then create two roles with freshly generated passwords:
@@ -75,7 +76,9 @@ def main() -> None:
     urls = (f"DATABASE_URL=postgresql+asyncpg://ondra_app:{app_pw}@{host}:5432/{a.database}?ssl=require\n"
             f"MIGRATIONS_DATABASE_URL=postgresql+asyncpg://ondra_owner:{owner_pw}@{host}:5432/{a.database}?ssl=require\n")
     for app in a.fly_app:
-        r = subprocess.run(["fly", "secrets", "import", "--stage", "-a", app], input=urls, text=True,
+        # Only the API app runs migrations (its release_command); every other app gets the app role alone.
+        mine = urls if app == a.fly_app[0] else urls.splitlines(keepends=True)[0]
+        r = subprocess.run(["fly", "secrets", "import", "--stage", "-a", app], input=mine, text=True,
                            capture_output=True, check=False)
         if r.returncode:
             sys.exit(f"fly secrets import failed for {app}: {r.stderr.strip()}")

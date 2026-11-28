@@ -35,8 +35,25 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 log = logging.getLogger("ondra.webhooks")
 
 
+# Providers' webhooks are small (text, metadata, media links); anything bigger is refused before it's read, since
+# these endpoints take requests from anyone until the signature is checked.
+MAX_BODY = 1_000_000
+
+
+async def _read_capped(request: Request) -> bytes:
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY:
+        raise HTTPException(413, "too large")
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY:
+            raise HTTPException(413, "too large")
+    return bytes(body)
+
+
 async def _request(request: Request) -> WebhookRequest:
-    body = await request.body()
+    body = await _read_capped(request)
     form = {}
     if request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
         form = dict(parse_qsl(body.decode(), keep_blank_values=True))
@@ -79,7 +96,9 @@ async def _process(adapter: ChannelAdapter, req: WebhookRequest) -> dict:
 
 @router.post("/mock/{channel}")
 async def mock_webhook(channel: str, request: Request) -> dict:
-    if channel not in CHANNELS:
+    # Local development and tests only. On a public site a mock message to a dealer's real number would land in
+    # their account and the AI would answer through the real provider, guarded only by one shared secret.
+    if channel not in CHANNELS or get_settings().is_public_site:
         raise HTTPException(404)
     return await _process(mock(channel), await _request(request))
 

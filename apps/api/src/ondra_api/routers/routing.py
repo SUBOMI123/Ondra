@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, get_db, require
+from ondra_api.security import client_ip
 from ondra_api.services.routing import classify_topic, facts_for, load_people, load_rules
 
 router = APIRouter(prefix="/routing", tags=["routing"])
@@ -59,7 +60,7 @@ class PreviewIn(BaseModel):
 
 def _audit(db: AsyncSession, caller: Caller, request: Request, action: str, resource: str, before, after) -> None:
     db.add(AuditLog(actor_type="user", actor_user_id=caller.user_id, action=action, resource=resource,
-                    before=before, after=after, ip=request.client.host if request.client else None))
+                    before=before, after=after, ip=client_ip(request)))
 
 
 def _out(r: RoutingRule) -> dict:
@@ -191,7 +192,8 @@ async def reorder(body: OrderIn, request: Request,
 
 
 @router.post("/preview")
-async def preview(body: PreviewIn, ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
+async def preview(body: PreviewIn, ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.SETTINGS_MANAGE))) -> dict:
+    # Admins only: it can call the model (topic classification), so it isn't open to every role.
     """What would happen to this message if a customer (not a VIP) sent it now. Sends nothing, assigns nothing."""
     _caller, db = ctx
     tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()

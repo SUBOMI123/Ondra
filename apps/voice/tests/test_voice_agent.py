@@ -315,7 +315,7 @@ async def test_a_call_names_the_best_two_and_texts_the_rest_only_after_a_yes(dat
         desk = await CallDesk.open(await _plan(database, "Ben Carter"))
     finally:
         os.environ.pop("VOICE_TEXT_ON_MOCK")
-    assert desk.can_text and agents.TEXT_RULES in agents.instructions(desk)
+    assert desk.can_text and agents.TEXT_RULES.replace("{dealer}", desk.dealer.name) in agents.instructions(desk)
     out = await desk.run("search_inventory", {"query": "SUV"})
     assert out["total_found"] > 2 and len(out["best"]) == 2 and len(desk.last_cars) == out["total_found"]
     assert "text_details" in out["next"]
@@ -346,7 +346,7 @@ async def test_while_texting_isnt_live_ondra_never_offers_a_text(database):
     desk = await CallDesk.open(await _plan(database, "Ben Carter"))
     assert desk.can_text is False
     rules = agents.instructions(desk)
-    assert agents.NO_TEXT_RULES in rules and agents.TEXT_RULES not in rules
+    assert agents.NO_TEXT_RULES in rules and "Can I text you the details" not in rules
     out = await desk.run("search_inventory", {"query": "SUV"})
     assert "don't offer one" in out["next"] and "text_details" not in out["next"]
     channels.mock("sms").outbox.clear()
@@ -423,3 +423,40 @@ async def test_a_handoff_already_announced_isnt_announced_again(database):
 
         await db.execute(Task.__table__.delete().where(Task.contact_id == desk.plan.contact_id, Task.source == "ai_handoff",
                                                         Task.brief == "Wants a trade value."))
+
+
+# --- security audit, 2026-11-28: "No, please don't text me" used to count as a yes ------------------------------
+
+@pytest.mark.parametrize("said,agreed", [
+    ("Yes please", True), ("Sure, text me those", True), ("No problem, send it", True), ("yeah go ahead", True),
+    ("No, please don't text me", False), ("Please don't", False), ("not right now, ok?", False),
+    ("Nah, I'm good", False), ("stop texting me please", False), ("", False),
+])
+def test_only_a_plain_yes_is_consent_to_a_text(said, agreed):
+    from ondra_voice.desk import agreed_to_text
+
+    assert agreed_to_text(said) is agreed
+
+
+# --- security audit, 2026-11-28: caller ID can be faked ------------------------------------------------------
+
+async def test_cancel_move_and_repair_status_need_a_code_on_a_call():
+    from types import SimpleNamespace
+
+    from ondra_voice.desk import CallDesk
+
+    desk = CallDesk(plan=SimpleNamespace(tenant_id=uuid.uuid4(), contact_id=uuid.uuid4(), call_id=uuid.uuid4()),
+                    dealer=SimpleNamespace(name="Prestige Motors"), customer=None, contact_context=None,
+                    checks=ReplyContext(), can_text=False)
+    for tool in ("reschedule_or_cancel", "get_repair_order_status"):
+        out = await desk.run(tool, {})
+        assert "error" in out and "can't be done on a call" in out["error"]
+    desk.can_text = True
+    assert "send_code" in (await desk.run("reschedule_or_cancel", {}))["error"]
+    assert "No code" in desk.check_code("123456")["error"]
+    # A code was sent (its hash is all the desk keeps): a wrong one, then the right one read out with spaces.
+    import hashlib
+    desk.code_hash = hashlib.sha256(b"481516").hexdigest()
+    assert desk.check_code("111111")["verified"] is False
+    desk.code_hash, desk.code_tries = hashlib.sha256(b"481516").hexdigest(), 0
+    assert desk.check_code("4 8 1 5 1 6")["verified"] is True and desk.caller_verified

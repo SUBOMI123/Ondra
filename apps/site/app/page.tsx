@@ -18,6 +18,7 @@ import Wordmark from "@/components/Wordmark";
 import MobileMenu from "@/components/MobileMenu";
 import { NAV_LINKS } from "@/components/navLinks";
 import { Briefing, PolicyCheck, SalesThread, ServiceCall, VipCall } from "@/components/stories";
+import SiteFooter from "@/components/SiteFooter";
 import StickyNav from "@/components/StickyNav";
 import { VipTag } from "@/components/vip";
 import { CONTACT_EMAIL, SIGN_IN_URL } from "@/lib/config";
@@ -45,7 +46,7 @@ export default function Home() {
         <Demo />
         <Faq />
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }
@@ -663,27 +664,3 @@ function Faq() {
   );
 }
 
-/* ---------------------------------------------------------------- footer */
-
-function Footer() {
-  return (
-    <footer className="on-dark bg-night py-12 text-white/65">
-      <Wrap className="flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <Logo className="text-white" />
-          <p className="text-small mt-3 max-w-[40ch]">AI agents that answer, book and route for car dealerships.</p>
-        </div>
-        <div className="text-small">
-          <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white hover:underline">
-            {CONTACT_EMAIL}
-          </a>
-          <p className="mt-1">© {new Date().getFullYear()} Ondra (working name)</p>
-        </div>
-        <p className="text-micro w-full border-t border-white/10 pt-5 text-white/45">
-          3D car models from Blend Swap: Audi A8 by 50Groszy (CC BY-SA 3.0), BMW M4 F82 (#81957, CC BY 3.0), Lamborghini Urus
-          2019 (#92440, CC BY-NC 3.0), 1968 Mustang GT Fastback (#82339, CC0). Badges and logos removed, paint changed.
-        </p>
-      </Wrap>
-    </footer>
-  );
-}

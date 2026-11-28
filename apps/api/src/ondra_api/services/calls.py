@@ -294,7 +294,7 @@ async def _missed(db: AsyncSession, call: Call, contact: Contact | None) -> None
             await db.flush()
         tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
         m = Message(conversation_id=sms.id, direction="outbound", author_type="system", status="queued",
-                    body=f"Sorry we missed your call at {tenant.name}. Reply here and we'll help, or we'll call you back shortly.")
+                    body=f"Sorry we missed your call at {tenant.name}. Reply here and we'll help, or we'll call you back shortly. Reply STOP to opt out.")
         db.add(m)
         await db.flush()
         enqueue(db, "send_message", {"message_id": str(m.id)})

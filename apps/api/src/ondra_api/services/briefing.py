@@ -95,11 +95,13 @@ async def schedule(db: AsyncSession) -> datetime | None:
     return at
 
 
-async def send_now(tenant_id: uuid.UUID, now: datetime | None = None) -> dict:
-    """Send the briefing to every owner. Returns the counts and how many it reached."""
+async def send_now(tenant_id: uuid.UUID, now: datetime | None = None, *, only: uuid.UUID | None = None) -> dict:
+    """Send the briefing to every admin who has it on, or (`only`) to one admin as a preview, whether or not their own
+    morning briefing is switched on. Returns the counts and how many it reached."""
     async with tenant_session(tenant_id) as db:
         c = await counts(db, now)
-        to = [(u.id, u.name.split()[0]) for u in await owners(db, "briefing_on")]
+        people = await owners(db, None if only else "briefing_on")
+        to = [(u.id, u.name.split()[0]) for u in people if only is None or u.id == only]
     sent = 0
     for user_id, first in to:
         sent += await send_to_owner(tenant_id, user_id, render(first, c), kind="briefing", template=template(first, c),

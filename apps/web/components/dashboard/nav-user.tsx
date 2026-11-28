@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  IconBrandWhatsapp,
   IconDotsVertical,
   IconLogout,
   IconSunMoon,
@@ -42,6 +41,7 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
+import { OndraMark } from "@/components/ondra-mark"
 import { useAuth } from "@/components/providers"
 
 const THEMES: Record<string, string> = { system: "System", light: "Light", dark: "Dark" }
@@ -102,10 +102,10 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {/* Each admin's own WhatsApp assistant: their briefing and alerts, on their phone. */}
+            {/* Each admin's own assistant (on WhatsApp for now): their briefing and alerts, on their phone. */}
             {me?.role === "admin" && (
               <DropdownMenuItem asChild>
-                <Link href="/settings/assistant"><IconBrandWhatsapp />Your WhatsApp assistant</Link>
+                <Link href="/settings/assistant"><OndraMark className="size-4" />Your assistant</Link>
               </DropdownMenuItem>
             )}
             {/* Appearance is each person's own choice, so it lives here, not in the dealership's Settings. One row that

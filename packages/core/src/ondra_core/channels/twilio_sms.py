@@ -54,11 +54,13 @@ class TwilioSmsAdapter:
     def verify_signature(self, request: WebhookRequest) -> None:
         # TODO(verify): accounts that switch to shared signing keys send X-Twilio-Webhooks-Signature-Settings and
         # may use HMAC-SHA256; only the default (auth token, HMAC-SHA1) scheme is implemented.
+        if not self.auth_token:
+            raise SignatureError("TWILIO_AUTH_TOKEN is not set")  # an empty HMAC key is one anyone can compute
         if "x-twilio-webhooks-signature-settings" in request.headers:
             raise SignatureError("shared-key signing isn't supported yet")
         given = request.headers.get("x-twilio-signature", "")
         expected = twilio_signature(self.auth_token, request.url, request.form)
-        if not given or not hmac.compare_digest(given, expected):
+        if not given or not hmac.compare_digest(given.encode(), expected.encode()):
             raise SignatureError("bad X-Twilio-Signature")
 
     def parse_webhook(self, request: WebhookRequest) -> list[InboundEvent]:

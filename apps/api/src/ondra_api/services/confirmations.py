@@ -53,7 +53,11 @@ WRITTEN = ("sms", "whatsapp", "email")
 # --- the booking's own link ----------------------------------------------------------------------------------------
 
 def _sign(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(hmac.new(get_settings().jwt_secret.encode(), b"booking:" + raw, hashlib.sha256).digest()[:16]).decode().rstrip("=")
+    # Its own secret, so rotating the sign-in secret doesn't break every customer's link (and the other way round).
+    # Locally it falls back to the JWT secret; a public site refuses to start without one (config.py).
+    s = get_settings()
+    key = (s.booking_link_secret or s.jwt_secret).encode()
+    return base64.urlsafe_b64encode(hmac.new(key, b"booking:" + raw, hashlib.sha256).digest()[:16]).decode().rstrip("=")
 
 
 def manage_token(tenant_id: uuid.UUID, appointment_id: uuid.UUID) -> str:
@@ -69,7 +73,7 @@ def read_token(token: str) -> tuple[uuid.UUID, uuid.UUID] | None:
         raw = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
     except ValueError:
         return None
-    if len(raw) != 32 or not hmac.compare_digest(sig, _sign(raw)):
+    if len(raw) != 32 or not hmac.compare_digest(sig.encode(), _sign(raw).encode()):
         return None
     return uuid.UUID(bytes=raw[:16]), uuid.UUID(bytes=raw[16:])
 

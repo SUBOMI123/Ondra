@@ -74,8 +74,32 @@ def spoken_amounts(text: str) -> list[int]:
     return out
 
 
+# Clauses, so a "not" only excuses the clause it's in: "Not a problem, we can do $25,000" is a commitment.
+_CLAUSE = re.compile(r"\s*(?:(?<!\d),|,(?!\d{3})|[;:\u2014\u2013]|\s-\s|\bbut\b|\bhowever\b|\bthough\b)\s*", re.IGNORECASE)
+# Phrases with a negation word that agree rather than refuse.
+_NOT_NEGATING = re.compile(r"\b(?:not a problem|no problem|not bad|no worries|why not|can'?t wait|"
+                           r"not only|don'?t worry|don'?t hesitate|won'?t regret)\b", re.IGNORECASE)
+
+
+def clauses(sentence: str) -> list[str]:
+    return [c for c in _CLAUSE.split(sentence) if c and c.strip()]
+
+
+def negated(clause: str) -> bool:
+    return bool(_NEGATION.search(_NOT_NEGATING.sub(" ", clause)))
+
+
 def _flag_unnegated(text: str, pattern: re.Pattern[str]) -> list[str]:
-    return [s for s in sentences(text) if pattern.search(s) and not _NEGATION.search(s)]
+    """Sentences where some clause matches and that clause has no negation of its own. A negation elsewhere in the
+    sentence doesn't excuse it, and a commitment ("we can do", "I'll give you") is never excused."""
+    out = []
+    for s in sentences(text):
+        if pattern.search(s) and any(pattern.search(c) and (not negated(c) or _COMMIT_PLAIN.search(c))
+                                     for c in clauses(s) or [s]):
+            out.append(s)
+        elif pattern.search(s) and not any(pattern.search(c) for c in clauses(s)) and not negated(s):
+            out.append(s)  # the match spans clauses ("best price, ever"): judge the whole sentence
+    return out
 
 
 # --- the checks --------------------------------------------------------------------------------------------------
@@ -94,6 +118,9 @@ _DISCOUNT = re.compile(
     re.IGNORECASE,
 )
 # A commitment in the same sentence cancels the referral excuse: "I can do $500 off, I'll pass it to sales".
+# An unnegated "we can do / I'll give you": "we can't do" doesn't match, so a refusal isn't caught by it.
+_COMMIT_PLAIN = re.compile(r"\b(?:i|we)(?: can| will|'ll| could)? (?:do|give|take|offer|knock|make|get you|accept)\b"
+                           r"(?!\s+(?:you\s+)?(?:an?\s+)?(?:appointment|test drive|call|look|check|text))", re.IGNORECASE)
 _COMMIT = re.compile(r"\b(?:i|we)(?: can|'ll| will| could|'d| would)? (?:do|give|take|offer|knock|make|get you)\b",
                      re.IGNORECASE)
 
@@ -166,6 +193,11 @@ class ReplyContext:
     today: str = ""  # the dealer's weekday abbreviation now, e.g. "Tue", so "tomorrow" can be checked
 
 
+# Words that turn the customer's own number into a yes: "$25,000 is fine", "deal at $25k", "we can do $25k".
+_AGREEING = re.compile(r"\b(price|deal|do|accept(?:ed)?|take|works?|fine|ok(?:ay)?|good|yes|sure|agreed?|done|approved?|"
+                       r"happy to|you got it|sounds? (?:good|great|right)|let (?:it|her|him) go|sell|yours)\b", re.IGNORECASE)
+
+
 def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
     hits = [h for h in _flag_unnegated(reply, _FINAL_PRICE) if not _referral(h)]
     allowed = set(ctx.listed_prices) if ctx.price_disclosure in ("listed", "range") else set()
@@ -173,14 +205,16 @@ def quotes_final_price(reply: str, ctx: ReplyContext) -> list[str]:
     for s in sentences(reply):
         if _referral(s):
             continue  # handing the number to a person isn't quoting it
-        for amount in money_amounts(s):
-            if amount in allowed:
-                continue
-            if amount in customer_amounts and _NEGATION.search(s):
-                continue  # "I can't confirm $41k, someone from sales will…" repeats the customer's number safely
-            if amount in customer_amounts and not re.search(r"\b(price|deal|do|accept|take|works)\b", s, re.IGNORECASE):
-                continue  # "both are under your $35k budget"
-            hits.append(s)
+        for c in clauses(s) or [s]:
+            # Amounts in words count too ("we'll let it go for twenty-five thousand"), not only "$25,000".
+            for amount in [*money_amounts(c), *(a for a in spoken_amounts(c) if a >= 1000)]:
+                if amount in allowed:
+                    continue
+                if amount in customer_amounts and negated(c) and not _COMMIT_PLAIN.search(c):
+                    continue  # "I can't confirm $41k, someone from sales will…" repeats the customer's number safely
+                if amount in customer_amounts and not _AGREEING.search(c):
+                    continue  # "both are under your $35k budget"
+                hits.append(s)
     return list(dict.fromkeys(hits))
 
 

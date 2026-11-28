@@ -3,7 +3,7 @@
 The one place to see where Ondra is. Updated with every piece of work (see `CLAUDE.md`). Plan and acceptance criteria:
 `BUILD_PLAN.md` §12. Why things are the way they are: `docs/DECISIONS.md`. Sequencing and founder lead times: `docs/ROADMAP.md`.
 
-**Last updated:** 2026-11-28. **Now:** One top role (Admin), every-control-works Mine / Everyone, the Today redesign, every VIP having a person and booking confirmations (with the customer's own booking page) are done from `docs/PLAN.md`; the VIP desk (message when a VIP's call isn't answered) is built and tested on the mock, switched off until a real call checks the transfer; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
+**Last updated:** 2026-11-28. **Now:** Security audit done and every code-fixable gap closed (DECISIONS 2026-11-28); what's left needs the founder (Known gaps). One top role (Admin), every-control-works Mine / Everyone, the Today redesign, every VIP having a person and booking confirmations (with the customer's own booking page) are done from `docs/PLAN.md`; the VIP desk (message when a VIP's call isn't answered) is built and tested on the mock, switched off until a real call checks the transfer; the rest of that plan is in progress. Steps 6 to 9 are built with their acceptance checks met, and the code-only gaps found along the way are closed (Deals board, honest texting on calls, handoffs said once, rating notes and eval export, per-person numbers, the owner's assistant thread, pinned feed downloads). Waiting for the founder before Step 10. Step 5, Voice, is parked with a backlog (below).
 
 ## Build steps
 
@@ -140,6 +140,7 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Twilio: a Programmable Voice SIP domain with its Voice URL set to `/webhooks/voice/vip/start`, then one real VIP call to check the trunk transfer reaches it (`services/vip_desk.py` TODO(verify)); then FEATURE_VIP_DESK=true | The message a VIP hears when nobody answers, press 1, press 2 | **Waiting** |
 | Check confirmations on real accounts: one email through Postmark with the .ics attached (`TODO(verify)` in the Postmark adapter), and the invite and the Google and Outlook links opened in each calendar | Booking confirmations going live | **Waiting** |
 | WhatsApp: submit a booking-confirmation template to Meta with the briefing and alert templates | Confirmations on WhatsApp outside the 24-hour window | Not started |
+| Privacy policy and terms (useondra.com/privacy, /terms): written to match how Ondra works today; need counsel's review, and the company's legal name, address, governing law and dispute terms added (marked TODO in apps/site/app/privacy and /terms) | Collecting leads and signing dealers with confidence | **Waiting** |
 | Counsel: does a VIP pressing 2 to ask for a booking link count as consent for that one text? Today press 2 is offered only with recorded consent | Press 2 for VIPs without text consent | Open |
 | Counsel: may we text back a missed call when the caller hasn't opted in to texts? Today we don't, so most first-time callers get a call-back task, not a text | Missed-call text-back reach | Open |
 | Counsel: is a customer's own inbound text consent to a follow-up text a day later? Today it isn't, so most text follow-ups become tasks for a person | How much follow-ups do by text | Open |
@@ -160,6 +161,17 @@ Kept here by founder decision so work can move on. In rough order of what a pilo
 | Container host and managed Postgres | First staging deploy | **Decided and live (2026-11-27):** Fly.io (API, job worker, voice worker in San Jose) + Supabase (Oregon), see docs/DEPLOY.md. Live: https://useondra.com (marketing site, Cloudflare Pages), https://app.useondra.com and https://api.useondra.com (dashboard on Fly too: Cloudflare Workers deploys fail from the cloud session) |
 
 ## Known gaps (honest list)
+
+- **Security audit 2026-11-28:** everything the audit found that code can fix is fixed (DECISIONS, both entries).
+  Still open, each needing the founder:
+  (1) staging still signs in with local passwords (`ALLOW_LOCAL_AUTH_ON_PUBLIC_SITE`), allowed only because it holds
+  demo data: switch to Clerk (needs the Clerk keys) before any real dealer data;
+  (2) no database backups: Supabase Free has none; Pro adds daily backups and point-in-time restore;
+  (3) the database connection is encrypted but doesn't verify the server's certificate: needs Supabase's CA
+  certificate (Database settings, SSL) to switch to verify-full;
+  (4) counsel: whether the append-only audit log may keep a renamed client's old name after an erase, and what START
+  should re-subscribe;
+  (5) the marketing site's security headers ship with the next merge to master.
 
 - **Analytics:** (1) reply time covers messages, not calls (needs ring timing from the carrier); (2) the dollar value of deals is an estimate on the Deals board only, not on Today; (3) leads from before Step 9 count toward neither Ondra nor the team, and replies before 2026-11-27 have no person attached; (4) no exports or custom dates.
 
