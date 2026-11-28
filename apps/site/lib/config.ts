@@ -7,6 +7,6 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://useondra.co
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.useondra.com";
 export const SIGN_IN_URL = `${APP_URL}/login`;
 // The business registered with US carriers for texting (the A2P 10DLC brand). Carriers check that the privacy policy
-// and terms name it, so it must match the registration exactly. TODO(founder): set to the registered legal name.
+// and terms name it, so it must match the registration exactly ("Ondra", a sole proprietor brand, approved 2026-11-26).
 export const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME || "Ondra";
 export const TEXT_NUMBER = "(707) 306-8599";

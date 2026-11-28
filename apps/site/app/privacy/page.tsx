@@ -16,7 +16,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy policy"
       updated="November 28, 2026"
-      intro={<p>Ondra is operated by {BRAND_NAME}. It answers calls and messages for car dealerships. This page explains what information we handle, why, who helps us handle it, and what you can ask us to do with it. If anything here is unclear, email {mail}.</p>}
+      intro={<p>{BRAND_NAME === "Ondra" ? "Ondra" : `Ondra, operated by ${BRAND_NAME},`} answers calls and messages for car dealerships. This page explains what information we handle, why, who helps us handle it, and what you can ask us to do with it. If anything here is unclear, email {mail}.</p>}
     >
       <Section id="who" title="Two kinds of information">
         <p>

@@ -57,7 +57,7 @@ export default function TermsPage() {
       </Section>
 
       <Section id="texts" title="SMS terms">
-        <p>{BRAND_NAME} (Ondra) sends text messages from {TEXT_NUMBER}, and for a dealership from that dealership&apos;s own number, about a person&apos;s own enquiry: replies to their questions, details of cars they asked about, appointment confirmations, reminders and changes, a text after a missed call, and one-time codes they ask for. No marketing messages are sent. Texts go only to people who texted first or agreed to texts, for example by saying yes on a call. Agreeing is never a condition of buying anything.</p>
+        <p>{BRAND_NAME === "Ondra" ? "Ondra" : `${BRAND_NAME} (Ondra)`} sends text messages from {TEXT_NUMBER}, and for a dealership from that dealership&apos;s own number, about a person&apos;s own enquiry: replies to their questions, details of cars they asked about, appointment confirmations, reminders and changes, a text after a missed call, and one-time codes they ask for. No marketing messages are sent. Texts go only to people who texted first or agreed to texts, for example by saying yes on a call. Agreeing is never a condition of buying anything.</p>
         <ul>
           <li>Message frequency varies with the conversation.</li>
           <li>Message and data rates may apply.</li>
