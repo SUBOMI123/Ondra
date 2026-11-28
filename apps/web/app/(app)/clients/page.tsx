@@ -7,12 +7,13 @@
  * Search, filters and paging are done by the API, so it holds up at thousands of clients.
  */
 
-import { IconBrandWhatsapp, IconChevronLeft, IconChevronRight, IconMail, IconMessage, IconPhone, IconSearch, IconX } from "@tabler/icons-react"
+import { IconBrandWhatsapp, IconMail, IconMessage, IconPhone, IconSearch, IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { Pager } from "@/components/pager"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { useAuth } from "@/components/providers"
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,7 @@ type Row = Contact & {
   looks_after: string | null
 }
 
-const PER_PAGE = 50
+const PER_PAGE = 25
 const CHANNEL = {
   phone: { icon: IconPhone, label: "Prefers calls" },
   sms: { icon: IconMessage, label: "Prefers texts" },
@@ -113,8 +114,6 @@ export default function ClientsPage() {
     placeholderData: keepPreviousData,
   })
   const total = query.data?.total ?? 0
-  const from = total === 0 ? 0 : page * PER_PAGE + 1
-  const to = Math.min(total, (page + 1) * PER_PAGE)
 
   return (
     <>
@@ -209,21 +208,7 @@ export default function ClientsPage() {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-              <span className="tabular-nums">
-                {from}–{to} of {total.toLocaleString("en-US")} {show === "vip" ? (total === 1 ? "VIP" : "VIPs") : total === 1 ? "client" : "clients"}
-              </span>
-              {total > PER_PAGE && (
-                <span className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                    <IconChevronLeft /> Previous
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={to >= total} onClick={() => setPage((p) => p + 1)}>
-                    Next <IconChevronRight />
-                  </Button>
-                </span>
-              )}
-            </div>
+            <Pager page={page} perPage={PER_PAGE} total={total} noun={show === "vip" ? ["VIP", "VIPs"] : ["client", "clients"]} onPage={setPage} />
           </>
         )}
       </div>

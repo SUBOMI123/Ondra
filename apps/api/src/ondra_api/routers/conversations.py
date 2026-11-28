@@ -198,6 +198,7 @@ async def list_conversations(
             "last_message": last,
             "bucket": bucket, "reason": reason,
             "overdue": bool(bucket == "needs" and r.task_due and r.task_due < now),
+            "due_at": r.task_due.isoformat() if bucket == "needs" and r.task_due else None,
             "drafts": sum(c[0].drafts for c in convs),
             "after_hours_lead": str(r.contact_id) in after_hours,
         })

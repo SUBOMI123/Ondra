@@ -11,6 +11,7 @@ import {
   IconArrowLeft,
   IconBan,
   IconBrandWhatsapp,
+  IconClockExclamation,
   IconCheck,
   IconChevronDown,
   IconHandStop,
@@ -68,6 +69,7 @@ type Summary = {
   bucket: Bucket
   reason: string | null
   overdue: boolean
+  due_at?: string | null
   drafts: number
   after_hours_lead: boolean
 }
@@ -133,6 +135,13 @@ function errorText(e: unknown) {
 
 /* ---------------------------------------------------------------- list */
 
+/** How late something is, short: "40 m", "3 h", "2 d". */
+function late(due: string | null | undefined) {
+  if (!due) return "late"
+  const m = Math.max(1, Math.round((Date.now() - new Date(due).getTime()) / 60_000))
+  return m < 60 ? `${m} m` : m < 60 * 48 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`
+}
+
 function Row({ c, active, onSelect }: { c: Summary; active: boolean; onSelect: () => void }) {
   const Ch = CHANNEL[c.channel]?.icon ?? IconMessage
   const vip = c.contact.is_vip
@@ -156,7 +165,7 @@ function Row({ c, active, onSelect }: { c: Summary; active: boolean; onSelect: (
         </span>
         <span className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
           {c.bucket === "needs" ? (
-            <span className={cn("truncate", c.overdue ? "text-overdue" : vip && "font-medium text-foreground")}>{c.overdue ? `Overdue: ${c.reason}` : c.reason}</span>
+            <span className={cn("truncate", vip && "font-medium text-foreground")}>{c.reason}</span>
           ) : c.bucket === "ondra" ? (
             <>
               <OndraMark className="size-3.5 shrink-0 text-ai" />
@@ -170,7 +179,17 @@ function Row({ c, active, onSelect }: { c: Summary; active: boolean; onSelect: (
           )}
         </span>
       </span>
-      <span className="pt-0.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums">{when(c.last_message.at)}</span>
+      {/* Late work is marked where times are read, in the right-hand column: a small red clock and how late, not a
+          red sentence (when most rows were overdue, red stopped meaning anything). */}
+      <span className="flex flex-col items-end gap-1 pt-0.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+        {when(c.last_message.at)}
+        {c.overdue && (
+          <span className="flex items-center gap-1 text-overdue" title={c.due_at ? `Overdue: was due ${when(c.due_at)}` : "Overdue"}>
+            <IconClockExclamation className="size-3.5" aria-hidden="true" />
+            <span className="sr-only">Overdue by </span>{late(c.due_at)}
+          </span>
+        )}
+      </span>
     </button>
   )
 }

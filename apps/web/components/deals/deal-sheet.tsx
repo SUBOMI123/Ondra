@@ -50,7 +50,7 @@ type Detail = {
 }
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
-const CHANNEL: Record<string, string> = { sms: "text", whatsapp: "WhatsApp", email: "email", phone: "phone", web: "your website", owner: "the WhatsApp assistant" }
+const CHANNEL: Record<string, string> = { sms: "text", whatsapp: "WhatsApp", email: "email", phone: "phone", web: "your website", owner: "your assistant" }
 
 export function stamp(iso: string) {
   const time = clock(iso)

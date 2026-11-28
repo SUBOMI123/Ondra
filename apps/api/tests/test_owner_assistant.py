@@ -370,8 +370,13 @@ async def test_the_assistant_switches_are_each_admins_own_and_schedule_the_brief
     async with tenant_session(line.tenant) as db:
         [job] = (await db.execute(select(Job).where(Job.kind == "owner_briefing", Job.status == "queued"))).scalars().all()
         assert job.run_at.astimezone(CHI).strftime("%H:%M") == "08:15"
-    sent = (await client.post("/settings/owner-assistant/briefing", headers=chris)).json()
-    assert (sent["sent"], sent["owners"]) == (1, 1) and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
+    # "Send me today's briefing now" is a preview for whoever asks: Samuel gets his on his own phone...
+    sent = (await client.post("/settings/owner-assistant/briefing", headers=samuel)).json()
+    assert sent["sent"] == 1 and sent["live"] is False and line.to_owner()[-1].template["name"] == "ondra_morning_briefing"
+    # ...and Chris gets one too, though his morning briefing is off, and Samuel doesn't get a second.
+    before = len(line.to_owner())
+    assert (await client.post("/settings/owner-assistant/briefing", headers=chris)).json()["sent"] == 1
+    assert len(line.to_owner()) == before
     assert (await client.post("/settings/owner-assistant/briefing", headers=manager)).status_code == 403
 
 

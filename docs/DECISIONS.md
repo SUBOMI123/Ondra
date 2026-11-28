@@ -1055,3 +1055,17 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   Mine / Everyone pill beside the title. "Dealership" over "Everyone's" (reads like a shared mailbox) or "Team"
   (the views include unassigned work and what Ondra handled, not only the team's).
 - **No Instagram on the site** until it's supported.
+
+## 2026-11-28: Overdue in the Inbox, pages of 25, "Your assistant"
+
+- **Overdue in the Inbox list** is a small red clock and how late ("36 h") in the time column, and the reason line
+  is grey. A red "Overdue: ..." sentence on most rows made red mean nothing. A warning triangle by the name was
+  considered and rejected: that spot carries the VIP tag, and a triangle says "error", not "late".
+- **Clients and Inventory: pages of 25** with "1–25 of 50 cars", "Page 1 of 2", Previous / Next. They already paged
+  at 50, but the demo had 30 clients and 50 cars, so the controls never showed and it read as an endless scroll.
+- **"Your assistant"**, not "Your WhatsApp assistant": it's the assistant, WhatsApp is today's channel. US dealers
+  mostly text rather than use WhatsApp, so a text-message channel for the assistant is worth adding before US pilots
+  (needs A2P 10DLC).
+- **"Send me today's briefing now" is a preview for whoever asks**, whatever their morning switch says. It used to
+  send only to admins with the briefing on (and refuse otherwise). In test mode it says the message is in the thread
+  on the page, not on their phone.

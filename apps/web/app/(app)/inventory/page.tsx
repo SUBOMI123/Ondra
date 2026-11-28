@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useDeferredValue, useEffect, useState } from "react"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { Pager } from "@/components/pager"
 import { CarThumb, type Hold, holdText, useSetStatus, VehicleSheet } from "@/components/inventory/vehicle-sheet"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { Button } from "@/components/ui/button"
@@ -33,7 +34,7 @@ type Car = {
 type Lot = { items: Car[]; total: number; makes: string[]; can_hold: boolean; can_sell: boolean }
 type Sort = "oldest" | "asked" | "newest" | "price_low" | "price_high"
 
-const PER_PAGE = 50
+const PER_PAGE = 25
 const AGING = 60 // days: past this a car costs more to keep than it's worth waiting for
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
 const SORTS: Record<Sort, string> = {
@@ -198,15 +199,7 @@ function Inventory() {
                 </TableBody>
               </Table>
             </div>
-            {total > PER_PAGE && (
-              <div className="flex items-center justify-between text-sm text-muted-foreground tabular-nums">
-                <span>{page * PER_PAGE + 1}–{Math.min(total, (page + 1) * PER_PAGE)} of {total}</span>
-                <span className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={(page + 1) * PER_PAGE >= total} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                </span>
-              </div>
-            )}
+            <Pager page={page} perPage={PER_PAGE} total={total} noun={["car", "cars"]} onPage={setPage} />
           </>
         )}
       </div>

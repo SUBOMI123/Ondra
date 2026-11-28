@@ -265,7 +265,7 @@ async def get_owner_assistant(ctx: tuple[Caller, AsyncSession] = Depends(get_db)
 
 def _owner_only(caller: Caller) -> None:
     if caller.role != "admin":
-        raise HTTPException(403, "Only admins have the WhatsApp assistant.")
+        raise HTTPException(403, "Only admins have the assistant.")
 
 
 @router.put("/owner-assistant")
@@ -293,18 +293,25 @@ async def put_owner_assistant(body: OwnerAssistantIn, request: Request, ctx: tup
 
 @router.post("/owner-assistant/briefing")
 async def send_briefing_now(ctx: tuple[Caller, AsyncSession] = Depends(get_db)) -> dict:
-    """Send today's briefing now to every admin who has it on, to see what it looks like."""
+    """Send me today's briefing now, as a preview: to the admin who asked, whether or not their morning briefing is
+    switched on. `live` says whether it went to a real phone or to the test-mode WhatsApp number."""
+    from ondra_core.models import User
+
     from ondra_api.services import briefing
 
     caller, db = ctx
     _owner_only(caller)
+    me = await db.get(User, caller.user_id)
+    if not me or not me.phone:
+        raise HTTPException(409, "Add your mobile under Settings, Team first: that's where the briefing goes.")
+    wa = (await db.execute(select(ChannelAddress).where(ChannelAddress.channel == "whatsapp", ChannelAddress.active.is_(True)).limit(1))).scalar_one_or_none()
+    if wa is None:
+        raise HTTPException(409, "Your dealership has no WhatsApp number yet. Add one under Settings, Channels.")
     await db.commit()
-    out = await briefing.send_now(caller.tenant_id)
-    if out["owners"] == 0:
-        raise HTTPException(409, "Nobody has the briefing switched on with a mobile on file. Switch yours on and add your mobile under Team.")
+    out = await briefing.send_now(caller.tenant_id, only=caller.user_id)
     if out["sent"] == 0:
-        raise HTTPException(502, "The briefing couldn't be sent. Check that a WhatsApp number is connected under Channels.")
-    return {k: out[k] for k in ("vips_waiting", "hot_leads", "drafts", "overdue_tasks", "appointments", "sent", "owners")}
+        raise HTTPException(502, "The briefing couldn't be sent. Check the WhatsApp number under Settings, Channels.")
+    return {**{k: out[k] for k in ("vips_waiting", "hot_leads", "drafts", "overdue_tasks", "appointments", "sent")}, "live": wa.provider != "mock"}
 
 
 @router.get("/owner-assistant/thread")
