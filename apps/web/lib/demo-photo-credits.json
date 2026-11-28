@@ -1,1 +1,16 @@
-{}
+{
+  "/demo-cars/bmw-x5.jpg": {
+    "model": "BMW X5",
+    "artist": "Ethan Llamas",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2020_BMW_X5_G05_xDrive30d_M_Sport,_front_right,_06-30-2024.jpg"
+  },
+  "/demo-cars/ford-f-150.jpg": {
+    "model": "Ford F-150",
+    "artist": "SsmIntrigue",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2021_Ford_F150_Supercrew,_Front_Right,_03-09-2021.jpg"
+  }
+}
