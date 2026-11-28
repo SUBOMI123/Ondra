@@ -37,8 +37,13 @@ export default function LoginPage() {
     setWelcome(new URLSearchParams(window.location.search).has("welcome"))
   }, [])
 
+  // Where to go after signing in: the page that sent them here (same site only), else Today.
+  const next = () => {
+    const n = new URLSearchParams(window.location.search).get("next")
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/"
+  }
   useEffect(() => {
-    if (status === "signed-in") router.replace("/")
+    if (status === "signed-in") router.replace(next())
   }, [status, router])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -49,7 +54,7 @@ export default function LoginPage() {
     try {
       await login(String(fd.get("email")), String(fd.get("password")))
       await reload()
-      router.replace("/")
+      router.replace(next())
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't reach Ondra. Check your connection and try again.")
       setBusy(false)

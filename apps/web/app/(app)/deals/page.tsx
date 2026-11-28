@@ -18,6 +18,8 @@ import { Suspense, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { WhoseSwitch } from "@/components/whose-switch"
+import { useWhose } from "@/lib/whose"
 import { DealSheet, LOST_REASONS, type Stage, stamp } from "@/components/deals/deal-sheet"
 import { LoadError } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
@@ -26,7 +28,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -177,7 +178,7 @@ function Deals() {
   const params = useSearchParams()
   const open = params.get("deal")
   const { me } = useAuth()
-  const [whose, setWhose] = useState<"mine" | "everyone">(me?.role === "sales" ? "mine" : "everyone")
+  const [whose, setWhose] = useWhose("deals")
   const [dragging, setDragging] = useState<string | null>(null)
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -241,7 +242,7 @@ function Deals() {
 
   return (
     <>
-      <SiteHeader title="Deals" />
+      <SiteHeader title="Deals" whose={<WhoseSwitch value={whose} onChange={setWhose} what="deals" />} />
       <div className="flex min-w-0 flex-col gap-4 p-4 lg:p-6">
         {q.isPending ? (
           <div className="grid auto-cols-[17rem] grid-flow-col gap-3 overflow-hidden" aria-busy="true" aria-label="Loading">
@@ -266,12 +267,6 @@ function Deals() {
                   <span data-slot="ai-note" className="flex items-center gap-1 text-ai"><OndraMark className="size-3.5" /> {b.open_by_ondra} brought in by Ondra</span>
                 )}
               </p>
-              <Tabs value={whose} onValueChange={(v) => setWhose(v as "mine" | "everyone")}>
-                <TabsList aria-label="Whose deals">
-                  <TabsTrigger value="mine">Mine<span className="ml-1.5 text-muted-foreground tabular-nums">{mineCount}</span></TabsTrigger>
-                  <TabsTrigger value="everyone">Everyone</TabsTrigger>
-                </TabsList>
-              </Tabs>
             </div>
             {whose === "mine" && mineCount === 0 && all.every((d) => !shown(d)) ? (
               <div className="max-w-prose rounded-xl border p-6 text-sm">
@@ -280,7 +275,7 @@ function Deals() {
               </div>
             ) : (
               <DndContext sensors={sensors} onDragStart={(e) => setDragging(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-              <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
+              <div className="relative -mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
                 <div className="grid auto-cols-[17rem] grid-flow-col gap-3">
                   {b.stages.map((s) => {
                     const deals = s.deals.filter(shown)

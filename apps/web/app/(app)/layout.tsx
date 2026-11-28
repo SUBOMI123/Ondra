@@ -14,7 +14,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status, me } = useAuth()
   const router = useRouter()
   useEffect(() => {
-    if (status === "signed-out" || status === "no-team") router.replace("/login")
+    // Back to this page after signing in, not to Today.
+    if (status === "signed-out" || status === "no-team") router.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
   }, [status, router])
 
   if (status !== "signed-in") {

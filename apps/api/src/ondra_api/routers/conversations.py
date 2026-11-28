@@ -40,6 +40,7 @@ from ondra_api.db import tenant_session
 from ondra_api.deps import Caller, require
 from ondra_api.services.inbound import contact_opted_out
 from ondra_api.services.outbound import Blocked, deliver
+from ondra_api.services.whose import Whose, my_clients
 
 # A call with no end after this long is treated as over (the voice worker died before storing it).
 LIVE_FOR = timedelta(hours=2)
@@ -124,9 +125,12 @@ AFTER_HOURS_WINDOW = timedelta(days=7)
 async def list_conversations(
     view: View = "all",
     q: str | None = Query(None, max_length=100),
+    whose: Whose = "everyone",
     ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_READ)),
 ) -> dict:
+    """The Inbox list. `whose=mine`: only your clients' threads (services/whose.py)."""
     caller, db = ctx
+    mine = await my_clients(db, caller.user_id) if whose == "mine" else None
     vip_filter = "" if can_see_vips(caller.role) else "AND (NOT ct.is_vip OR ct.vip_owner_user_id = :me)"
     rows = (await db.execute(text(f"""
         SELECT c.id, c.channel, c.status, c.ai_mode, c.assigned_user_id, c.updated_at,
@@ -170,6 +174,8 @@ async def list_conversations(
     # reason and their latest activity on any channel. Rows come newest first, so a client's first row is latest.
     by_contact: dict = {}
     for r in rows:
+        if mine is not None and r.contact_id not in mine:
+            continue
         last = _last_activity(r, names, now)
         bucket, reason = _bucket(r, last)
         by_contact.setdefault(r.contact_id, []).append((r, last, bucket, reason))

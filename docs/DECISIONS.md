@@ -943,3 +943,23 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
 - **Alternatives:** keep both roles with owner as a flag on one admin (rejected: the flag carries the same
   confusion); auto-enable the assistant for every admin (rejected: WhatsApp opt-in, and nobody wants messages they
   didn't ask for).
+
+## 2026-11-28: Mine / Everyone, the same on every screen
+
+- **One switch in the page header** on Inbox, Calls, Calendar, Tasks and Deals, defaulting by role (sales and
+  service: Mine; admins, managers, view-only: Everyone) and remembered per screen in the browser. Browser storage,
+  not a saved setting: it's a convenience, and a new device simply starts at the role's default.
+- **The API decides what "mine" is** (`whose=mine|everyone` on each list, `services/whose.py`), so it's one rule,
+  tested, rather than five client-side filters. Mine follows the thing listed: tasks assigned to you, deals you own,
+  appointments with you; for conversations and calls, your clients: you've been given their conversation, own their
+  deal, look after them as a VIP, or have an open task for them. Calls also count calls put through to you and your
+  own call-backs. VIP visibility applies on top, unchanged.
+- **Alternative rejected:** "Mine" meaning only threads assigned to you in the Inbox. A salesperson's client often
+  writes on a new channel, which starts unassigned; scoping by client keeps that thread in their Inbox.
+- **On a phone** the header has room for the title and the switch, not the theme buttons too: the theme moved into
+  the account menu below 640 px wide.
+- **Fixed on the way: reloading a page could land you on Today.** The refresh cookie works once; a page load fired
+  several refreshes at once, the losers failed, the app thought you'd signed out, and /login sent you to Today. One
+  shared refresh per tab now, and /login returns you to the page you came from (`?next=`, same-site paths only).
+  Two tabs refreshing in the same instant can still race; a short server-side grace window would close that.
+  The UI review now fails if any page lands somewhere other than where it was sent.

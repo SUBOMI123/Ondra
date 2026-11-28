@@ -159,7 +159,7 @@ export function TeamBoard({ tasks, people, onToggle }: {
 
   return (
     <DndContext sensors={sensors} onDragStart={(e) => setDragging(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-      <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
+      <div className="relative -mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
         <div className="grid auto-cols-[17rem] grid-flow-col gap-3">
           {unassigned.length > 0 && (
             <Column id={NOBODY} name="Nobody yet" role={null} tasks={unassigned} dragging={!!dragging}>

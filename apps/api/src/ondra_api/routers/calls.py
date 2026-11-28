@@ -37,6 +37,7 @@ from ondra_api.services.calls import (
     reopen_called_back,
     waiting_calls,
 )
+from ondra_api.services.whose import Whose, my_clients
 
 router = APIRouter(tags=["calls"])
 
@@ -128,12 +129,17 @@ def _out(call: Call, c: Contact | None, names: dict, full: bool = False, text_ba
 
 
 @router.get("/calls")
-async def list_calls(show: Literal["all", "missed", "ondra", "people"] = Query("all"),
+async def list_calls(show: Literal["all", "missed", "ondra", "people"] = Query("all"), whose: Whose = "everyone",
                      ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONVERSATIONS_READ))) -> dict:
+    """`whose=mine`: calls with your clients (services/whose.py), calls put through to you, and your call-backs."""
     caller, db = ctx
     rows = [(call, c) for call, c in (await db.execute(
         select(Call, Contact).outerjoin(Contact, Contact.id == Call.contact_id)
         .order_by(Call.started_at.desc().nulls_last()).limit(300))).all() if not _hidden(caller, c)]
+    if whose == "mine":
+        mine, me = await my_clients(db, caller.user_id), str(caller.user_id)
+        rows = [(call, c) for call, c in rows if (c is not None and c.id in mine) or call.transferred_to_user_id == caller.user_id
+                or ((call.metrics or {}).get("bridge") or {}).get("user_id") == me]
     names = {u.id: u.name for u in (await db.execute(select(User))).scalars()}
     tb = await _text_backs(db)
     # Who is due to ring each waiting caller back: the call-back task's assignee.

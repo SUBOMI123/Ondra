@@ -18,6 +18,8 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { WhoseSwitch } from "@/components/whose-switch"
+import { useWhose } from "@/lib/whose"
 import { LoadError, TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { useAuth } from "@/components/providers"
@@ -463,7 +465,8 @@ const EMPTY: Record<Show, string> = {
 export default function CallsPage() {
   useLiveInbox()
   const [show, setShowState] = useState<Show>("all")
-  const q = useQuery({ queryKey: ["calls", "list", show], queryFn: () => api<{ items: Call[] }>(`/calls?show=${show}`) })
+  const [whose, setWhose] = useWhose("calls")
+  const q = useQuery({ queryKey: ["calls", "list", show, whose], queryFn: () => api<{ items: Call[] }>(`/calls?show=${show}&whose=${whose}`) })
   const [open, setOpen] = useState<string | null>(null)
   // Deep links: /calls?call=<id> opens that call (from the Inbox); /calls?show=missed picks a filter.
   useEffect(() => {
@@ -485,11 +488,11 @@ export default function CallsPage() {
   const live = items.filter((c) => c.live)
   const callbacks = items.filter((c) => !c.live && c.needs_callback)
   const earlier = items.filter((c) => !c.live && !c.needs_callback)
-  const nothingAtAll = show === "all" && items.length === 0
+  const nothingAtAll = show === "all" && items.length === 0 && whose === "everyone"
 
   return (
     <>
-      <SiteHeader title="Calls" />
+      <SiteHeader title="Calls" whose={<WhoseSwitch value={whose} onChange={setWhose} what="calls" />} />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
         {!nothingAtAll && (
           <Tabs value={show} onValueChange={(v) => setShow(v as Show)}>
@@ -516,14 +519,14 @@ export default function CallsPage() {
               <LiveCall key={c.id} c={c} onOpen={() => setOpen(c.id)} />
             ))}
             {(show === "all" || show === "missed") && (
-              <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty="Nobody is waiting for a call back." />
+              <Group id="callbacks" title="Call back" calls={callbacks} onOpen={(c) => setOpen(c.id)} empty={whose === "mine" ? "None of your clients is waiting for a call back. Everyone shows the whole dealership." : "Nobody is waiting for a call back."} />
             )}
             <Group
               id="earlier"
               title={show === "all" || show === "missed" ? "Earlier" : (SHOWS.find(([k]) => k === show)?.[1] ?? "Calls")}
               calls={earlier}
               onOpen={(c) => setOpen(c.id)}
-              empty={EMPTY[show]}
+              empty={whose === "mine" ? "No calls with your clients yet." : EMPTY[show]}
             />
           </div>
         )}

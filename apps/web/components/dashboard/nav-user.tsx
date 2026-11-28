@@ -5,6 +5,7 @@ import {
   IconDotsVertical,
   IconLogout,
 } from "@tabler/icons-react"
+import { useTheme } from "next-themes"
 import Link from "next/link"
 
 import {
@@ -17,6 +18,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -48,6 +51,7 @@ export function NavUser({
 }) {
   const { signOut, me } = useAuth()
   const { isMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
 
   return (
     <SidebarMenu>
@@ -98,6 +102,16 @@ export function NavUser({
                 <Link href="/settings/assistant"><IconBrandWhatsapp />Your WhatsApp assistant</Link>
               </DropdownMenuItem>
             )}
+            {/* Phones: the header has no room for the theme buttons, so they're here. */}
+            <div className="sm:hidden">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Theme</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+                <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system">Match device</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+            </div>
             <DropdownMenuItem onSelect={() => signOut()}>
               <IconLogout />
               Log out

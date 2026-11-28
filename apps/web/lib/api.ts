@@ -54,12 +54,22 @@ export function currentToken(): string | null {
   return accessToken
 }
 
+// The refresh cookie is single-use (the API rotates it), so requests that all find the token missing at once (a
+// page load fires several) share one refresh. Separate refreshes would race, the losers would fail with a spent
+// cookie, and the person would be sent to sign in again.
+let refreshing: Promise<boolean> | null = null
+
 export async function refresh(): Promise<boolean> {
   if (tokenSource) return (await tokenSource()) !== null
-  const r = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null)
-  if (!r || !r.ok) return false
-  accessToken = (await r.json()).access_token
-  return true
+  refreshing ??= (async () => {
+    const r = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null)
+    if (!r || !r.ok) return false
+    accessToken = (await r.json()).access_token
+    return true
+  })().finally(() => {
+    refreshing = null
+  })
+  return refreshing
 }
 
 export async function logout(): Promise<void> {

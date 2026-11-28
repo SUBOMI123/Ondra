@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ondra_api.deps import Caller, require
 from ondra_api.services import booking
+from ondra_api.services.whose import Whose
 
 router = APIRouter(tags=["booking"])
 
@@ -198,7 +199,9 @@ async def _appointment_out(db: AsyncSession, caller: Caller, a: Appointment, typ
 
 
 @router.get("/calendar")
-async def calendar(day: date = Query(alias="date"), ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_READ))) -> dict:
+async def calendar(day: date = Query(alias="date"), whose: Whose = "everyone",
+                   ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.CONTACTS_READ))) -> dict:
+    """One day, by person and by bay. `whose=mine`: only appointments with you, in your own lane (and the bays they use)."""
     caller, db = ctx
     tenant = await _tenant(db)
     start, end = booking.local_window(tenant, day)
@@ -207,8 +210,14 @@ async def calendar(day: date = Query(alias="date"), ctx: tuple[Caller, AsyncSess
                                   .order_by(Resource.name))).scalars())
     lanes = [{"id": str(u.id), "name": u.name, "group": "Sales", "kind": "person"} for u in users if u.role in ("sales", "manager")]
     lanes += [{"id": str(r.id), "name": r.name, "group": "Service", "kind": "bay"} for r in bays]
-    appts = (await db.execute(select(Appointment).where(Appointment.starts_at >= start, Appointment.starts_at < end,
-                                                        Appointment.status != "cancelled").order_by(Appointment.starts_at))).scalars()
+    appts = list((await db.execute(select(Appointment).where(Appointment.starts_at >= start, Appointment.starts_at < end,
+                                                             Appointment.status != "cancelled").order_by(Appointment.starts_at))).scalars())
+    if whose == "mine":
+        appts = [a for a in appts if a.assigned_user_id == caller.user_id]
+        used = {r for a in appts for r in a.resource_ids or []}
+        me = next((u for u in users if u.id == caller.user_id), None)
+        lanes = ([{"id": str(me.id), "name": me.name, "group": "Sales" if me.role != "service" else "Service", "kind": "person"}] if me else [])
+        lanes += [{"id": str(r.id), "name": r.name, "group": "Service", "kind": "bay"} for r in bays if r.id in used]
     types = {t.id: t for t in (await db.execute(select(AppointmentType))).scalars()}
     names = {u.id: u.name for u in users}
     bay_names = {r.id: r.name for r in bays}

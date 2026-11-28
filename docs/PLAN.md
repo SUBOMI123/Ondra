@@ -85,7 +85,7 @@ Checked in the code 2026-11-28. Dead today:
 **Done when:** a test walks every link and button on every page at app.useondra.com and none is dead (added to
 `npm run review:ui`, so it stays that way).
 
-### 6. Whose work each screen shows: the same rule everywhere
+### 6. Whose work each screen shows: the same rule everywhere ✅ Done 2026-11-28
 
 Today it's inconsistent: Inbox and Calendar show the whole dealership with no way to see just yours; Tasks and Deals
 have Mine / Everyone tabs.

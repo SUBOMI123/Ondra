@@ -14,6 +14,8 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3001"
 // Add every new page here.
 const PAGES = ["/", "/inbox", "/calls", "/calendar", "/clients", "/deals", "/tasks", "/inventory", "/settings", "/settings/business", "/settings/channels", "/settings/integrations", "/settings/team", "/settings/routing", "/settings/replies", "/settings/knowledge", "/settings/follow-ups", "/settings/booking", "/settings/assistant", "/help", "/invite?token=example"]
 const WIDTHS = [390, 768, 1024, 1440]
+// The screens that list someone's work have one Mine / Everyone switch, in the header (docs/PLAN.md item 6).
+const WHOSE = ["/inbox", "/calls", "/calendar", "/tasks", "/deals"]
 const failures = []
 
 const grep = (pattern, extra = "") => {
@@ -47,7 +49,11 @@ for (const scheme of ["light", "dark"]) {
   // Plus one real client profile and one VIP profile, found through the Clients list.
   // The first load after sign-in can wait on a token refresh; give it time rather than fail the whole review.
   await page.goto(`${BASE}/clients`, { waitUntil: "networkidle" })
-  await page.waitForSelector("a[href^='/clients/profile']", { timeout: 30000 })
+  // After a code change the dev server recompiles on first visit and can miss the first data load: reload once.
+  await page.waitForSelector("a[href^='/clients/profile']", { timeout: 30000 }).catch(async () => {
+    await page.reload({ waitUntil: "networkidle" })
+    await page.waitForSelector("a[href^='/clients/profile']", { timeout: 30000 })
+  })
   const profiles = await page.$$eval("a[href^='/clients/profile']", (as) => [as[0].getAttribute("href"), as.find((a) => a.closest("[data-vip]"))?.getAttribute("href")].filter(Boolean))
   if (scheme === "light") await checkShell(page)
   const linked = new Set()
@@ -55,20 +61,26 @@ for (const scheme of ["light", "dark"]) {
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(BASE + path)
+      if (WHOSE.includes(path)) await page.waitForSelector("header [role=tablist][aria-label^='Whose']", { timeout: 10000 }).catch(() => {})
       await page.waitForTimeout(700)
       const r = await page.evaluate(() => ({
         overflow: document.documentElement.scrollWidth - innerWidth,
         h1: document.querySelectorAll("h1").length,
         vipAi: document.querySelectorAll("[data-vip] [data-slot^=ai-], [data-vip] .text-ai").length,
+        whose: document.querySelectorAll("header [role=tablist][aria-label^='Whose']").length,
+        where: `${location.pathname} h1="${document.querySelector("h1")?.textContent ?? ""}"`,
         unlabeled: [...document.querySelectorAll("button, a")].filter((b) => !b.textContent.trim() && !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby") && !b.title && !(b.labels && b.labels.length)).length,
       }))
       if (width === 1440) {
         for (const href of await page.$$eval("a[href^='/']", (as) => as.map((a) => a.getAttribute("href")))) linked.add(href.split("#")[0])
       }
       const at = `${path} at ${width}px (${scheme})`
+      const landed = new URL(page.url()).pathname
+      if (landed !== path.split("?")[0]) failures.push(`${at}: landed on ${landed} instead (a sign-in refresh race sends people to Today)`)
       if (r.overflow > 0) failures.push(`${at}: scrolls sideways by ${r.overflow}px`)
       if (r.h1 !== 1) failures.push(`${at}: ${r.h1} h1 elements (want 1)`)
       if (r.vipAi) failures.push(`${at}: ${r.vipAi} AI-blue elements inside a VIP surface (product rule)`)
+      if (r.whose !== (WHOSE.includes(path) ? 1 : 0)) failures.push(`${at}: ${r.whose} Mine / Everyone switches in the header (want ${WHOSE.includes(path) ? 1 : 0}; page showed ${r.where})`)
       if (r.unlabeled) failures.push(`${at}: ${r.unlabeled} icon buttons or links without a label`)
     }
   }

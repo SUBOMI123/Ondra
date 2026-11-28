@@ -14,6 +14,8 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { WhoseSwitch } from "@/components/whose-switch"
+import { useWhose } from "@/lib/whose"
 import { TableSkeleton } from "@/components/list-states"
 import { OndraMark } from "@/components/ondra-mark"
 import { Button } from "@/components/ui/button"
@@ -22,7 +24,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type Person, TeamBoard } from "@/components/tasks/team-board"
 import { VipTag } from "@/components/vip"
 import { api, send } from "@/lib/api"
@@ -154,7 +155,8 @@ function NewTask({ onDone }: { onDone: () => void }) {
 export default function TasksPage() {
   useLiveInbox()
   const qc = useQueryClient()
-  const [who, setWho] = useState<"mine" | "all">("mine")
+  const [whose, setWhose] = useWhose("tasks")
+  const who = whose === "everyone" ? "all" : "mine"
   const [showDone, setShowDone] = useState(false)
   const [adding, setAdding] = useState(false)
   const open = useQuery({ queryKey: ["tasks", who, "open"], queryFn: () => api<{ items: Task[]; people?: Person[] }>(`/tasks?scope=${who}&status=open`) })
@@ -185,15 +187,9 @@ export default function TasksPage() {
 
   return (
     <>
-      <SiteHeader title="Tasks" />
+      <SiteHeader title="Tasks" whose={<WhoseSwitch value={whose} onChange={setWhose} what="tasks" />} />
       <div className={cn("mx-auto flex w-full flex-col gap-6 px-4 py-6 lg:px-6", who === "mine" ? "max-w-3xl" : "min-w-0")}>
-        <div className="flex items-center justify-between gap-3">
-          <Tabs value={who} onValueChange={(v) => setWho(v as "mine" | "all")}>
-            <TabsList aria-label="Whose tasks">
-              <TabsTrigger value="mine">Mine</TabsTrigger>
-              <TabsTrigger value="all">Everyone</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="flex items-center justify-end gap-3">
           {!adding && (
             <Button size="sm" onClick={() => setAdding(true)}>
               <IconPlus /> New task

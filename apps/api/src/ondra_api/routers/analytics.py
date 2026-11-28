@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ondra_api.deps import Caller, require
 from ondra_api.services import metrics
 from ondra_api.services.calls import CALLBACK_BRIEFS
+from ondra_api.services.whose import Whose
 
 router = APIRouter(tags=["analytics"])
 OPEN = ("open", "in_progress")
@@ -105,7 +106,7 @@ CLOSED_FOR = timedelta(days=30)  # won and lost deals stay on the board this lon
 
 
 @router.get("/deals")
-async def list_deals(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.DEALS_READ))) -> dict:
+async def list_deals(whose: Whose = "everyone", ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.DEALS_READ))) -> dict:
     """The sales board: open deals by stage, plus deals won or lost in the last 30 days. A deal's value is an
     estimate: the listed price of the car in stock they asked about, else their own budget, else none. VIP deals
     appear only for people who may see VIPs."""
@@ -130,6 +131,8 @@ async def list_deals(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.DEA
         listed = prices.get(str(wants.get("stock") or "").lower())
         value = listed or (float(d.value_estimate) if d.value_estimate else None) or (float(d.budget_max) if d.budget_max else None)
         owner = d.owner_user_id or (c.vip_owner_user_id if c.is_vip else None) or held.get(c.id)
+        if whose == "mine" and owner != caller.user_id:
+            continue
         task = tasks.get(c.id)
         notes = [x for x in (f"Budget up to ${float(d.budget_max):,.0f}" if d.budget_max else None, d.timeline,
                              f"Paying by {d.payment_method}" if d.payment_method and d.payment_method != "unknown" else None,
