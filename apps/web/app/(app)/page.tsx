@@ -1,12 +1,14 @@
 "use client"
 
 /**
- * Today. One job: an admin at 7am sees what needs them, then how last night went, then today's bookings, then how
- * the week is going. Every number comes from the dealership's own events, and each one opens the list behind it.
- * Blue is Ondra's work and nothing else; red is a VIP or something overdue.
+ * Today. One job: open it and know in five seconds what needs you, then whether things are on track.
+ * It opens with a handover note (how many things need you, and what Ondra did while you were away), then what needs
+ * you beside today's bookings, then the week: the dealership's for admins and managers (with who's behind), your own
+ * for everyone else. Every number opens the events it was counted from. Blue is Ondra's work and nothing else; red
+ * is overdue and nothing else.
  */
 
-import { IconAlertTriangle, IconPhoneX } from "@tabler/icons-react"
+import { IconAlertTriangle, IconFlame, IconPhoneX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
@@ -38,6 +40,7 @@ type Today = {
   }
   overnight: Overnight | null
   appointments: { id: string; starts_at: string; kind: string; client: string; with: string | null; by_ondra: boolean; vip: boolean }[]
+  team: { user_id: string; name: string; overdue: number; callbacks: number }[]
 }
 type Totals = Record<string, number> & {
   leads_by_channel: Record<string, number>; handled_by: { ai: number; team: number }
@@ -61,8 +64,9 @@ const CHANNEL: Record<string, string> = { sms: "Text", whatsapp: "WhatsApp", ema
 const STAGE: Record<string, string> = { new: "New", qualified: "Qualified", appointment: "Appointment", negotiating: "Negotiating", won: "Won", lost: "Lost" }
 const chartConfig = { responses_by_ai: { label: "Ondra", color: "var(--chart-1)" }, responses_by_team: { label: "Your team", color: "var(--chart-staff)" } } satisfies ChartConfig
 
-function greeting() {
-  const h = new Date().getHours()
+/** By the dealership's clock, like every time on the page. */
+function greeting(tz: string) {
+  const h = Number(new Date().toLocaleString("en-US", { hour: "numeric", hourCycle: "h23", timeZone: tz }))
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
 }
 
@@ -71,7 +75,8 @@ function duration(seconds: number | null | undefined) {
   if (seconds == null) return "—"
   const s = Math.round(seconds)
   if (s < 60) return `${s} s`
-  if (s < 3600) return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`
+  if (s < 600) return s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s / 60} min`
+  if (s < 3600) return `${Math.round(s / 60)} min`
   return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")} min`
 }
 
@@ -96,26 +101,6 @@ function dayLabel(iso: string, long = false) {
 
 function n(count: number, one: string, many = `${one}s`) {
   return `${count} ${count === 1 ? one : many}`
-}
-
-function SplitBar({ ondra, team }: { ondra: number; team: number }) {
-  const sum = ondra + team
-  return (
-    <div className="mt-3 flex flex-col gap-2">
-      <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={`${ondra} by Ondra, ${team} by your team`}>
-        {sum === 0 ? <div className="w-full bg-muted" /> : (
-          <>
-            {ondra > 0 && <div className="bg-ai" style={{ width: `${(ondra / sum) * 100}%` }} />}
-            {team > 0 && <div className="bg-chart-staff" style={{ width: `${(team / sum) * 100}%` }} />}
-          </>
-        )}
-      </div>
-      <div className="flex gap-4 text-xs tabular-nums">
-        <span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-ai" aria-hidden="true" /><span className="text-muted-foreground">Ondra</span> {ondra}</span>
-        <span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-chart-staff" aria-hidden="true" /><span className="text-muted-foreground">Your team</span> {team}</span>
-      </div>
-    </div>
-  )
 }
 
 /* ------------------------------------------------------------ what's behind a number */
@@ -187,9 +172,9 @@ function Delta({ now, before, days, lowerIsBetter }: { now: number | null; befor
 
 function Tile({ label, value, context, delta, onOpen }: { label: string; value: string; context?: React.ReactNode; delta?: React.ReactNode; onOpen?: () => void }) {
   return (
-    <div className="relative flex flex-col gap-1 bg-card p-5">
+    <div className="relative flex flex-col gap-1">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-3xl font-semibold tabular-nums">{value}</p>
+      <p className="text-3xl font-normal tracking-tight tabular-nums">{value}</p>
       {context && <div className="text-xs">{context}</div>}
       {delta}
       {onOpen && (
@@ -259,268 +244,328 @@ function RepliesChart({ r }: { r: Report }) {
   )
 }
 
-/* ------------------------------------------------------------ calling back missed callers */
+/* ------------------------------------------------------------ the handover note */
 
-/** How fast missed callers get a call back: from the first ring to the first try (a voicemail counts; reaching them
- * is up to them), counted only while the dealership is open. Per person for admins and managers. */
-function CallBacks({ r, everyone, onOpen }: { r: Report; everyone: boolean; onOpen: () => void }) {
-  const t = r.totals
-  if (t.calls_missed === 0 && t.callbacks === 0) {
-    return (
-      <div className="rounded-xl border p-5">
-        <h3 className="font-medium">Calling back missed calls</h3>
-        <p className="mt-1 text-sm text-muted-foreground">No missed calls in the last {r.days} days.</p>
-      </div>
-    )
-  }
+/** The page's opening: how many things need you, and what Ondra did while the dealership was closed. The Ondra line
+ * only appears when Ondra did something; zeros are not news. */
+function Handover({ first, count, everyone, t, tz }: { first?: string; count: number | null; everyone: boolean; t?: Today; tz: string }) {
+  const o = t?.overnight
+  const did = o ? [
+    o.responses_by_ai > 0 && `answered ${n(o.responses_by_ai, "customer")}`,
+    o.appointments_booked_by_ai > 0 && `booked ${n(o.appointments_booked_by_ai, "appointment")}`,
+    o.calls_by_ai > 0 && `took ${n(o.calls_by_ai, "call")}`,
+  ].filter(Boolean) as string[] : []
+  const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`)
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz })
   return (
-    <div className="grid overflow-hidden rounded-xl border md:grid-cols-[18rem_minmax(0,1fr)]">
-      <div className="border-b md:border-r md:border-b-0">
-        <Tile label="Time to call back" value={duration(t.median_callback_seconds)} onOpen={onOpen}
-          context={<span className="text-muted-foreground">Median, from the first ring to the first try, counted while you&apos;re open</span>}
-          delta={<Delta now={t.median_callback_seconds} before={r.previous.median_callback_seconds} days={r.days} lowerIsBetter />} />
-      </div>
-      <div className="p-5">
-        <h3 className="font-medium">Calling back missed calls</h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          {n(t.calls_missed, "missed call")} in the last {r.days} days. {n(t.callbacks, "caller")} rung back; someone who rang three times counts once.
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">{greeting(tz)}{first ? `, ${first}` : ""}. It&apos;s {today}.</p>
+      {count === null ? (
+        <Skeleton className="h-10 w-80 max-w-full" />
+      ) : (
+        <p className="text-3xl font-normal tracking-[-0.035em] text-balance sm:text-4xl">
+          {count === 0 ? (everyone ? "Nothing needs anyone right now." : "Nothing needs you right now.") : `${count === 1 ? "One thing needs" : `${count} things need`} ${everyone ? "someone" : "you"}.`}
         </p>
-        {everyone && r.callback_people.length > 0 && (
-          <table className="w-full text-sm">
-            <thead className="text-left text-muted-foreground">
-              <tr><th className="pb-2 font-normal">Who</th><th className="pb-2 text-right font-normal">Rung back</th><th className="pb-2 text-right font-normal">Median wait</th></tr>
-            </thead>
-            <tbody className="divide-y">
-              {r.callback_people.map((p) => (
-                <tr key={p.user_id}>
-                  <td className="py-2">{p.name}</td>
-                  <td className="py-2 text-right tabular-nums">{p.callbacks}</td>
-                  <td className="py-2 text-right tabular-nums">{duration(p.median_callback_seconds)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      )}
+      {o && did.length > 0 && (
+        <p data-slot="ai-note" className="flex items-start gap-2 text-pretty text-ai">
+          <OndraMark className="mt-1 size-4 shrink-0" />
+          <span>While you were closed, from {clock(o.from, tz)}, Ondra {list(did)}.{o.calls_missed > 0 ? ` ${n(o.calls_missed, "call was", "calls were")} missed.` : ""}</span>
+        </p>
+      )}
     </div>
   )
 }
+
+/* ------------------------------------------------------------ what needs you */
+
+function Row({ icon, title, detail, action, vip }: { icon: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; action: React.ReactNode; vip?: boolean }) {
+  return (
+    <li className="relative flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:flex-nowrap" data-vip={vip || undefined}>
+      {icon}
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">{title}</p>
+        {detail && <p className="text-sm text-pretty text-muted-foreground sm:truncate">{detail}</p>}
+      </div>
+      {/* Phones: the action goes under the words, lined up with them, so the reason is read in full. */}
+      <div className="w-full shrink-0 pl-13 sm:w-auto sm:pl-0">{action}</div>
+    </li>
+  )
+}
+
+const dot = "flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+
+function Needs({ q, tz }: { q: ReturnType<typeof useQuery<Today>>; tz: string }) {
+  const needs = q.data?.needs
+  return (
+    <section aria-labelledby="needs" className="flex min-w-0 flex-col gap-3">
+      <h2 id="needs" className="text-sm font-medium text-muted-foreground">{needs?.scope === "everyone" ? "Needs someone" : "Needs you"}</h2>
+      {q.isPending ? <Skeleton className="h-56 w-full rounded-xl" /> : q.isError ? (
+        <LoadError message={q.error.message} onRetry={() => q.refetch()} />
+      ) : needCount(needs!) === 0 ? (
+        <p className="rounded-xl border p-5 text-sm text-muted-foreground">VIPs waiting, replies to approve, missed callers and overdue tasks show here the moment there are any.</p>
+      ) : (
+        <ul className="divide-y rounded-xl border bg-card">
+          {needs!.vips.map((v) => (
+            <Row key={v.task_id} vip icon={<ClientAvatar name={v.client ?? ""} vip />} title={`${v.client} is waiting`}
+              detail={`${v.title.replace(`${v.client}: `, "")}, since ${v.since ? since(v.since, tz) : "earlier"}.`}
+              action={<Button asChild size="sm"><Link href={v.conversation_id ? `/inbox?c=${v.conversation_id}` : "/tasks"}>Reply yourself</Link></Button>} />
+          ))}
+          {needs!.callbacks.count > 0 && (
+            <Row icon={<span className={dot} aria-hidden="true"><IconPhoneX className="size-4" /></span>}
+              title={<>{n(needs!.callbacks.count, "caller")} to ring back{needs!.callbacks.overdue > 0 && <span className="text-overdue">, {needs!.callbacks.overdue} overdue</span>}</>}
+              detail={needs!.callbacks.oldest ? `${needs!.callbacks.count > 1 ? "Longest waiting: " : ""}${needs!.callbacks.oldest.client}, since ${since(needs!.callbacks.oldest.since, tz)}.` : undefined}
+              action={<Button asChild variant="outline" size="sm"><Link href="/calls?show=missed">Call back</Link></Button>} />
+          )}
+          {needs!.drafts > 0 && (
+            <Row icon={<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ai-subtle text-ai" aria-hidden="true"><OndraMark className="size-4" /></span>}
+              title={`${n(needs!.drafts, "reply", "replies")} to approve`}
+              detail={<span data-slot="ai-note" className="text-ai">Written by Ondra, waiting for a person to send {needs!.drafts === 1 ? "it" : "them"}.</span>}
+              action={<Button asChild variant="outline" size="sm"><Link href="/inbox?filter=drafts">Review</Link></Button>} />
+          )}
+          {needs!.overdue_count > 0 && (
+            <Row icon={<span className={dot} aria-hidden="true"><IconAlertTriangle className="size-4" /></span>}
+              title={<span className="text-overdue">{n(needs!.overdue_count, "task")} overdue</span>}
+              detail={`${needs!.overdue.slice(0, 2).map((o) => o.title).join(". ")}${needs!.overdue_count > 2 ? ", and more" : ""}.`}
+              action={<Button asChild variant="outline" size="sm"><Link href="/tasks">Open tasks</Link></Button>} />
+          )}
+          {needs!.hot.map((h) => (
+            <Row key={h.task_id} icon={<span className={dot} aria-hidden="true"><IconFlame className="size-4" /></span>} title={h.title}
+              detail={`Marked urgent${h.due_at ? `, due ${since(h.due_at, tz)}` : ""}.`}
+              action={<Button asChild variant="outline" size="sm"><Link href={h.conversation_id ? `/inbox?c=${h.conversation_id}` : "/tasks"}>Open</Link></Button>} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function needCount(x: Today["needs"]) {
+  return x.vips.length + x.drafts + x.callbacks.count + x.overdue_count + x.hot.length
+}
+
+/* ------------------------------------------------------------ today's bookings */
+
+function Agenda({ q, tz, everyone }: { q: ReturnType<typeof useQuery<Today>>; tz: string; everyone: boolean }) {
+  const appts = q.data?.appointments ?? []
+  return (
+    <section aria-labelledby="booked" className="flex min-w-0 flex-col gap-3">
+      <h2 id="booked" className="flex items-baseline justify-between text-sm font-medium text-muted-foreground">
+        {everyone ? "Booked today" : "Your bookings today"}
+        <Link href="/calendar" className="font-normal underline-offset-4 hover:text-foreground hover:underline">Calendar</Link>
+      </h2>
+      {q.isPending ? <Skeleton className="h-40 w-full rounded-xl" /> : appts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{everyone ? "Nothing booked today yet." : "Nothing booked with you today."} Test drives and service Ondra or your team book for today show here.</p>
+      ) : (
+        <ol className="relative flex flex-col border-l pl-5">
+          {appts.map((a) => (
+            <li key={a.id} data-vip={a.vip || undefined} className="relative pb-5 last:pb-0">
+              <span className={cn("absolute top-1.5 -left-[1.6rem] size-2.5 rounded-full border-2 border-background", a.by_ondra && !a.vip ? "bg-ai" : "bg-foreground")} aria-hidden="true" />
+              <p className="text-sm text-muted-foreground tabular-nums">{clock(a.starts_at, tz)}</p>
+              <p className="flex items-center gap-1.5 font-medium">{a.vip && <VipTag />}<span className="truncate">{a.client}</span></p>
+              <p className="text-sm text-muted-foreground">{a.kind}{a.with && everyone ? `, with ${a.with}` : ""}</p>
+              {a.by_ondra && !a.vip && <p data-slot="ai-note" className="text-sm text-ai">Booked by Ondra</p>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------ the week */
+
+function PeriodPicker({ days, setDays }: { days: number; setDays: (d: number) => void }) {
+  return (
+    <ToggleGroup type="single" variant="outline" size="sm" value={String(days)} onValueChange={(v) => v && setDays(Number(v))} aria-label="Period">
+      <ToggleGroupItem value="7" className="px-3">7 days</ToggleGroupItem>
+      <ToggleGroupItem value="30" className="px-3">30 days</ToggleGroupItem>
+    </ToggleGroup>
+  )
+}
+
+function Behind({ team }: { team: Today["team"] }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="font-medium">Who&apos;s behind</h3>
+      {team.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nobody has overdue tasks or callers waiting.</p>
+      ) : (
+        <ul className="divide-y border-y text-sm">
+          {team.map((p) => (
+            <li key={p.user_id} className="flex items-baseline justify-between gap-4 py-2.5">
+              <span className="truncate">{p.name}</span>
+              <span className="shrink-0 text-muted-foreground tabular-nums">
+                {p.overdue > 0 && <span className="text-overdue">{n(p.overdue, "overdue task")}</span>}
+                {p.overdue > 0 && p.callbacks > 0 && ", "}
+                {p.callbacks > 0 && n(p.callbacks, "caller", "callers")}{p.callbacks > 0 && " to ring back"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {team.length > 0 && <Link href="/tasks" className="self-start text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Move work on the Tasks board</Link>}
+    </div>
+  )
+}
+
+function DealershipWeek({ r, report, days, setDays, team, trace }: { r?: Report; report: ReturnType<typeof useQuery<Report>>; days: number; setDays: (d: number) => void; team: Today["team"]; trace: (m: string) => void }) {
+  return (
+    <section aria-labelledby="week" className="flex flex-col gap-6 border-t pt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="week" className="text-xl font-normal tracking-tight">The last {days} days</h2>
+        <PeriodPicker days={days} setDays={setDays} />
+      </div>
+      {report.isPending ? <Skeleton className="h-28 w-full rounded-xl" /> : report.isError ? (
+        <LoadError message={report.error.message} onRetry={() => report.refetch()} />
+      ) : r && (
+        <div className={cn("flex flex-col gap-10", report.isFetching && "opacity-60")} aria-busy={report.isFetching || undefined}>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-4">
+            <Tile label="Leads" value={String(r.totals.leads)} onOpen={() => trace("leads")}
+              delta={<Delta now={r.totals.leads} before={r.previous.leads} days={r.days} />}
+              context={<span><span data-slot="ai-note" className="text-ai">{r.totals.leads_by_ai} by Ondra</span><span className="text-muted-foreground">, {r.totals.leads_after_hours} after hours</span></span>} />
+            <Tile label="First reply, median" value={duration(r.totals.median_first_response_seconds)} onOpen={() => trace("responses")}
+              delta={<Delta now={r.totals.median_first_response_seconds} before={r.previous.median_first_response_seconds} days={r.days} lowerIsBetter />}
+              context={<span><span data-slot="ai-note" className="text-ai">{r.totals.responses_by_ai} by Ondra</span><span className="text-muted-foreground">, {r.totals.responses_by_team} by your team</span></span>} />
+            <Tile label="Appointments booked" value={String(r.totals.appointments_booked)} onOpen={() => trace("appointments_booked")}
+              delta={<Delta now={r.totals.appointments_booked} before={r.previous.appointments_booked} days={r.days} />}
+              context={<span><span data-slot="ai-note" className="text-ai">{r.totals.appointments_booked_by_ai} by Ondra</span><span className="text-muted-foreground">, {r.totals.appointments_showed} showed, {r.totals.appointments_no_show} didn&apos;t</span></span>} />
+            <Tile label="Time to call back, median" value={duration(r.totals.median_callback_seconds)} onOpen={() => trace("callbacks")}
+              delta={<Delta now={r.totals.median_callback_seconds} before={r.previous.median_callback_seconds} days={r.days} lowerIsBetter />}
+              context={<span className="text-muted-foreground">{n(r.totals.calls_missed, "missed call")}, counted while you&apos;re open</span>} />
+          </div>
+
+          <div className="grid gap-10 md:grid-cols-2">
+            <Behind team={team} />
+            <div className="flex flex-col gap-3">
+              <h3 className="font-medium">Deals in play</h3>
+              <p className="-mt-2 text-sm text-muted-foreground">
+                {n(r.pipeline.in_play, "open deal")}{r.pipeline.in_play > 0 && <>, <span data-slot="ai-note" className="text-ai">{r.pipeline.in_play_by_ai} brought in by Ondra</span></>}.
+              </p>
+              <BarList empty="No deals yet. A deal starts when Ondra or your team records what a buyer wants." rows={Object.entries(r.pipeline.by_stage).map(([k, v]) => ({ key: k, label: STAGE[k] ?? k, value: v }))} />
+            </div>
+          </div>
+
+          <details className="group rounded-xl border">
+            <summary className="cursor-pointer list-none px-5 py-4 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              More numbers<span className="ml-2 text-sm font-normal text-muted-foreground">Who answered first each day, each person&apos;s speed, where leads came from</span>
+            </summary>
+            <div className="flex flex-col gap-10 border-t p-5">
+              <div>
+                <h3 className="font-medium">Who answered first</h3>
+                <p className="mb-4 text-sm text-muted-foreground">Each time a customer wrote in and was waiting, who gave the first reply.</p>
+                <RepliesChart r={r} />
+              </div>
+              <div className="grid gap-10 md:grid-cols-2">
+                <People title="First replies by person" rows={r.people.map((p) => ({ id: p.user_id, name: p.name, count: p.first_replies, seconds: p.median_first_response_seconds }))} count="Replies" empty="No person answered a waiting customer first in this period." />
+                <People title="Call-backs by person" rows={r.callback_people.map((p) => ({ id: p.user_id, name: p.name, count: p.callbacks, seconds: p.median_callback_seconds }))} count="Rung back" empty="Nobody rang a missed caller back in this period." />
+              </div>
+              <div className="grid gap-10 md:grid-cols-2">
+                <div>
+                  <h3 className="mb-4 font-medium">Where leads came from</h3>
+                  <BarList empty="No leads in this period." rows={Object.entries(r.totals.leads_by_channel).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ key: k, label: CHANNEL[k] ?? k, value: v }))} />
+                </div>
+                <Tile label="Follow-ups sent" value={String(r.totals.follow_ups_sent)} onOpen={() => trace("follow_ups_sent")}
+                  delta={<Delta now={r.totals.follow_ups_sent} before={r.previous.follow_ups_sent} days={r.days} />} />
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function People({ title, rows, count, empty }: { title: string; rows: { id: string; name: string; count: number; seconds: number }[]; count: string; empty: string }) {
+  return (
+    <div>
+      <h3 className="mb-3 font-medium">{title}</h3>
+      {rows.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : (
+        <table className="w-full text-sm">
+          <thead className="text-left text-muted-foreground">
+            <tr><th className="pb-2 font-normal">Who</th><th className="pb-2 text-right font-normal">{count}</th><th className="pb-2 text-right font-normal">Median</th></tr>
+          </thead>
+          <tbody className="divide-y">
+            {rows.map((p) => (
+              <tr key={p.id}><td className="py-2">{p.name}</td><td className="py-2 text-right tabular-nums">{p.count}</td><td className="py-2 text-right tabular-nums">{duration(p.seconds)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+type BoardDeal = { stage: string; value: number | null }
+
+/** A salesperson's own week: their deals, how fast they answered, how fast they rang back. Not the dealership's. */
+function YourWeek({ r, report, days, setDays, meId }: { r?: Report; report: ReturnType<typeof useQuery<Report>>; days: number; setDays: (d: number) => void; meId?: string }) {
+  const deals = useQuery({ queryKey: ["deals", "mine-summary"], queryFn: () => api<{ stages: { stage: string; deals: BoardDeal[] }[] }>("/deals?whose=mine") })
+  const open = (deals.data?.stages ?? []).filter((s) => !["won", "lost"].includes(s.stage)).flatMap((s) => s.deals)
+  const won = deals.data?.stages.find((s) => s.stage === "won")?.deals.length ?? 0
+  const value = open.reduce((a, d) => a + (d.value ?? 0), 0)
+  const mine = r?.people.find((p) => p.user_id === meId)
+  const calls = r?.callback_people.find((p) => p.user_id === meId)
+  return (
+    <section aria-labelledby="week" className="flex flex-col gap-6 border-t pt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="week" className="text-xl font-normal tracking-tight">Your last {days} days</h2>
+        <PeriodPicker days={days} setDays={setDays} />
+      </div>
+      {report.isPending || deals.isPending ? <Skeleton className="h-28 w-full rounded-xl" /> : report.isError ? (
+        <LoadError message={report.error.message} onRetry={() => report.refetch()} />
+      ) : (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">Your open deals</p>
+            <p className="text-3xl font-normal tracking-tight tabular-nums">{open.length}</p>
+            <p className="text-xs text-muted-foreground">{value > 0 ? `About ${compact.format(value)}, ` : ""}{n(won, "won", "won")} in the last 30 days</p>
+            <Link href="/deals" className="mt-auto self-start pt-2 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Open your deals</Link>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">Your first replies</p>
+            <p className="text-3xl font-normal tracking-tight tabular-nums">{mine ? duration(mine.median_first_response_seconds) : "—"}</p>
+            <p className="text-xs text-muted-foreground">{mine ? `Median wait, over ${n(mine.first_replies, "reply", "replies")} where you answered first` : "You didn't answer a waiting customer first in this period"}</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">Your call-backs</p>
+            <p className="text-3xl font-normal tracking-tight tabular-nums">{calls ? duration(calls.median_callback_seconds) : "—"}</p>
+            <p className="text-xs text-muted-foreground">{calls ? `Median from the first ring, ${n(calls.callbacks, "caller")} rung back` : "No missed callers rung back by you in this period"}</p>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+const compact = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 })
 
 /* ------------------------------------------------------------ page */
 
 export default function TodayPage() {
   const { me } = useAuth()
-  const first = me?.name.split(" ")[0]
   const [days, setDays] = useState(7)
   const [tracing, setTracing] = useState<string | null>(null)
   const today = useQuery({ queryKey: ["today"], queryFn: () => api<Today>("/today"), refetchInterval: 60_000 })
   const report = useQuery({ queryKey: ["analytics", days], queryFn: () => api<Report>(`/analytics?days=${days}`), placeholderData: keepPreviousData })
   const t = today.data
-  const r = report.data
-  const tz = t?.timezone ?? r?.timezone ?? "America/Chicago"
-  const needs = t?.needs
-  const needCount = needs ? needs.vips.length + (needs.drafts > 0 ? 1 : 0) + (needs.overdue_count > 0 ? 1 : 0) + needs.hot.length + (needs.callbacks.count > 0 ? 1 : 0) : 0
+  const tz = t?.timezone ?? report.data?.timezone ?? "America/Chicago"
+  const everyone = t ? t.needs.scope === "everyone" : me?.role === "admin" || me?.role === "manager"
 
   return (
     <>
       <SiteHeader title="Today" />
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-6 lg:px-6 lg:py-8">
-        <p className="text-2xl font-medium tracking-tight">{greeting()}{first ? `, ${first}` : ""}.</p>
-
-        {/* 1. What needs you */}
-        <section aria-labelledby="needs">
-          <h2 id="needs" className="text-sm font-medium text-muted-foreground">
-            {needs?.scope === "mine" ? "Needs you" : "Needs someone"} {needs && <span className="tabular-nums">{needCount}</span>}
-          </h2>
-          {today.isPending ? <Skeleton className="mt-3 h-36 w-full rounded-xl" /> : today.isError ? (
-            <div className="mt-3"><LoadError message={today.error.message} onRetry={() => today.refetch()} /></div>
-          ) : needCount === 0 ? (
-            <p className="mt-3 rounded-xl border p-5 text-sm text-muted-foreground">Nothing is waiting. VIPs, drafts to approve, missed callers and overdue tasks show here the moment there are any.</p>
-          ) : (
-            <ul className="mt-3 divide-y rounded-xl border">
-              {needs!.vips.map((v) => (
-                <li key={v.task_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap" data-vip>
-                  <ClientAvatar name={v.client ?? ""} vip />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{v.client} is waiting</p>
-                    <p className="text-sm text-muted-foreground">{v.title.replace(`${v.client}: `, "")}, since {v.since ? clock(v.since, tz) : "earlier"}.</p>
-                  </div>
-                  <Button asChild size="sm" className="ml-auto"><Link href={v.conversation_id ? `/inbox?c=${v.conversation_id}` : "/tasks"}>Reply yourself</Link></Button>
-                </li>
-              ))}
-              {needs!.drafts > 0 && (
-                <li className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ai-subtle text-ai" aria-hidden="true"><OndraMark className="size-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{n(needs!.drafts, "reply", "replies")} to approve</p>
-                    <p className="text-sm text-muted-foreground">Ondra wrote {needs!.drafts === 1 ? "it" : "them"} and is waiting for a person to send {needs!.drafts === 1 ? "it" : "them"}.</p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/inbox">Review</Link></Button>
-                </li>
-              )}
-              {needs!.callbacks.count > 0 && (
-                <li className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true"><IconPhoneX className="size-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {n(needs!.callbacks.count, "caller")} waiting for a call back
-                      {needs!.callbacks.overdue > 0 && <span className="text-overdue">, {needs!.callbacks.overdue} overdue</span>}
-                    </p>
-                    {needs!.callbacks.oldest && (
-                      <p className="truncate text-sm text-muted-foreground">
-                        {needs!.callbacks.count > 1 ? "Longest: " : ""}{needs!.callbacks.oldest.client}, since {since(needs!.callbacks.oldest.since, tz)}.
-                      </p>
-                    )}
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/calls?show=missed">Call back</Link></Button>
-                </li>
-              )}
-              {needs!.overdue_count > 0 && (
-                <li className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true"><IconAlertTriangle className="size-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-overdue">{n(needs!.overdue_count, "task")} overdue</p>
-                    <p className="truncate text-sm text-muted-foreground">{needs!.overdue.slice(0, 2).map((o) => o.title).join(". ")}{needs!.overdue_count > 2 ? ", and more" : ""}.</p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/tasks">Open tasks</Link></Button>
-                </li>
-              )}
-              {needs!.hot.map((h) => (
-                <li key={h.task_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:flex-nowrap">
-                  <span className="size-9 shrink-0" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{h.title}</p>
-                    <p className="text-sm text-muted-foreground">Marked urgent{h.due_at ? `, due ${clock(h.due_at, tz)}` : ""}.</p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="ml-auto"><Link href={h.conversation_id ? `/inbox?c=${h.conversation_id}` : "/tasks"}>Open</Link></Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* 2. Last night */}
-        {t?.overnight && (
-          <section aria-labelledby="overnight">
-            <h2 id="overnight" className="text-sm font-medium text-muted-foreground">While you were closed, {clock(t.overnight.from, tz)} to {clock(t.overnight.to, tz)}</h2>
-            <div className="mt-3 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
-              <div className="bg-card p-5">
-                <p className="text-sm text-muted-foreground">Customers answered</p>
-                <p className="mt-1 text-3xl font-semibold tabular-nums">{t.overnight.responses_by_ai + t.overnight.responses_by_team}</p>
-                <SplitBar ondra={t.overnight.responses_by_ai} team={t.overnight.responses_by_team} />
-              </div>
-              <div className="bg-card p-5">
-                <p className="text-sm text-muted-foreground">Test drives and service booked</p>
-                <p className="mt-1 text-3xl font-semibold tabular-nums">{t.overnight.appointments_booked}</p>
-                {t.overnight.appointments_booked_by_ai > 0 && (
-                  <p data-slot="ai-note" className="mt-3 flex items-center gap-1.5 text-xs text-ai"><OndraMark className="size-3.5" /> {t.overnight.appointments_booked_by_ai} booked by Ondra</p>
-                )}
-              </div>
-              <div className="bg-card p-5">
-                <p className="text-sm text-muted-foreground">Median first reply</p>
-                <p className="mt-1 text-3xl font-semibold tabular-nums">{duration(t.overnight.median_first_response_seconds)}</p>
-                <p className="mt-3 text-xs text-muted-foreground">{n(t.overnight.leads, "new lead")}{t.overnight.calls_missed ? `, ${n(t.overnight.calls_missed, "missed call")}` : ""}</p>
-              </div>
-            </div>
-          </section>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-8 lg:px-8 lg:py-10">
+        <Handover first={me?.name.split(" ")[0]} count={t ? needCount(t.needs) : null} everyone={everyone} t={t} tz={tz} />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem] xl:gap-14">
+          <Needs q={today} tz={tz} />
+          <Agenda q={today} tz={tz} everyone={everyone} />
+        </div>
+        {everyone ? (
+          <DealershipWeek r={report.data} report={report} days={days} setDays={setDays} team={t?.team ?? []} trace={setTracing} />
+        ) : (
+          <YourWeek r={report.data} report={report} days={days} setDays={setDays} meId={me?.id} />
         )}
-
-        {/* 3. Today's bookings */}
-        <section aria-labelledby="coming-up">
-          <h2 id="coming-up" className="text-sm font-medium text-muted-foreground">Booked today {t && <span className="tabular-nums">{t.appointments.length}</span>}</h2>
-          {today.isPending ? <Skeleton className="mt-3 h-24 w-full rounded-xl" /> : !t || t.appointments.length === 0 ? (
-            <p className="mt-3 rounded-xl border p-5 text-sm text-muted-foreground">No appointments today. Test drives and service bookings for today show here.</p>
-          ) : (
-            <ul className="mt-3 divide-y rounded-xl border">
-              {t.appointments.map((a) => (
-                <li key={a.id} data-vip={a.vip || undefined} className="relative grid grid-cols-[4.5rem_minmax(0,1fr)] items-baseline gap-x-4 gap-y-0.5 px-4 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto]">
-                  <span className="text-sm font-medium tabular-nums">{clock(a.starts_at, tz)}</span>
-                  <span className="min-w-0">
-                    <span className="block truncate">{a.kind}</span>
-                    <span className="block truncate text-sm text-muted-foreground">{a.client}{a.with ? `, with ${a.with}` : ""}</span>
-                  </span>
-                  {a.by_ondra && !a.vip && (
-                    <span data-slot="ai-note" className="col-start-2 flex items-center gap-1.5 text-sm text-ai sm:col-start-3"><OndraMark className="size-3.5" /> Booked by Ondra</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* 4. How it's going */}
-        <section aria-labelledby="period" className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="period" className="text-sm font-medium text-muted-foreground">The last {days} days</h2>
-            <ToggleGroup type="single" variant="outline" size="sm" value={String(days)} onValueChange={(v) => v && setDays(Number(v))} aria-label="Period">
-              <ToggleGroupItem value="7" className="px-3">7 days</ToggleGroupItem>
-              <ToggleGroupItem value="30" className="px-3">30 days</ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-          {report.isPending ? <Skeleton className="h-72 w-full rounded-xl" /> : report.isError ? (
-            <LoadError message={report.error.message} onRetry={() => report.refetch()} />
-          ) : r && (
-            <div className={cn("flex flex-col gap-4", report.isFetching && "opacity-60")} aria-busy={report.isFetching || undefined}>
-              <div className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
-                <Tile label="Leads captured" value={String(r.totals.leads)} onOpen={() => setTracing("leads")}
-                  delta={<Delta now={r.totals.leads} before={r.previous.leads} days={r.days} />}
-                  context={<span><span data-slot="ai-note" className="text-ai">{r.totals.leads_by_ai} by Ondra</span><span className="text-muted-foreground">, {r.totals.leads_after_hours} after hours</span></span>} />
-                <Tile label="Median first reply" value={duration(r.totals.median_first_response_seconds)} onOpen={() => setTracing("responses")}
-                  delta={<Delta now={r.totals.median_first_response_seconds} before={r.previous.median_first_response_seconds} days={r.days} lowerIsBetter />}
-                  context={r.totals.median_first_response_seconds_ai != null ? <span data-slot="ai-note" className="text-ai">Ondra&apos;s own: {duration(r.totals.median_first_response_seconds_ai)}</span> : undefined} />
-                <Tile label="Appointments booked" value={String(r.totals.appointments_booked)} onOpen={() => setTracing("appointments_booked")}
-                  delta={<Delta now={r.totals.appointments_booked} before={r.previous.appointments_booked} days={r.days} />}
-                  context={<span><span data-slot="ai-note" className="text-ai">{r.totals.appointments_booked_by_ai} by Ondra</span><span className="text-muted-foreground">, {r.totals.appointments_showed} showed, {r.totals.appointments_no_show} didn&apos;t</span></span>} />
-                <Tile label="Follow-ups sent" value={String(r.totals.follow_ups_sent)} onOpen={() => setTracing("follow_ups_sent")}
-                  delta={<Delta now={r.totals.follow_ups_sent} before={r.previous.follow_ups_sent} days={r.days} />} />
-              </div>
-
-              <div className="rounded-xl border p-5">
-                <h3 className="font-medium">Who answered first</h3>
-                <p className="mb-4 text-sm text-muted-foreground">Each time a customer wrote in and was waiting, who gave the first reply.</p>
-                <RepliesChart r={r} />
-              </div>
-
-              {r.people.length > 0 && (needs?.scope === "everyone") && (
-                <div className="rounded-xl border p-5">
-                  <h3 className="font-medium">Your team&apos;s first replies</h3>
-                  <p className="mb-4 text-sm text-muted-foreground">When a person, not Ondra, answered a waiting customer first.</p>
-                  <table className="w-full text-sm">
-                    <thead className="text-left text-muted-foreground">
-                      <tr><th className="pb-2 font-normal">Who</th><th className="pb-2 text-right font-normal">First replies</th><th className="pb-2 text-right font-normal">Median wait</th></tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {r.people.map((p) => (
-                        <tr key={p.user_id}>
-                          <td className="py-2">{p.name}</td>
-                          <td className="py-2 text-right tabular-nums">{p.first_replies}</td>
-                          <td className="py-2 text-right tabular-nums">{duration(p.median_first_response_seconds)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <CallBacks r={r} everyone={needs?.scope === "everyone"} onOpen={() => setTracing("callbacks")} />
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border p-5">
-                  <h3 className="font-medium">Leads by channel</h3>
-                  <p className="mb-4 text-sm text-muted-foreground">Where the {n(r.totals.leads, "lead")} came in.</p>
-                  <BarList empty="No leads in this period." rows={Object.entries(r.totals.leads_by_channel).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ key: k, label: CHANNEL[k] ?? k, value: v }))} />
-                </div>
-                <div className="rounded-xl border p-5">
-                  <h3 className="font-medium">Deals in play now</h3>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {n(r.pipeline.in_play, "open deal")}{r.pipeline.in_play > 0 && <>, <span data-slot="ai-note" className="text-ai">{r.pipeline.in_play_by_ai} that Ondra brought in</span></>}. Not limited to the last {r.days} days.
-                  </p>
-                  <BarList empty="No deals yet. A deal starts when Ondra or your team records what a buyer wants." rows={Object.entries(r.pipeline.by_stage).map(([k, v]) => ({ key: k, label: STAGE[k] ?? k, value: v }))} />
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
       </div>
       <TraceSheet metric={tracing} days={days} tz={tz} onClose={() => setTracing(null)} />
     </>

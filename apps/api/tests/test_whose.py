@@ -106,3 +106,34 @@ async def test_vips_stay_hidden_from_a_salesperson_on_everyone_too(client, datab
 async def test_an_unknown_choice_is_refused(client, database):
     sales = await login(client, SALES)
     assert (await client.get("/conversations", params={"whose": "team"}, headers=sales)).status_code == 422
+
+
+async def test_today_is_your_own_for_a_salesperson_and_shows_who_is_behind_to_an_admin(client, database):
+    t = database["a"]
+    now = datetime.now(UTC)
+    async with tenant_session(t) as db:
+        daniel, maria = await _user(db, SALES), await _user(db, OTHER)
+        c = (await db.execute(select(Contact).where(Contact.is_vip.is_(False)).limit(1))).scalar_one()
+        kind = (await db.execute(select(AppointmentType).limit(1))).scalar_one()
+        # Today, an hour from now in the dealership's day (or the start of the day just past if it's late).
+        at = max(now + timedelta(minutes=30), now)
+        chi_end = datetime.combine(at.astimezone(ZoneInfo("America/Chicago")).date(), datetime.max.time(), ZoneInfo("America/Chicago"))
+        at = min(at, chi_end - timedelta(minutes=31))
+        theirs = Appointment(contact_id=c.id, appointment_type_id=kind.id, starts_at=at, ends_at=at + timedelta(minutes=30),
+                             assigned_user_id=maria.id, status="booked", source="staff")
+        db.add(theirs)
+        await db.flush()
+        made = theirs.id
+    try:
+        sales, admin = await login(client, SALES), await login(client, ADMIN)
+        mine = (await client.get("/today", headers=sales)).json()
+        assert str(made) not in {a["id"] for a in mine["appointments"]} and mine["team"] == []
+        everyone = (await client.get("/today", headers=admin)).json()
+        assert str(made) in {a["id"] for a in everyone["appointments"]}
+        # Seeded overdue tasks belong to Daniel: he's on the admin's "who's behind" list.
+        behind = {p["name"]: p for p in everyone["team"]}
+        assert behind and all(p["overdue"] + p["callbacks"] > 0 for p in everyone["team"])
+        assert daniel.name in behind
+    finally:
+        async with tenant_session(t) as db:
+            await db.execute(Appointment.__table__.delete().where(Appointment.id == made))

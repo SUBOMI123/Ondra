@@ -963,3 +963,21 @@ First real booking call: 3.5 s average wait, 5 s worst; the voice started in 0.1
   shared refresh per tab now, and /login returns you to the page you came from (`?next=`, same-site paths only).
   Two tabs refreshing in the same instant can still race; a short server-side grace window would close that.
   The UI review now fails if any page lands somewhere other than where it was sent.
+
+## 2026-11-28: Today, redesigned
+
+- **Built one layout, not three options first.** The plan asked for two or three screenshots to choose from; the
+  founder then asked for every plan item to be done in one go, so I built the one I'd recommend and kept the before
+  and after screenshots. Easy to revisit: the page is one file.
+- **It opens with a handover note**, not a greeting: "5 things need someone." Under it, in Ondra blue, what Ondra did
+  while the dealership was closed, only when it did something. The old "While you were closed" box showed three zeros
+  most evenings.
+- **What needs you sits beside today's bookings** (a timeline), so the two things you act on are on one screen.
+- **The week is different by role.** Admins and managers: four numbers (leads, first reply, appointments, time to
+  call back), "Who's behind" (overdue tasks and callers waiting, per person, from `/today`), deals in play, and the
+  rest folded under "More numbers". Everyone else: their own open deals, their own reply speed and call-back speed.
+  A salesperson no longer sees dealership charts they can't act on.
+- **`/today` is now scoped for non-managers**: their own drafts (their clients' conversations) and their own
+  bookings. Before, a salesperson saw the whole dealership's draft count and appointments.
+- **Smaller fixes:** numbers at weight 400 (the skill's rule, they were bold); durations read "45 min" rather than
+  "45 min 00 s"; the greeting uses the dealership's clock; on phones each row's button sits under its explanation.

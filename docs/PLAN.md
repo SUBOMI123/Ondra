@@ -98,7 +98,7 @@ have Mine / Everyone tabs.
 
 **Done when:** each screen has the switch with the right default per role, and tests cover what each role sees.
 
-### 7. Today, redesigned
+### 7. Today, redesigned ✅ Done 2026-11-28
 
 It doesn't work as a screen today (founder, 2026-11-28). Redesign with the `ondra-ui` and `frontend-design` skills,
 after 6 (what Today shows depends on whose work it is).

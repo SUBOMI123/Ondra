@@ -17,7 +17,17 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ondra_core.models import Appointment, AppointmentType, Contact, Deal, Message, Task, Tenant, User
+from ondra_core.models import (
+    Appointment,
+    AppointmentType,
+    Contact,
+    Conversation,
+    Deal,
+    Message,
+    Task,
+    Tenant,
+    User,
+)
 from ondra_core.permissions import Perm, can_see_vips, has_perm
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -26,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ondra_api.deps import Caller, require
 from ondra_api.services import metrics
 from ondra_api.services.calls import CALLBACK_BRIEFS
-from ondra_api.services.whose import Whose
+from ondra_api.services.whose import Whose, my_clients
 
 router = APIRouter(tags=["analytics"])
 OPEN = ("open", "in_progress")
@@ -295,8 +305,9 @@ async def move_deal(deal_id: uuid.UUID, body: StageIn, ctx: tuple[Caller, AsyncS
 
 @router.get("/today")
 async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_READ))) -> dict:
-    """What needs the reader now (their own work, or everyone's for an owner or manager), how last night went, and
-    today's appointments. VIPs appear only for people who may see them."""
+    """What needs the reader now (their own work, or everyone's for an admin or manager), how last night went, today's
+    appointments (theirs, or everyone's), and for admins and managers whose work is slipping. VIPs appear only for
+    people who may see them."""
     caller, db = ctx
     tenant = (await db.execute(select(Tenant).limit(1))).scalar_one()
     tz = ZoneInfo((tenant.timezones or ["America/Chicago"])[0])
@@ -324,14 +335,33 @@ async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_RE
             overdue.append(item)
         elif t.urgency == "high":
             hot.append(item)
-    drafts = (await db.execute(select(func.count()).select_from(Message).where(Message.is_draft.is_(True), Message.status == "queued"))).scalar_one()
+    drafts_q = select(func.count()).select_from(Message).where(Message.is_draft.is_(True), Message.status == "queued")
+    mine = None if everything else await my_clients(db, caller.user_id)
+    if mine is not None:  # a salesperson approves drafts for their own clients
+        drafts_q = drafts_q.join(Conversation, Conversation.id == Message.conversation_id).where(Conversation.contact_id.in_(mine or [uuid.uuid4()]))
+    drafts = (await db.execute(drafts_q)).scalar_one()
     start = datetime.combine(now.astimezone(tz).date(), time(0), tz)
     names = dict((await db.execute(select(User.id, User.name))).all())
     appts = (await db.execute(
         select(Appointment, Contact, AppointmentType.name).join(Contact, Contact.id == Appointment.contact_id)
         .join(AppointmentType, AppointmentType.id == Appointment.appointment_type_id)
-        .where(Appointment.starts_at >= start, Appointment.starts_at < start + timedelta(days=1), Appointment.status.in_(("booked", "confirmed", "showed")))
+        .where(Appointment.starts_at >= start, Appointment.starts_at < start + timedelta(days=1), Appointment.status.in_(("booked", "confirmed", "showed")),
+               *(() if everything else (Appointment.assigned_user_id == caller.user_id,)))
         .order_by(Appointment.starts_at))).all()
+    # For an admin or manager: whose work is slipping, by person (overdue tasks, callers waiting on them).
+    team: list[dict] = []
+    if everything:
+        behind: dict = {}
+        for t, c in rows:
+            if t.assignee_user_id is None:
+                continue
+            is_callback = c is not None and t.source == "rule" and t.brief in CALLBACK_BRIEFS
+            late = t.due_at is not None and t.due_at < now
+            if late or is_callback:
+                b = behind.setdefault(t.assignee_user_id, {"overdue": 0, "callbacks": 0})
+                b["callbacks" if is_callback else "overdue"] += 1
+        team = sorted(({"user_id": str(u), "name": names.get(u, "Someone"), **v} for u, v in behind.items()),
+                      key=lambda x: (-x["overdue"] - x["callbacks"], x["name"]))
     return {
         "timezone": str(tz),
         "needs": {"vips": vips[:10], "drafts": drafts if caller.role != "viewer" else 0, "overdue": overdue[:10], "overdue_count": len(overdue),
@@ -339,6 +369,7 @@ async def today(ctx: tuple[Caller, AsyncSession] = Depends(require(Perm.TASKS_RE
                   "callbacks": {"count": len(callbacks), "overdue": sum(1 for x in callbacks if x["overdue"]),
                                 "oldest": min(callbacks, key=lambda x: x["since"]) if callbacks else None}},
         "overnight": await metrics.overnight(db),
+        "team": team,
         "appointments": [{"id": str(a.id), "starts_at": a.starts_at.isoformat(), "kind": kind,
                           "client": "A VIP client" if c.is_vip and not (sees_vips or c.vip_owner_user_id == caller.user_id) else c.display_name,
                           "with": (names.get(a.assigned_user_id) or "").split(" ")[0] or None, "by_ondra": a.source == "ai", "vip": bool(c.is_vip)}
